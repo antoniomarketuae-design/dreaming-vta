@@ -32,19 +32,36 @@ export function loadKb() {
 const normalize = (s) => ` ${String(s).toLowerCase().replace(/[’']/g, "'").replace(/[^a-z0-9']+/g, ' ').replace(/\s+/g, ' ').trim()} `;
 const termsOf = (e) => [e.name, ...(e.aliases || []), ...(e.signals || [])].filter(Boolean);
 
-/** Entries mentioned in the text, themes first, most matches first. Whole-word, with simple plural tolerance. */
+/**
+ * Entries mentioned in the text, themes first, most matches first. Whole-word, with simple plural tolerance.
+ * A match inside a longer match of the same kind is dropped ("teeth falling" hides the falling theme,
+ * "ex boyfriend" hides the partner symbol), but a theme phrase never hides a symbol ("at the funeral" keeps Funeral).
+ */
 export function match(text, entries) {
   const hay = normalize(text);
-  const found = [];
+  const hits = [];
   for (const e of entries) {
-    const hits = new Set();
     for (const term of termsOf(e)) {
       const t = normalize(term).trim();
       if (!t) continue;
-      if (hay.includes(` ${t} `) || (!t.includes(' ') && (hay.includes(` ${t}s `) || hay.includes(` ${t}es `)))) hits.add(term.toLowerCase());
+      for (const v of t.includes(' ') ? [t] : [t, `${t}s`, `${t}es`]) {
+        for (let i = hay.indexOf(` ${v} `); i !== -1; i = hay.indexOf(` ${v} `, i + 1)) {
+          hits.push({ id: e.id, kind: e.kind, term: term.toLowerCase(), start: i + 1, end: i + 1 + v.length });
+        }
+      }
     }
-    if (hits.size) found.push({ id: e.id, kind: e.kind, name: e.name, matched: [...hits], summary: e.summary });
   }
+  const kept = hits.filter((h) => !hits.some((o) => o.kind === h.kind && o.end - o.start > h.end - h.start && o.start <= h.start && o.end >= h.end));
+  const byEntry = new Map();
+  for (const h of kept) {
+    if (!byEntry.has(h.id)) byEntry.set(h.id, new Set());
+    byEntry.get(h.id).add(h.term);
+  }
+  const entryById = new Map(entries.map((e) => [e.id, e]));
+  const found = [...byEntry].map(([id, terms]) => {
+    const e = entryById.get(id);
+    return { id, kind: e.kind, name: e.name, matched: [...terms], summary: e.summary };
+  });
   found.sort((a, b) => (a.kind === b.kind ? b.matched.length - a.matched.length : a.kind === 'theme' ? -1 : 1));
   const matchedIds = new Set(found.map((f) => f.id));
   const byId = new Map(entries.map((e) => [e.id, e]));
@@ -52,6 +69,32 @@ export function match(text, entries) {
     .filter((id) => !matchedIds.has(id) && byId.has(id))
     .map((id) => ({ id, name: byId.get(id).name }));
   return { found, related };
+}
+
+// Real predictions only. Debunking ("such dreams foretell a death has no basis") and "dangers you cannot predict" pass.
+const PREDICTION = /\b(you will (soon )?(meet|marry|die|become|get|lose|win|receive|inherit|travel|fall ill|be (rich|wealthy|sick|ill|pregnant|married|lucky))|will bring you (luck|money|wealth|misfortune)|(is|as) an omen|a (bad|good) omen|brings? (good|bad) luck|this (dream )?(predicts|foretells|means you will))\b/i;
+
+/** Problems with an interpretation result, checked against the knowledge base. Empty list = OK to send. */
+export function checkResult(result, entries) {
+  const problems = [];
+  if (typeof result?.essence !== 'string' || !result.essence.trim()) problems.push('essence missing');
+  if (!Array.isArray(result?.reflect) || result.reflect.length !== 2) problems.push('reflect must have exactly 2 questions');
+  if (typeof result?.perspectives?.psychology !== 'string') problems.push('perspectives.psychology missing');
+  const ids = new Set(entries.map((e) => e.id));
+  const used = [...(result?.symbols || []), ...(result?.themes || [])].map((s) => s.entry);
+  for (const id of new Set([...used, ...(result?.basedOn || [])])) if (!ids.has(id)) problems.push(`"${id}" is not in the knowledge base`);
+  for (const id of used) if (!(result.basedOn || []).includes(id)) problems.push(`"${id}" used but not listed in basedOn`);
+  const shown = { ...result };
+  delete shown.gaps;
+  if (PREDICTION.test(JSON.stringify(shown))) problems.push('possible prediction language');
+  return problems;
+}
+
+/** Words the dreamer reads (everything except ids, gaps and the fixed disclaimer). */
+export function wordCount(result) {
+  const parts = [result.essence, result.feeling?.text, result.care, ...Object.values(result.perspectives || {}), ...(result.reflect || []),
+    ...[...(result.symbols || []), ...(result.themes || [])].flatMap((s) => [s.name, s.meaning])];
+  return parts.filter(Boolean).join(' ').split(/\s+/).filter(Boolean).length;
 }
 
 function check(entries, problems) {

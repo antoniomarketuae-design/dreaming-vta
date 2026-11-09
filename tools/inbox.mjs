@@ -10,7 +10,7 @@
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { loadKb } from './kb.mjs';
+import { loadKb, checkResult as checkAgainstKb } from './kb.mjs';
 
 const BASE = process.env.DREAMING_API || 'https://nexflowclub.com/dreaming-api';
 const KEY = readFileSync(join(homedir(), '.dreaming', 'admin.key'), 'utf8').trim();
@@ -27,18 +27,7 @@ async function api(method, path, body) {
   return data;
 }
 
-function checkResult(result) {
-  const problems = [];
-  if (typeof result.essence !== 'string' || !result.essence.trim()) problems.push('essence missing');
-  if (!Array.isArray(result.reflect) || result.reflect.length !== 2) problems.push('reflect must have exactly 2 questions');
-  if (typeof result.perspectives?.psychology !== 'string') problems.push('perspectives.psychology missing');
-  const ids = new Set(loadKb().entries.map((e) => e.id));
-  const used = [...(result.symbols || []), ...(result.themes || [])].map((s) => s.entry);
-  for (const id of [...used, ...(result.basedOn || [])]) if (!ids.has(id)) problems.push(`"${id}" is not in the knowledge base`);
-  for (const id of used) if (!(result.basedOn || []).includes(id)) problems.push(`"${id}" used but not listed in basedOn`);
-  if (/\b(you will|will happen|is going to happen|predicts?|foretells?|omen)\b/i.test(JSON.stringify(result))) problems.push('possible prediction language');
-  return problems;
-}
+const checkResult = (result) => checkAgainstKb(result, loadKb().entries);
 
 const [cmd, ...args] = process.argv.slice(2);
 const print = (v) => console.log(JSON.stringify(v, null, 2));
