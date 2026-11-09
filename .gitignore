@@ -2,3 +2,7 @@ node_modules/
 *.log
 .DS_Store
 Thumbs.db
+
+# Source books for the interpretation knowledge base: keep them on this PC only
+Interpretation/*.pdf
+Interpretation/sources/

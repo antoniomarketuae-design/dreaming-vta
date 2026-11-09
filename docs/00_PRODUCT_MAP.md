@@ -27,6 +27,9 @@ updates itself the next time it is opened.
 | Dream visualisation | ✅ v5 | `app/js/dreamart.js` | Generative canvas painting seeded per dream (no AI image service yet). Real AI images later = needs backend + API key. |
 | Screens | ✅ v5 | `screens/home, record, dream, journal, insights, profile.js` + `css/<screen>.css` | Router in `app.js`: tabs + `#record[/type]` + `#dream/<id>`. Each screen owns a CSS file with a prefix (.home- .rec- .dream- .jr- .ins- .prof-). |
 | Morning reminder | ✅ v5 (untested on iPhone) | `screens/profile.js` | Daily .ics calendar event (no server needed). Real push notifications need a server. |
+| Dream interpretation — inbox server | ✅ live 2026-11-09 | `server/` → VPS `/opt/dreaming`, PM2 `dreaming-api` :3020 | **https://nexflowclub.com/dreaming-api/**. Phone sends dream → gets id + secret token → polls. Claude (dev PC, admin key in `~/.dreaming/admin.key`) reads `/admin/queue`, answers. Postgres db `dreaming`. Later the server calls the AI itself (same phone API). |
+| Dream interpretation — knowledge base | ⬜ next | `Interpretation/` | Sources: Freud 1913 + 1920, Miller 1901 (public domain); 3 PDFs unidentified. Plan: own JSON KB (symbols, themes, contexts, sources) + AI reader. Pilot 100 symbols / 20 themes first. |
+| Dream interpretation — in the app | ⬜ next | `app/js/screens/dream.js` | Tester-only "What does it mean?" button → POST to inbox → "Interpreting…" → card + 👍/👎. |
 | In-app Builder chat (Claude API) | 💭 later | — | User chose "start simple, add builder later". Needs a small backend + Anthropic API key (pay per use). |
 | Native wrapper (App Store / TestFlight) | 💭 maybe | — | Capacitor can wrap the same code later if ever needed. |
 
