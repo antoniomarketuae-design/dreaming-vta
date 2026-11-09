@@ -103,3 +103,279 @@
   color: var(--moon);
 }
 .dream-toggle[aria-pressed="true"] svg { filter: drop-shadow(0 0 6px rgba(255, 217, 138, 0.6)); }
+
+/* ---- Interpretation (beta) ---- */
+
+.dream-interp { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.dream-interp:empty { display: none; }
+
+.dream-ask {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 54px;
+  padding: 14px 18px;
+  border: 1px solid rgba(190, 160, 255, 0.34);
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(135deg, rgba(141, 108, 245, 0.26), rgba(194, 122, 216, 0.16) 60%, rgba(242, 154, 140, 0.14)),
+    var(--glass);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  box-shadow: 0 0 28px rgba(155, 123, 255, 0.22);
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+.dream-ask:active { transform: scale(0.99); opacity: 0.85; }
+.dream-ask[disabled] { opacity: 0.6; cursor: default; }
+.dream-ask-spark { filter: drop-shadow(0 0 6px rgba(255, 217, 138, 0.6)); }
+
+.dream-interp-card { padding: 18px 18px 16px; color: var(--text); }
+.dream-interp-card p { margin: 0; }
+
+.dream-interp-h {
+  margin: 0 0 12px;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dream-interp-card .dream-interp-kicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.dream-interp-beta {
+  padding: 1px 7px;
+  border: 1px solid rgba(255, 217, 138, 0.3);
+  border-radius: 999px;
+  color: var(--moon);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+
+.dream-interp-essence {
+  color: var(--text);
+  font-size: 21px;
+  line-height: 1.42;
+  font-weight: 300;
+  letter-spacing: -0.005em;
+  overflow-wrap: anywhere;
+}
+
+.dream-interp-text {
+  color: rgba(240, 234, 255, 0.78);
+  font-size: 16px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.dream-interp-list { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.dream-interp-item { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.dream-interp-name {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 10px;
+  border: 1px solid rgba(190, 160, 255, 0.26);
+  border-radius: 999px;
+  background: rgba(155, 123, 255, 0.14);
+  color: rgba(226, 214, 255, 0.92);
+  font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.dream-interp-meaning {
+  color: rgba(240, 234, 255, 0.78);
+  font-size: 15.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.dream-interp-arc {
+  max-width: 100%;
+  margin-bottom: 10px;
+  white-space: normal;
+  border-color: rgba(255, 217, 138, 0.28);
+  background: rgba(255, 217, 138, 0.08);
+  color: rgba(255, 228, 170, 0.9);
+}
+
+.dream-interp-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 3px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: rgba(10, 6, 30, 0.35);
+}
+.dream-interp-tab {
+  flex: 1;
+  min-height: 36px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.dream-interp-tab[aria-selected="true"] { background: rgba(155, 123, 255, 0.24); color: var(--text); }
+.dream-interp-panel[hidden] { display: none; }
+
+.dream-interp-reflect { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.dream-interp-reflect li {
+  padding: 2px 0 2px 14px;
+  border-left: 2px solid rgba(255, 217, 138, 0.35);
+  color: rgba(240, 234, 255, 0.8);
+  font-size: 16.5px;
+  font-style: italic;
+  font-weight: 300;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.dream-interp-care {
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 159, 143, 0.28);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(255, 159, 143, 0.12), rgba(155, 123, 255, 0.1));
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+}
+.dream-interp-care p { margin: 0; color: rgba(255, 228, 220, 0.86); font-size: 15.5px; line-height: 1.55; overflow-wrap: anywhere; }
+
+.dream-interp-card .dream-interp-stale { margin-top: 12px; font-size: 13.5px; }
+.dream-interp-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--violet);
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.dream-interp-link[disabled] { opacity: 0.6; }
+
+/* Footer: sources, feedback, disclaimer */
+.dream-interp-foot { padding-top: 6px; padding-bottom: 14px; }
+.dream-interp-based { border-bottom: 1px solid var(--glass-border); }
+.dream-interp-based summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 46px;
+  color: var(--text-dim);
+  font-size: 14.5px;
+  cursor: pointer;
+  list-style: none;
+}
+.dream-interp-based summary::-webkit-details-marker { display: none; }
+.dream-interp-based summary::marker { content: ""; }
+.dream-interp-based summary svg { width: 18px; height: 18px; color: var(--text-faint); transition: transform 0.2s; }
+.dream-interp-based[open] summary svg { transform: rotate(90deg); }
+.dream-interp-based ul { margin: 0; padding: 0 0 12px; list-style: none; }
+.dream-interp-based li { padding: 3px 0; color: var(--text-faint); font-size: 14px; }
+
+.dream-interp-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 54px;
+  padding-top: 6px;
+}
+.dream-interp-ask { color: var(--text-dim); font-size: 15px; }
+.dream-interp-thumbs { display: flex; gap: 8px; }
+.dream-interp-thumb {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+  filter: grayscale(0.5);
+  opacity: 0.8;
+}
+.dream-interp-thumb[aria-pressed="true"] {
+  border-color: rgba(255, 217, 138, 0.45);
+  background: rgba(255, 217, 138, 0.12);
+  filter: none;
+  opacity: 1;
+}
+.dream-interp-thumb[disabled] { opacity: 0.5; }
+
+.dream-interp-note { display: flex; gap: 8px; margin: 4px 0 6px; }
+.dream-interp-note .field { flex: 1; min-width: 0; padding: 11px 14px; font-size: 16px; }
+.dream-interp-note .btn { width: auto; min-height: 46px; padding: 10px 16px; }
+
+.dream-interp-card .dream-interp-disclaimer { margin-top: 8px; font-size: 12.5px; text-align: center; }
+
+/* Failed */
+.dream-interp-failed { text-align: center; }
+.dream-interp-card .dream-interp-failed-title { margin-bottom: 14px; color: var(--text-dim); font-size: 16px; }
+
+/* Waiting: a softly breathing moon and a twinkle */
+.dream-interp-wait { padding: 26px 22px 20px; text-align: center; }
+.dream-interp-moon {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 217, 138, 0.18), rgba(255, 217, 138, 0) 70%);
+  color: var(--moon);
+  animation: dream-interp-breathe 3.6s ease-in-out infinite;
+}
+.dream-interp-moon svg { width: 30px; height: 30px; filter: drop-shadow(0 0 8px rgba(255, 217, 138, 0.55)); }
+.dream-interp-card .dream-interp-wait-title { margin-bottom: 14px; color: var(--text); font-size: 19px; font-weight: 300; }
+.dream-interp-shimmer { display: flex; justify-content: center; gap: 8px; margin-bottom: 16px; }
+.dream-interp-shimmer span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(222, 212, 255, 0.7);
+  animation: dream-interp-twinkle 1.8s ease-in-out infinite;
+}
+.dream-interp-shimmer span:nth-child(2) { animation-delay: 0.3s; }
+.dream-interp-shimmer span:nth-child(3) { animation-delay: 0.6s; }
+.dream-interp-wait-note { font-size: 14px; line-height: 1.5; }
+.dream-interp-card .dream-interp-sent { margin-top: 10px; font-size: 12.5px; }
+
+@keyframes dream-interp-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+@keyframes dream-interp-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 0.9; transform: scale(1.15); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dream-interp-moon,
+  .dream-interp-shimmer span { animation: none; }
+  .dream-interp-shimmer span { opacity: 0.5; }
+}

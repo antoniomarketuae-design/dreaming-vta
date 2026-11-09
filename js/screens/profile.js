@@ -174,6 +174,15 @@ function draw(el, ctx) {
       </div>
     </section>
 
+    <h2 class="section-title">Labs</h2>
+    <section class="glass prof-card">
+      <label class="prof-row prof-switch-row">
+        <span class="prof-label">Dream interpretation <span class="prof-beta">beta</span></span>
+        <input class="prof-switch" type="checkbox" role="switch" data-interpret ${getSetting('interpretBeta', false) === true ? 'checked' : ''}>
+      </label>
+      <p class="prof-consent faint">When you tap ‘What does it mean?’, that dream’s text is sent to Dreaming’s server to be interpreted. Your journal stays on this iPhone.</p>
+    </section>
+
     <h2 class="section-title">About</h2>
     <section class="glass prof-card">
       <div class="prof-row"><span class="prof-label">Version</span><span class="prof-value">${esc(v?.version ?? '—')}</span></div>
@@ -235,6 +244,12 @@ function draw(el, ctx) {
     clearAll();
     ctx.toast('All dreams deleted');
     redraw();
+  });
+
+  $('[data-interpret]').addEventListener('change', (e) => {
+    const on = e.target.checked;
+    setSetting('interpretBeta', on);
+    ctx.toast(on ? 'Dream interpretation is on' : 'Dream interpretation is off');
   });
 
   $('[data-check]').addEventListener('click', () => ctx.checkForUpdate('manual'));
