@@ -88,7 +88,15 @@ function checkMiller(entry) {
 
 const prefix = process.argv.slice(2).find((a) => !a.startsWith('--')) || '';
 const list = process.argv.includes('--list');
-const { entries } = loadKb();
+// --ids=<file> limits the check to the ids listed in that file (one per line, or a JSON array).
+const idsArg = process.argv.find((a) => a.startsWith('--ids='));
+const onlyIds = idsArg
+  ? new Set(readFileSync(idsArg.slice(6), 'utf8').trim().startsWith('[')
+    ? JSON.parse(readFileSync(idsArg.slice(6), 'utf8'))
+    : readFileSync(idsArg.slice(6), 'utf8').split(/\s+/).filter(Boolean))
+  : null;
+const all = loadKb().entries;
+const entries = onlyIds ? all.filter((e) => onlyIds.has(e.id)) : all;
 const tally = { freud: [0, 0], miller: [0, 0] };
 let quotes = 0;
 let indirect = 0;
