@@ -17,17 +17,16 @@ updates itself the next time it is opened.
 | Offline support (service worker) | ✅ v1 | `app/sw.js` | Network-first + cache fallback. Verified in headless Edge: offline reload renders fully. The in-app browser pane does NOT support service workers — test SW in Edge. |
 | Self-update loop | ✅ v1 | `app/version.json`, `checkForUpdate` in `app.js`, `tools/bump.js` | **After every change run** `node tools/bump.js "what changed"`. App reloads on resume; shows "Version N is ready · Update" if open. Build log on About tab. |
 | Local server | ✅ | `tools/serve.js` | Port 8787, 127.0.0.1 only, `Cache-Control: no-cache`. |
-| Temporary public link | ✅ (temporary) | `start-test-link.cmd` | localhost.run over ssh, `https://<random>.lhr.life`. URL changes when the tunnel restarts / periodically → the installed icon is tied to that URL and must be re-added. Only works while the PC is on. |
-| Permanent hosting | ⬜ next | — | GitHub Pages (needs user's GitHub account) or Netlify/Vercel. One-time re-install on phone after the move. |
+| Temporary public link | ❌ dropped | — | localhost.run rotated the URL within minutes and then dropped ("tunnel activity timeout"). Unusable for a Home Screen app, whose icon is tied to one URL. |
+| Permanent hosting (GitHub Pages) | 🟡 waiting on repo | `tools/publish.js` | Target: **https://antoniomarketuae-design.github.io/dreaming-vta/**. Repo `antoniomarketuae-design/dreaming-vta` (public, empty) is created by the user. `main` = whole project, `gh-pages` = `app/` via `git subtree push`. Local git repo + first commit done; adding the remote was blocked by the auto-mode classifier, so it needs the user's go-ahead. |
 | The actual app content ("Your space") | ⬜ | `app/js/screens/` | Not decided yet — the user will define it from the phone. |
 | In-app Builder chat (Claude API) | 💭 later | — | User chose "start simple, add builder later". Needs a small backend + Anthropic API key (pay per use). |
 | Native wrapper (App Store / TestFlight) | 💭 maybe | — | Capacitor can wrap the same code later if ever needed. |
 
 ## How to run
 
-- Start everything (server + public link): double-click `start-test-link.cmd`, keep the window open, use the `https://….lhr.life` address it prints.
-- Server only: `node tools/serve.js` → http://localhost:8787
-- Record a change: `node tools/bump.js "Added the X screen"`
+- Local preview: `node tools/serve.js` → http://localhost:8787
+- Ship a change: `node tools/bump.js "Added the X screen"` then `node tools/publish.js` (live ~1 min later; the phone picks it up on next open).
 
 ## Decisions (2026-11-09)
 
