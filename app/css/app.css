@@ -34,6 +34,38 @@ body {
 
 a, button { touch-action: manipulation; }
 
+/* ---- Home screen photo background ---- */
+
+#app { position: relative; z-index: 0; }
+
+/* A fixed layer rather than background-attachment: fixed, which iOS Safari ignores */
+body[data-screen="home"] #app::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url("../images/home-bg.webp") center top / cover no-repeat, var(--bg);
+}
+
+/* Frosted cards so text stays readable over the stars and the pink clouds */
+body[data-screen="home"] .card {
+  background: rgba(18, 13, 46, 0.42);
+  border-color: rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+body[data-screen="home"] .hero {
+  background:
+    linear-gradient(150deg, rgba(76, 52, 160, 0.55) 0%, rgba(36, 26, 92, 0.45) 100%);
+}
+body[data-screen="home"] .empty {
+  background: rgba(18, 13, 46, 0.32);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #d6ccf5;
+}
+body[data-screen="home"] .section-title { color: #cfc4f4; }
+body[data-screen="home"] .tabbar { background: rgba(18, 13, 46, 0.55); }
+
 /* ---- Layout ---- */
 
 .screen {

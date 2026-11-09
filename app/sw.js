@@ -13,6 +13,7 @@ const SHELL = [
   'js/screens/about.js',
   'icons/icon-180.png',
   'icons/icon-192.png',
+  'images/home-bg.webp',
 ];
 
 self.addEventListener('install', (event) => {
