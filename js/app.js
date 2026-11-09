@@ -1,9 +1,14 @@
 import home from './screens/home.js';
-import about from './screens/about.js';
+import journal from './screens/journal.js';
+import insights from './screens/insights.js';
+import profile from './screens/profile.js';
+import record from './screens/record.js';
+import dream from './screens/dream.js';
 import { icons } from './ui.js';
 
-// Every screen in the app, in tab-bar order. A new screen is a new file in screens/ plus one entry here.
-const SCREENS = [home, about];
+// Tab-bar screens, in order. Other screens are reached by link: #record, #dream/<id>.
+const TABS = [home, journal, insights, profile];
+const SCREENS = [...TABS, record, dream];
 
 const screenEl = document.getElementById('screen');
 const tabbarEl = document.getElementById('tabbar');
@@ -19,32 +24,59 @@ const ctx = {
   get version() { return state.version; },
   isStandalone,
   checkForUpdate: (reason) => checkForUpdate(reason),
+  toast: (message) => toast(message),
+  navigate(hash) {
+    if (location.hash === hash) render();
+    else location.hash = hash;
+  },
+  // Goes back within the app; a screen opened directly (fresh launch, shared link) goes Home instead.
+  back() {
+    if (inAppMoves > 0) history.back();
+    else ctx.navigate('#home');
+  },
 };
+
+let inAppMoves = 0;
 
 // ---- Screens and tab bar ----
 
-function currentScreen() {
-  const id = location.hash.slice(1);
-  return SCREENS.find((s) => s.id === id) ?? SCREENS[0];
+function parseRoute() {
+  const [id, ...rest] = location.hash.slice(1).split('/');
+  const screen = SCREENS.find((s) => s.id === id) ?? home;
+  const param = rest.length ? decodeURIComponent(rest.join('/')) : null;
+  return { screen, param };
 }
 
 function renderTabs() {
-  tabbarEl.innerHTML = SCREENS.map((s) => `
+  tabbarEl.innerHTML = TABS.map((s) => `
     <a class="tab" href="#${s.id}" data-id="${s.id}">${s.icon}<span>${s.label}</span></a>
   `).join('');
 }
 
+let active = null;
+
 function render() {
-  const screen = currentScreen();
+  const { screen, param } = parseRoute();
+  try { active?.destroy?.(); } catch {}
+  active = screen;
+
   document.body.dataset.screen = screen.id;
-  screen.render(screenEl, ctx);
+  document.body.dataset.tabbar = screen.hideTabbar ? 'hidden' : 'shown';
+  tabbarEl.hidden = Boolean(screen.hideTabbar);
   for (const tab of tabbarEl.querySelectorAll('.tab')) {
     if (tab.dataset.id === screen.id) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
   }
+
+  try {
+    screen.render(screenEl, ctx, param);
+  } catch (err) {
+    console.error(err);
+    screenEl.innerHTML = '<p class="muted" style="padding-top:40px">Something went wrong on this screen.</p>';
+  }
 }
 
-window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+window.addEventListener('hashchange', () => { inAppMoves += 1; render(); window.scrollTo(0, 0); });
 
 // ---- Messages at the top of the screen ----
 
@@ -81,15 +113,16 @@ async function checkForUpdate(reason) {
 
   if (!state.version) {
     state.version = latest;
-    render();
+    // Only screens that show version info need a refresh; recording must never be interrupted.
+    if (active?.id === 'profile') render();
     return;
   }
   if (latest.version === state.version.version) {
     if (reason === 'manual') toast('You have the latest version');
     return;
   }
-  // Coming back to the app is a natural moment to switch over without interrupting anything.
-  if (reason === 'resume' || reason === 'manual') {
+  // Coming back to the app is a natural moment to switch over, unless a dream is being recorded.
+  if ((reason === 'resume' && active?.id !== 'record') || reason === 'manual') {
     location.reload();
     return;
   }
