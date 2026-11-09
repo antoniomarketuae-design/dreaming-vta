@@ -1,0 +1,105 @@
+/* One dream (#dream/<id>). Every selector starts with .dream */
+
+.dream-when {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  text-align: right;
+}
+
+.dream-art {
+  --glow: 260;
+  width: min(100%, 360px);
+  aspect-ratio: 1;
+  margin: 8px auto 24px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: radial-gradient(circle at 40% 35%, hsla(var(--glow), 70%, 65%, 0.35), rgba(22, 15, 56, 0.6));
+  box-shadow:
+    0 0 48px hsla(var(--glow), 75%, 65%, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.dream-art img { width: 100%; height: 100%; object-fit: cover; }
+
+.dream-title {
+  margin: 0 2px 14px;
+  font-size: 30px;
+  line-height: 1.18;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.dream-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.dream-flag { color: var(--moon); border-color: rgba(255, 217, 138, 0.3); background: rgba(255, 217, 138, 0.08); }
+.dream-flag .star-mark { width: 14px; height: 14px; margin-left: -3px; }
+
+.dream-text {
+  padding: 18px;
+  font-size: 17px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.dream-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* ---- Not found ---- */
+
+.dream-missing { padding: 26px 20px 20px; text-align: center; }
+.dream-missing p { margin: 0 0 8px; }
+.dream-missing .btn { margin-top: 16px; text-decoration: none; }
+.dream-missing-title { font-size: 20px; font-weight: 300; }
+
+/* ---- Edit mode ---- */
+
+.dream-card { padding: 18px 16px 8px; }
+
+.dream-label {
+  display: block;
+  margin: 0 4px 8px;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dream-title-input { margin-bottom: 18px; font-size: 20px; font-weight: 300; }
+.dream-textarea { display: block; margin-bottom: 18px; min-height: 200px; resize: vertical; line-height: 1.55; }
+
+.dream-chips-edit .chip { min-height: 44px; padding: 0 16px; font-size: 15px; }
+
+.dream-toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 4px 0 12px;
+}
+.dream-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 50px;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-dim);
+  font-size: 16px;
+  cursor: pointer;
+}
+.dream-toggle svg { width: 20px; height: 20px; }
+.dream-toggle[aria-pressed="true"] {
+  border-color: rgba(255, 217, 138, 0.4);
+  background: rgba(255, 217, 138, 0.1);
+  color: var(--moon);
+}
+.dream-toggle[aria-pressed="true"] svg { filter: drop-shadow(0 0 6px rgba(255, 217, 138, 0.6)); }

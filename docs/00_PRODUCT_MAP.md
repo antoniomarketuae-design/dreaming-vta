@@ -21,7 +21,12 @@ updates itself the next time it is opened.
 | Local server | ✅ | `tools/serve.js` | Port 8787, 127.0.0.1 only, `Cache-Control: no-cache`. |
 | Temporary public link | ❌ dropped | — | localhost.run rotated the URL within minutes and then dropped ("tunnel activity timeout"). Unusable for a Home Screen app, whose icon is tied to one URL. |
 | Permanent hosting (GitHub Pages) | ✅ live 2026-11-09 | `tools/publish.js` | **https://antoniomarketuae-design.github.io/dreaming-vta/** · repo `antoniomarketuae-design/dreaming-vta` (public). `main` = whole project, `gh-pages` = `app/` via `git subtree push`; Pages auto-enabled on first gh-pages push, live ~30 s later. This PC's Git Credential Manager is already signed in, so pushes need no prompt. Verified live: all files 200, SW active, offline reload renders. |
-| The actual app content ("Your space") | ⬜ | `app/js/screens/` | Not decided yet — the user will define it from the phone. |
+| **Dream journal (v5)** — the app's purpose | 🟡 building | see rows below | User's spec (2026-11-09): greeting+date+quiet streak · hero = last dream's visualisation card · ONE big "Record last night's dream" button (voice default, typing secondary) · recent-dreams thumbnail strip · 4 tabs Home/Journal/Insights/Profile · first-time morning-reminder prompt · lucid/recurring gold star markers · text pale lavender ~80%, no white blocks. |
+| Data store | ✅ | `app/js/store.js` | localStorage (`dreaming.dreams.v1`, `dreaming.settings.v1`); create/update/delete/list, stats (streak), settings, export/import, sample dreams. On-device only. |
+| Auto title + tags | ✅ | `app/js/analyze.js` | Keyword dictionary `TAGS` (kind mood/symbol, hue). `suggestTitle` strips "I was…" lead-ins. |
+| Dream visualisation | 🟡 | `app/js/dreamart.js` | Generative canvas painting seeded per dream (no AI image service yet). Real AI images later = needs backend + API key. |
+| Screens | 🟡 | `screens/home, record, dream, journal, insights, profile.js` + `css/<screen>.css` | Router in `app.js`: tabs + `#record[/type]` + `#dream/<id>`. Each screen owns a CSS file with a prefix (.home- .rec- .dream- .jr- .ins- .prof-). |
+| Morning reminder | 🟡 | `screens/profile.js` | Daily .ics calendar event (no server needed). Real push notifications need a server. |
 | In-app Builder chat (Claude API) | 💭 later | — | User chose "start simple, add builder later". Needs a small backend + Anthropic API key (pay per use). |
 | Native wrapper (App Store / TestFlight) | 💭 maybe | — | Capacitor can wrap the same code later if ever needed. |
 

@@ -1,0 +1,87 @@
+/* Insights screen. Every selector starts with .ins- */
+
+.ins-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ins-tile { padding: 16px 16px 14px; min-height: 96px; display: flex; flex-direction: column; justify-content: space-between; }
+.ins-tile-value {
+  font-size: 34px;
+  font-weight: 300;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.ins-tile-unit { margin-left: 6px; font-size: 15px; font-weight: 400; letter-spacing: 0; color: var(--text-dim); }
+.ins-tile-label { margin-top: 6px; color: var(--text-faint); font-size: 13px; font-weight: 500; }
+
+.ins-card { margin-top: 14px; padding: 18px 16px 16px; }
+.ins-card-title { margin: 0 0 14px; font-size: 19px; font-weight: 300; letter-spacing: 0.01em; color: var(--text); }
+.ins-empty-line { margin: 0; font-size: 14px; }
+.ins-foot { display: flex; align-items: center; gap: 6px; margin: 14px 0 0; font-size: 14px; }
+
+/* Recurring symbols: horizontal bars */
+.ins-bars { display: flex; flex-direction: column; gap: 10px; }
+.ins-bar-row { display: grid; grid-template-columns: 74px 1fr 26px; align-items: center; gap: 10px; }
+.ins-bar-label { color: var(--text-dim); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ins-bar-track { height: 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.05); overflow: hidden; }
+.ins-bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, hsla(var(--hue), 70%, 62%, 0.35), hsla(var(--hue), 80%, 72%, 0.8));
+  box-shadow: 0 0 10px hsla(var(--hue), 80%, 70%, 0.35);
+}
+.ins-bar-count { text-align: right; color: var(--text-faint); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* Moods over time: stacked weekly columns */
+.ins-lead { margin: -6px 0 14px; color: var(--text-dim); font-size: 15px; }
+.ins-chart { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; align-items: end; }
+.ins-col { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.ins-col-area {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  height: 110px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.ins-stack {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  width: 70%;
+  max-width: 26px;
+  border-radius: 7px 7px 3px 3px;
+  overflow: hidden;
+}
+.ins-stack-empty { height: 0; }
+.ins-seg { display: block; min-height: 3px; background: hsla(var(--hue), 75%, 68%, 0.72); }
+.ins-col-label {
+  color: var(--text-faint);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+  max-width: 100%;
+}
+.ins-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+
+/* Dream words: soft cloud */
+.ins-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 14px;
+  padding: 4px 2px 6px;
+  line-height: 1.25;
+}
+.ins-word { font-weight: 300; color: rgba(225, 214, 255, 0.95); text-shadow: 0 0 12px rgba(155, 123, 255, 0.35); }
+.ins-word-tinted { color: hsla(var(--hue), 85%, 85%, 0.95); text-shadow: 0 0 12px hsla(var(--hue), 80%, 65%, 0.35); }
+
+/* Fewer than 3 dreams */
+.ins-intro { padding: 30px 22px 22px; text-align: center; }
+.ins-intro-icon { width: 44px; height: 44px; margin: 0 auto 10px; color: var(--moon); }
+.ins-intro-icon svg { width: 100%; height: 100%; filter: drop-shadow(0 0 10px rgba(255, 217, 138, 0.45)); }
+.ins-intro-title { margin: 0 0 8px; font-size: 21px; font-weight: 300; }
+.ins-intro p { margin: 0 0 20px; font-size: 15px; }
+.ins-intro .btn { text-decoration: none; }

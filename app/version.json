@@ -1,7 +1,12 @@
 {
-  "version": 4,
+  "version": 5,
   "updated": "2026-11-09",
   "notes": [
+    {
+      "version": 5,
+      "date": "2026-11-09",
+      "text": "Dreaming becomes a dream journal: record by voice or typing, a picture for every dream, Journal with calendar, Insights, Profile with morning reminder."
+    },
     {
       "version": 4,
       "date": "2026-11-09",
