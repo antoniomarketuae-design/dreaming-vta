@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "updated": "2026-11-09",
+  "notes": [
+    {
+      "version": 1,
+      "date": "2026-11-09",
+      "text": "First version: the app installs on your Home Screen, opens full-screen, works offline, and updates itself."
+    }
+  ]
+}
