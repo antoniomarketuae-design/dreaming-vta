@@ -11,7 +11,9 @@ const git = (...args) => execFileSync('git', args, { cwd: ROOT, stdio: 'inherit'
 const v = require(path.join(ROOT, 'app', 'version.json'));
 const note = v.notes[0]?.text ?? '';
 
-git('add', '-A');
+// Named paths only: the user drops source files into this folder, and the repo is public.
+const TRACKED = ['app', 'docs', 'server', 'tools', '.gitignore', '.gitattributes'];
+git('add', '--', ...TRACKED.filter((p) => require('fs').existsSync(path.join(ROOT, p))));
 try {
   git('commit', '-m', `v${v.version}: ${note}`, '-m', 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>');
 } catch {

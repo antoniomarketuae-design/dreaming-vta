@@ -3,6 +3,6 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-# Source books for the interpretation knowledge base: keep them on this PC only
-Interpretation/*.pdf
-Interpretation/sources/
+# Interpretation: source books, the knowledge base (product IP), interpreter rules and testers' dreams.
+# Kept on this PC only; the GitHub repo is public.
+Interpretation/

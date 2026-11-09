@@ -1,7 +1,12 @@
 {
-  "version": 5,
+  "version": 6,
   "updated": "2026-11-09",
   "notes": [
+    {
+      "version": 6,
+      "date": "2026-11-09",
+      "text": "Dream interpretation (beta) for testers: switch it on in Profile → Labs, then tap 'What does it mean?' on a dream."
+    },
     {
       "version": 5,
       "date": "2026-11-09",

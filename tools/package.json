@@ -1,0 +1,9 @@
+{
+  "name": "dreaming-tools",
+  "private": true,
+  "type": "commonjs",
+  "description": "Local helper scripts (publish, knowledge base, inbox). pdfjs-dist is only used to extract source-book text.",
+  "dependencies": {
+    "pdfjs-dist": "^4.10.38"
+  }
+}

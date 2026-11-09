@@ -18,6 +18,7 @@ const SHELL = [
   'js/store.js',
   'js/analyze.js',
   'js/dreamart.js',
+  'js/interpret.js',
   'js/screens/home.js',
   'js/screens/journal.js',
   'js/screens/insights.js',
