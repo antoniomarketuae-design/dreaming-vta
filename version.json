@@ -1,7 +1,12 @@
 {
-  "version": 1,
+  "version": 2,
   "updated": "2026-11-09",
   "notes": [
+    {
+      "version": 2,
+      "date": "2026-11-09",
+      "text": "New starry night-sky picture as the Home screen background."
+    },
     {
       "version": 1,
       "date": "2026-11-09",

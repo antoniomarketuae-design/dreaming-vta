@@ -36,6 +36,7 @@ function renderTabs() {
 
 function render() {
   const screen = currentScreen();
+  document.body.dataset.screen = screen.id;
   screen.render(screenEl, ctx);
   for (const tab of tabbarEl.querySelectorAll('.tab')) {
     if (tab.dataset.id === screen.id) tab.setAttribute('aria-current', 'page');
