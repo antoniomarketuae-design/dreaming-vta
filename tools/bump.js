@@ -19,4 +19,4 @@ v.updated = today;
 v.notes.unshift({ version: v.version, date: today, text });
 
 fs.writeFileSync(file, `${JSON.stringify(v, null, 2)}\n`);
-console.log(`Dreaming VTA is now at version ${v.version}`);
+console.log(`Dreaming is now at version ${v.version}`);

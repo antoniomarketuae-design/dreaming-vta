@@ -1,5 +1,7 @@
 # Dreaming VTA — Product Map
 
+**App name shown to users: "Dreaming"** (renamed from "Dreaming VTA" in v4). The folder, repo and URL keep `dreaming-vta`.
+
 **What it is:** the user's first app. An installable web app (PWA) that lives on their **iPhone** Home Screen,
 installed from a link — no App Store. The user builds the inside of the app *from the phone*: they ask Claude
 (via the Claude app / this session), Claude changes the code and bumps the version, and the installed app

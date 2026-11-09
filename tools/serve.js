@@ -54,5 +54,5 @@ http.createServer((req, res) => {
     res.end(req.method === 'HEAD' ? undefined : data);
   });
 }).listen(PORT, '127.0.0.1', () => {
-  console.log(`Dreaming VTA is running at http://localhost:${PORT}`);
+  console.log(`Dreaming is running at http://localhost:${PORT}`);
 });
