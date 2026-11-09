@@ -125,14 +125,14 @@ function maybeShowInstallGuide() {
   el.innerHTML = `
     <div class="install-inner">
       <img class="install-icon" src="icons/icon-180.png" alt="" width="88" height="88">
-      <h1>Install Dreaming VTA</h1>
+      <h1>Install Dreaming</h1>
       <p class="install-lead">Put it on your Home Screen and it opens like a real app: full screen, with its own icon.</p>
       <ol class="steps">
         <li><span class="step-icon">${icons.compass}</span><span>Open this page in <b>Safari</b>.</span></li>
         <li><span class="step-icon">${icons.share}</span><span>Tap <b>Share</b>. On iOS 26, tap <b>•••</b> first, then <b>Share</b>.</span></li>
         <li><span class="step-icon">${icons.addSquare}</span><span>Choose <b>Add to Home Screen</b>, then tap <b>Add</b>.</span></li>
       </ol>
-      <p class="install-after">Then open <b>Dreaming VTA</b> from your Home Screen.</p>
+      <p class="install-after">Then open <b>Dreaming</b> from your Home Screen.</p>
       <button class="btn btn-ghost" type="button" data-skip>Continue in the browser</button>
     </div>
   `;

@@ -1,7 +1,12 @@
 {
-  "version": 3,
+  "version": 4,
   "updated": "2026-11-09",
   "notes": [
+    {
+      "version": 4,
+      "date": "2026-11-09",
+      "text": "App renamed to Dreaming."
+    },
     {
       "version": 3,
       "date": "2026-11-09",
