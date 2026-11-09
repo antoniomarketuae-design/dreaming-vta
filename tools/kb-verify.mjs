@@ -33,8 +33,9 @@ function keywords(entry) {
     const t = String(raw || '').toLowerCase().replace(/[^a-z' ]/g, ' ').trim();
     if (!t) continue;
     for (const w of t.split(/\s+/)) {
-      if (w.length < 3 || ['the', 'and', 'with', 'from', 'your', 'you', 'into', 'that', 'was', 'were', 'have', 'being', 'some', 'one', 'own', 'old'].includes(w)) continue;
-      words.add(w.length > 5 ? w.slice(0, w.length - 2) : w);
+      // Everyday words would "verify" anything ("out" matched by chance once), so they don't count.
+      if (w.length < 3 || ['out', 'for', 'the', 'and', 'was', 'had', 'her', 'his', 'one', 'two', 'but', 'not', 'all', 'can', 'get', 'got', 'see', 'saw', 'man', 'new', 'old', 'way', 'day', 'run', 'own', 'off', 'put', 'set', 'top', 'end', 'far', 'few', 'its', 'our', 'who', 'why', 'how', 'any', 'may', 'now', 'too', 'yet', 'use', 'you'].includes(w) || ['the', 'and', 'with', 'from', 'your', 'into', 'that', 'were', 'have', 'being', 'some', 'over', 'under', 'down', 'back', 'front', 'inside', 'outside', 'there', 'their', 'them', 'they', 'what', 'when', 'where', 'which', 'while', 'about', 'after', 'before', 'again', 'just', 'like', 'made', 'make', 'many', 'more', 'most', 'much', 'only', 'other', 'very', 'will', 'would', 'could', 'should', 'something', 'someone', 'getting', 'going', 'coming', 'falling', 'little', 'large', 'small', 'big', 'dream', 'dreams', 'dreaming'].includes(w)) continue;
+      words.add(w.length > 5 ? w.slice(0, w.length - 2) : w.length <= 4 ? `=${w}` : w); // "=" marks short words: whole-word match only
     }
   }
   return [...words];
@@ -67,9 +68,14 @@ function checkFreud(entry) {
   });
   if (misquoted.length) return { ok: false, why: `${book} p.${nums.join(',')}: quote not found: "${misquoted[0]}"` };
 
-  // The subject must be on the page, unless the entry honestly says Freud didn't write about it and quotes what he did write.
-  const keys = keywords(entry);
-  const missing = nums.filter((n) => !keys.some((k) => [n - 1, n, n + 1].map((p) => pages.get(p) || '').join(' ').includes(k)));
+  // A quotation found word for word on the cited page is the strongest proof the citation is real.
+  if (quotesIn(freud.text).length) return { ok: true, quotes: quotesIn(freud.text).length };
+
+  // Otherwise the subject must be on the page, unless the entry honestly says Freud didn't write about it.
+  // Keywords must start a word ("stol" must not match inside "histological"); short ones must be the whole word
+  // ("cat" must not match "catch").
+  const keys = keywords(entry).map((k) => (k.startsWith('=') ? new RegExp(`\\b${k.slice(1)}s?\\b`) : new RegExp(`\\b${k.replace(/[^a-z']/g, '')}`)));
+  const missing = nums.filter((n) => !keys.some((re) => re.test([n - 1, n, n + 1].map((p) => pages.get(p) || '').join(' '))));
   if (!missing.length) return { ok: true, quotes: quotesIn(freud.text).length };
   const honest = /\b(did not|didn't|does not|never) (write|discuss|mention|address)/i.test(freud.text) && quotesIn(freud.text).length > 0;
   return honest
