@@ -1,7 +1,12 @@
 {
-  "version": 2,
+  "version": 3,
   "updated": "2026-11-09",
   "notes": [
+    {
+      "version": 3,
+      "date": "2026-11-09",
+      "text": "Home screen cleared: just the background picture, ready to start building."
+    },
     {
       "version": 2,
       "date": "2026-11-09",
