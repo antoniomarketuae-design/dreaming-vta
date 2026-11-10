@@ -406,7 +406,7 @@ function planCard() {
         ? `<div class="prof-plan-usage">
             <p class="prof-plan-usage-title">This month</p>
             ${usageLine('AI images', used.images || 0, lim.images ?? 0)}
-            ${plus ? usageLine('AI videos', used.videos || 0, lim.videos ?? limits.plus.videos) : lockedLine('AI videos')}
+            ${plus ? usageLine('Video credits', used.videos || 0, lim.videos ?? limits.plus.videos) : lockedLine('AI videos')}
             ${usageLine('Interpretations', used.analyses || 0, lim.analyses ?? 0)}
             <p class="prof-plan-note">Counts start again on ${esc(renewDate(acc.period))}.</p>
           </div>`

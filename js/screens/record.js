@@ -15,8 +15,9 @@ import {
 } from '../images.js';
 import {
   createVideo, pollVideo, hasVideo, isVideoPending, isVideoFailed, isFilming, videosBlocked, videoBadge, videoElapsed,
-  giveVideoConsent, openVideoPlayer,
+  videoWaitText, openVideoPlayer,
 } from '../videos.js';
+import { openVideoPicker } from '../videopicker.js';
 
 // The body text stays a plain string under the old key; everything else sits next to it as JSON.
 const DRAFT_KEY = 'dreaming.draft';
@@ -875,7 +876,7 @@ function mount(el, ctx, param) {
       return `
         <div class="rec-ai-row" role="status">
           <span class="rec-ai-thumb rec-ai-thumb-wait">${under ? `<img src="${esc(under)}" alt="">` : ''}<i aria-hidden="true"></i></span>
-          <p class="rec-ai-text">Creating your dream video…<span class="rec-ai-sub faint">Usually 5–15 minutes. You can keep editing or leave.</span></p>
+          <p class="rec-ai-text">Creating your dream video…<span class="rec-ai-sub faint">${esc(videoWaitText(dream))}</span></p>
           ${time ? `<span class="rec-ai-time" data-vid-time aria-hidden="true">${esc(time)}</span>` : ''}
         </div>`;
     }
@@ -907,18 +908,17 @@ function mount(el, ctx, param) {
   function createVideoNow() {
     const saved = getDream(editId);
     if (!saved || isFilming(saved)) return;
-    if (!videosBlocked()) {
-      // Only a few a month, and the new one takes the old one's place: ask first when there is one.
-      if (hasVideo(saved) && !confirm('Make a new video of this dream? It takes the place of the current one and uses one of this month’s videos.')) return;
-      giveVideoConsent(); // tapping counts as agreeing: the note under the row says what is sent
-    }
-    createVideo({
+    const current = {
       ...saved,
       text: st.d.text.trim() || saved.text,
       title: st.d.title.trim() || saved.title,
       tags: tagsForSave(),
       kind: st.d.kind === 'nightmare' ? 'nightmare' : 'dream',
-    }, { toast: ctx.toast }); // opens the paywall itself when blocked; repaints through the 'dreaming:video' event
+    };
+    // Without Plus (or credits) this opens the paywall; otherwise the picker (length, quality, photo; it also says
+    // what is sent and that a new video replaces the current one). Repaints through the 'dreaming:video' event.
+    if (videosBlocked()) createVideo(current, { toast: ctx.toast });
+    else openVideoPicker(current, { toast: ctx.toast });
   }
 
   function refreshArt() {

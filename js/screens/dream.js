@@ -18,8 +18,9 @@ import {
 } from '../images.js';
 import {
   createVideo, pollVideo, dismissVideoError, hasVideo, isVideoFailed, isFilming, videosBlocked, videoBadge,
-  videoElapsed, VIDEO_WAIT_TEXT, hasVideoConsent, giveVideoConsent, openVideoPlayer,
+  videoElapsed, videoWaitText, openVideoPlayer,
 } from '../videos.js';
+import { openVideoPicker } from '../videopicker.js';
 
 /** The dream's picture: its AI image when it has one, else the generated painting. */
 function artSrc(dream) {
@@ -37,13 +38,6 @@ function imageCostLine() {
   if (!hasFeature('images') && left === 1) return 'Uses your free AI image for this month.';
   if (left != null && left > 0) return `Uses 1 of the ${left} AI images you have left this month.`;
   return "Uses one of this month's AI images.";
-}
-
-/** "4 videos left this month on Dreaming Plus." for the video consent sheet (no number while it's unknown). */
-function videoCostLine() {
-  const left = remaining('videos');
-  if (left != null && left > 0) return `${left} ${left === 1 ? 'video' : 'videos'} left this month on Dreaming Plus.`;
-  return "Uses one of this month's videos on Dreaming Plus.";
 }
 
 /** Small label inside a tool on the picture: 'PLUS' (gold outline), '4 left', or nothing. */
@@ -350,7 +344,7 @@ export default {
           ${filming ? `
             <p class="dream-hero-status-title${painting ? ' dream-hero-status-next' : ''}">Creating your dream video…
               <span class="dream-hero-elapsed" data-video-elapsed aria-hidden="true">${esc(videoElapsed(dream))}</span></p>
-            <p class="dream-hero-status-note">${esc(VIDEO_WAIT_TEXT)}</p>` : ''}
+            <p class="dream-hero-status-note">${esc(videoWaitText(dream))}</p>` : ''}
         </div>` : '';
       const fails = [
         imageFailed ? heroFailHTML(icons.image, dream.imageJob.error || "The image didn't work this time.", 'image') : '',
@@ -582,8 +576,8 @@ export default {
       const dream = getDream(id);
       if (!dream || isFilming(dream)) return;
       if (videosBlocked()) { createVideo(dream, { toast: ctx.toast }); return; } // opens the paywall itself
-      if (!hasVideoConsent()) { openVideoConsent(); return; }
-      createVideo(dream, { toast: ctx.toast }); // repaints through the 'dreaming:video' event
+      // Length, quality and "start from the AI photo"; it also says what is sent, so Create counts as agreeing.
+      openVideoPicker(dream, { toast: ctx.toast }); // repaints through the 'dreaming:video' event
     }
 
     /** The full-screen player. Runs right inside the tap, so iOS lets the sound play. */
@@ -605,28 +599,6 @@ export default {
     function stopClock() {
       clearInterval(clock);
       clock = null;
-    }
-
-    function openVideoConsent() {
-      closeConsent();
-      const sheet = document.createElement('div');
-      sheet.className = 'dream-sheet';
-      sheet.dataset.sheet = '';
-      sheet.innerHTML = `
-        <div class="dream-sheet-scrim" data-act="sheet-close"></div>
-        <div class="glass dream-sheet-card" role="dialog" aria-modal="true" aria-labelledby="dream-sheet-title">
-          <div class="dream-sheet-icon" aria-hidden="true">${icons.film}</div>
-          <h2 class="dream-sheet-title" id="dream-sheet-title">Create a video of this dream?</h2>
-          <ul class="dream-sheet-points">
-            <li>${icons.share}<span>This dream's text, title and tags — and its AI image, if it has one — are sent to Dreaming's server, where an AI video service turns it into a short, lifelike video with sound.</span></li>
-            <li>${icons.moon}<span>It takes about 5–15 minutes. You can leave the app; the video keeps being made.</span></li>
-            <li>${icons.sparkle}<span>${esc(videoCostLine())} If it fails, it isn't counted.</span></li>
-          </ul>
-          <button type="button" class="btn" data-act="video-consent-yes">${icons.check}<span>Agree and create</span></button>
-          <button type="button" class="btn btn-ghost" data-act="sheet-close">Not now</button>
-        </div>`;
-      root.append(sheet);
-      sheet.querySelector('[data-act="video-consent-yes"]')?.focus();
     }
 
     function paintPanels(dream = read()) {
@@ -1121,11 +1093,6 @@ export default {
       else if (act === 'video-play') onPlay();
       else if (act === 'video-plus') openPaywall({ feature: 'videos' });
       else if (act === 'video-dismiss') dismissVideoError(id);
-      else if (act === 'video-consent-yes') {
-        giveVideoConsent();
-        closeConsent();
-        onVideo();
-      }
       else if (act === 'interpret') askForInterpretation();
       else if (act === 'rate') rate(Number(target.dataset.rating) === -1 ? -1 : 1);
       else if (act === 'persp') {

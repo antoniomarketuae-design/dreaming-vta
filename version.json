@@ -1,7 +1,12 @@
 {
-  "version": 10,
+  "version": 11,
   "updated": "2026-11-10",
   "notes": [
+    {
+      "version": 11,
+      "date": "2026-11-10",
+      "text": "Choose your dream video: length from 5 to 15 seconds (longer dreams unlock longer videos), Standard or HD quality, and whether it starts from your AI photo. Plus now gives 60 video credits a month; you see the cost and about how long it takes before you create."
+    },
     {
       "version": 10,
       "date": "2026-11-10",
