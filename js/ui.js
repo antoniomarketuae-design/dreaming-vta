@@ -86,4 +86,9 @@ export const icons = {
   flame: ic('<path d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-3.6 3.2-5.7 4-9.3 2.4 1.6 3.4 3.7 3.4 5.6 1-.6 1.6-1.6 1.8-2.9 2 1.6 3.8 4 3.8 6.6 0 3.6-2.6 6.2-6.5 6.2z"/>'),
   widget: ic('<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="17" height="7" rx="2"/>'),
   more: ic('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>'),
+  play: ic('<path d="M8 5.5v13a.8.8 0 0 0 1.2.7l10.4-6.5a.8.8 0 0 0 0-1.4L9.2 4.8A.8.8 0 0 0 8 5.5z"/>'),
+  film: ic('<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 9.5h18M3 14.5h18M7.5 5v14M16.5 5v14"/>'),
+  volumeOn: ic('<path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6"/><path d="M18 6.5a7.5 7.5 0 0 1 0 11"/>'),
+  volumeOff: ic('<path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/>'),
+  download: ic('<path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 19.5h14"/>'),
 };

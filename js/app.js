@@ -16,6 +16,7 @@ import lock from './screens/lock.js';
 import { icons } from './ui.js';
 import { getProfile, getSetting } from './store.js';
 import { resumePendingImages } from './images.js';
+import { resumePendingVideos } from './videos.js';
 import { getAccount } from './account.js';
 
 // Tab-bar screens, in order: Home · Journal · Lucidity · Progress · Settings.
@@ -222,7 +223,8 @@ function maybeShowInstallGuide() {
 
 render();
 checkForUpdate('boot');
-// Finish AI images that were still painting when the app was closed, and refresh the plan/allowance quietly.
+// Finish AI images and videos that were still being made when the app was closed, and refresh the plan/allowance quietly.
 try { resumePendingImages(); } catch {}
+try { resumePendingVideos(); } catch {}
 getAccount().catch(() => {});
 maybeShowInstallGuide();

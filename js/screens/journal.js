@@ -5,6 +5,7 @@ import { TAGS } from '../analyze.js';
 import { nextTechnique } from '../progress.js';
 import { esc, icons, relativeDay } from '../ui.js';
 import { dreamArtURL } from '../dreamart.js';
+import { hasVideo } from '../videos.js';
 
 const VIEW_KEY = 'dreaming.journal.view';
 const NOTE_KEY = 'journalNoteHiddenAt'; // dream count when the "only on this iPhone" note was tucked away
@@ -187,7 +188,10 @@ function rowHTML(e) {
   ].slice(0, 3).join('');
   return `
     <a class="jr-row glass${night ? ' jr-row-night' : ''}" href="#dream/${encodeURIComponent(d.id)}">
-      <img class="jr-thumb" data-id="${esc(d.id)}" alt="" width="64" height="64" decoding="async">
+      <span class="jr-thumb-wrap">
+        <img class="jr-thumb" data-id="${esc(d.id)}" alt="" width="64" height="64" decoding="async">
+        ${hasVideo(d) ? `<span class="video-mark" aria-hidden="true">${icons.play}</span>` : ''}
+      </span>
       <div class="jr-row-body">
         <div class="jr-row-top">
           <span class="jr-row-title">${esc(title)}</span>

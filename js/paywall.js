@@ -4,13 +4,14 @@
 // the PLUS pill, feature icons, price formatting and plan limits. No DOM or storage access at import time.
 import { esc, icons } from './ui.js';
 import { getSetting } from './store.js';
-import { getPlans, isPlus, cachedAccount } from './account.js';
+import { getPlans, isPlus, cachedAccount, remaining } from './account.js';
 
 const ic = (body) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 
 /** Icons for the paid features (the ones ui.js lacks are drawn here). */
 export const FEATURE_ICONS = {
   images: icons.image,
+  videos: icons.film,
   analyses: ic('<path d="M12 3.5a6 6 0 0 0-3.5 10.9V17h7v-2.6A6 6 0 0 0 12 3.5z"/><path d="M9.5 20h5M10.5 17v3M13.5 17v3"/>'),
   'sounds-all': icons.headphones,
   nightmares: ic('<path d="M7 15a4 4 0 1 1 .9-7.9A5.5 5.5 0 0 1 18.5 9 3 3 0 0 1 18 15z"/><path d="M8 18.5l-1 2M12 18.5l-1 2M16 18.5l-1 2"/>'),
@@ -24,12 +25,13 @@ export const FEATURE_ICONS = {
 export const plusPill = (extra = '') => `<span class="pw-pill${extra ? ` ${extra}` : ''}" aria-label="Dreaming Plus">Plus</span>`;
 
 // Used only until /plans has answered once (mirrors server/plans.json); prices are never guessed.
-const FALLBACK_LIMITS = { free: { images: 1, analyses: 3 }, plus: { images: 30, analyses: 100 } };
+// Also fills in a limit an older cached answer lacks (videos came later).
+const FALLBACK_LIMITS = { free: { images: 1, analyses: 3, videos: 0 }, plus: { images: 30, analyses: 100, videos: 5 } };
 
 /** Last known /plans answer (instant), or null. */
 export const cachedPlans = () => getSetting('plansCache', null);
 
-/** Monthly limits per plan: { free: { images, analyses }, plus: { images, analyses } }. */
+/** Monthly limits per plan: { free: { images, analyses, videos }, plus: { images, analyses, videos } }. */
 export function planLimits(plans = cachedPlans()) {
   return {
     free: { ...FALLBACK_LIMITS.free, ...(plans?.plans?.free?.limits || {}) },
@@ -82,6 +84,8 @@ export function plusBenefits(limits = planLimits()) {
   return [
     { key: 'images', features: ['images'], icon: FEATURE_ICONS.images,
       title: `${limits.plus.images} AI dream images a month`, text: 'A lifelike picture made from each dream you write down.' },
+    { key: 'videos', features: ['videos'], icon: FEATURE_ICONS.videos,
+      title: `${limits.plus.videos} AI dream videos a month`, text: 'Watch each dream come to life in a short, lifelike video.' },
     { key: 'analyses', features: ['analyses'], icon: FEATURE_ICONS.analyses,
       title: `${limits.plus.analyses} dream interpretations a month`, text: 'Read what your dream may be telling you, whenever you like.' },
     { key: 'sounds-all', features: ['sounds-all'], icon: FEATURE_ICONS['sounds-all'],
@@ -89,7 +93,7 @@ export function plusBenefits(limits = planLimits()) {
     { key: 'insights', features: ['nightmares', 'correlations', 'symbols-map'], icon: FEATURE_ICONS['symbols-map'],
       title: 'Deeper analyses', text: 'Nightmares, correlations and the map of your symbols.' },
     { key: 'image-styles', features: ['image-styles'], icon: FEATURE_ICONS['image-styles'],
-      title: 'Your choice of art style', text: 'Pick the light and colour of your AI dream images.' },
+      title: 'Your choice of art style', text: 'Pick the light and colour of your AI dream images and videos.' },
   ];
 }
 
@@ -122,12 +126,14 @@ function sheetHTML({ feature, reason, info }, plans) {
   const plus = isPlus();
   const icon = FEATURE_ICONS[feature] || FEATURE_ICONS.plus;
   const isLimit = Boolean(reason) && (feature === 'images' || feature === 'analyses');
+  // videos.js opens the sheet without asking the server once this month's videos are used up.
+  const videosUsed = plus && !reason && feature === 'videos' && remaining('videos') === 0;
 
   // Already on Plus and the month's allowance is used up: nothing to sell, just say when it renews.
-  if (plus && reason) {
+  if (plus && (reason || videosUsed)) {
     return `
       <div class="pw-icon">${icon}</div>
-      <h2 class="pw-title" id="pw-title">${esc(reason)}</h2>
+      <h2 class="pw-title" id="pw-title">${esc(reason || 'You’ve used this month’s AI videos.')}</h2>
       <p class="pw-lead">Your Dreaming Plus allowance starts again on ${esc(renewDate())}.</p>
       <div class="pw-actions">
         <button class="btn pw-cta" type="button" data-pw-close>OK</button>

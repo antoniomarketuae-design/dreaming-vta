@@ -152,6 +152,7 @@
 .prof-plan-use-num b { color: var(--text); font-weight: 600; }
 .prof-plan-bar { grid-column: 1 / -1; display: block; height: 5px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
 .prof-plan-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--moon), #c79bff); }
+.prof-plan-locked { align-items: center; }
 .prof-plan-note { margin: 6px 0 0; color: var(--text-faint); font-size: 12.5px; }
 .prof-plan-offline { margin-top: 12px; }
 .prof-plan-btn { margin-top: 14px; min-height: 46px; border-radius: 999px; text-decoration: none; }

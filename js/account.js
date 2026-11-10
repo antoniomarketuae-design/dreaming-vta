@@ -9,12 +9,13 @@ const FREE_FEATURES = ['journal', 'voice', 'techniques', 'articles', 'reminders'
 /** Paywall copy per paid feature (our own wording). */
 export const FEATURE_INFO = {
   images: { title: 'AI dream images', benefit: 'Turn every dream into a lifelike picture made just for it.' },
+  videos: { title: 'AI dream videos', benefit: 'Watch your dream come to life in a short, lifelike video with sound.' },
   analyses: { title: 'Dream interpretations', benefit: 'Understand what your dreams are telling you, as often as you like.' },
   'sounds-all': { title: 'All sleep sounds', benefit: 'Every soundscape and binaural beat for falling asleep and lucid practice.' },
   nightmares: { title: 'Nightmare analysis', benefit: 'See what your nightmares have in common and what helps.' },
   correlations: { title: 'Correlations', benefit: 'Discover how sleep, moods and symbols connect in your dreams.' },
   'symbols-map': { title: 'Symbols map', benefit: 'A map of every symbol in your dream world.' },
-  'image-styles': { title: 'Image styles', benefit: 'Choose the art style for your AI dream images.' },
+  'image-styles': { title: 'Image styles', benefit: 'Choose the light and colour of your AI dream images and videos.' },
 };
 
 let pending = null;
@@ -67,7 +68,7 @@ export async function getAccount({ refresh = false } = {}) {
 export const cachedAccount = () => getSetting('account', null);
 export const isPlus = () => cachedAccount()?.plan === 'plus';
 export const hasFeature = (f) => (cachedAccount()?.features || FREE_FEATURES).includes(f);
-/** Remaining uses this month for 'images' or 'analyses' (null when unknown yet). */
+/** Remaining uses this month for 'images', 'analyses' or 'videos' (null when unknown yet). */
 export const remaining = (kind) => cachedAccount()?.remaining?.[kind] ?? null;
 
 /** Plans and prices for the subscriptions page. */
