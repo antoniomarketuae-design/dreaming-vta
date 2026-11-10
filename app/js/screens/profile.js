@@ -375,6 +375,15 @@ function usageLine(label, used, limit) {
     </div>`;
 }
 
+/** A Plus-only feature on the free plan: its name and the PLUS pill instead of a usage bar. */
+function lockedLine(label) {
+  return `
+    <div class="prof-plan-use prof-plan-locked">
+      <span class="prof-plan-use-label">${esc(label)}</span>
+      ${plusPill()}
+    </div>`;
+}
+
 function planCard() {
   const acc = cachedAccount();
   const plus = acc?.plan === 'plus';
@@ -390,13 +399,14 @@ function planCard() {
         <span class="prof-plan-who">
           <span class="prof-plan-kicker">Your plan</span>
           <span class="prof-plan-title">${plus ? `Dreaming Plus ${plusPill()}` : 'Free'}</span>
-          <span class="prof-plan-sub">${plus ? (until ? `Until ${esc(until)}` : 'Active') : esc(left || 'Dreaming Plus adds more images, interpretations, sounds and analyses.')}</span>
+          <span class="prof-plan-sub">${plus ? (until ? `Until ${esc(until)}` : 'Active') : esc(left || 'Dreaming Plus adds AI videos, more images, interpretations, sounds and analyses.')}</span>
         </span>
       </div>
       ${used
         ? `<div class="prof-plan-usage">
             <p class="prof-plan-usage-title">This month</p>
             ${usageLine('AI images', used.images || 0, lim.images ?? 0)}
+            ${plus ? usageLine('AI videos', used.videos || 0, lim.videos ?? limits.plus.videos) : lockedLine('AI videos')}
             ${usageLine('Interpretations', used.analyses || 0, lim.analyses ?? 0)}
             <p class="prof-plan-note">Counts start again on ${esc(renewDate(acc.period))}.</p>
           </div>`
@@ -672,7 +682,7 @@ function aboutPage(ctx) {
     <h2 class="section-title">Privacy</h2>
     <section class="glass prof-card prof-text-card">
       <p class="muted">Your dreams, goals and answers are stored only in this app on this iPhone. Dreaming has no account, no ads and no trackers.</p>
-      <p class="muted">Only a few things ever go online: checking for app updates, which sends nothing about you; checking your plan and monthly allowance, which sends only this iPhone’s anonymous Dreaming ID; and dream interpretation or AI images, which send a single dream’s text, and only when you ask for them.</p>
+      <p class="muted">Only a few things ever go online: checking for app updates, which sends nothing about you; checking your plan and monthly allowance, which sends only this iPhone’s anonymous Dreaming ID; and dream interpretation, AI images or AI videos, which send a single dream’s text, and only when you ask for them.</p>
     </section>
 
     <p class="prof-footer">Made with care for curious dreamers.</p>

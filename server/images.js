@@ -28,6 +28,9 @@ const STYLE_PROMPTS = {
   },
 };
 
+/** Photographic lighting / colour grading for a picture style (shared with the video prompts). */
+export const lightFor = (style) => STYLE_PROMPTS.photo[style] || STYLE_PROMPTS.photo.moonlit;
+
 /**
  * Builds the image prompt from the dream. look = 'photo' (photorealistic, the default) or 'painting'.
  * Never names real people; nightmares are softened.

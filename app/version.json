@@ -1,7 +1,12 @@
 {
-  "version": 9,
+  "version": 10,
   "updated": "2026-11-10",
   "notes": [
+    {
+      "version": 10,
+      "date": "2026-11-10",
+      "text": "AI dream videos (Dreaming Plus): turn a dream into a short, lifelike video with sound, starting from its AI photo. Watch it full screen with sound and save it; it also plays on Home and on the dream page, with a play mark in the Journal."
+    },
     {
       "version": 9,
       "date": "2026-11-10",

@@ -88,6 +88,28 @@
     #241a5a;
 }
 .home-hero-body { padding: 12px 6px 4px; }
+
+/* Last dream with an AI video: the picture is a play button over a muted preview, the text links to the dream. */
+.home-hero-video-card:active { transform: none; }
+.home-hero-media {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: calc(var(--radius) - 8px);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.home-hero-media:active { transform: scale(0.985); }
+.home-hero-video { pointer-events: none; }
+.home-hero-media .video-mark { right: 10px; bottom: 10px; width: 40px; height: 40px; }
+.home-hero-media .video-mark svg { width: 18px; height: 18px; }
+a.home-hero-body { display: block; color: inherit; text-decoration: none; }
+a.home-hero-body:active { opacity: 0.75; }
 .home-hero-title {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -449,12 +471,16 @@ a.home-card:active { transform: scale(0.98); }
 }
 .home-thumb-star .star-mark { width: 16px; height: 16px; }
 .home-thumb-star .star-mark svg { width: 12px; height: 12px; }
+.home-thumb .video-mark { right: 5px; bottom: 5px; width: 22px; height: 22px; }
+.home-thumb .video-mark svg { width: 11px; height: 11px; }
+/* Explore card: top right, clear of the centred "Dream" tag and the title at the bottom */
+.home-card .video-mark { top: 10px; right: 10px; z-index: 1; }
 
 /* ---- Calm for people who turn motion off ---- */
 
 @media (prefers-reduced-motion: reduce) {
   .home-record::before { animation: none; opacity: 0.75; }
   .home-empty-cloud { animation: none; }
-  .home-hero, a.home-card { transition: none; }
+  .home-hero, .home-hero-media, a.home-card { transition: none; }
   .home-card.is-new { animation: none; }
 }

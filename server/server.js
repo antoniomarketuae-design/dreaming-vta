@@ -5,11 +5,12 @@
 // Runs behind nginx at https://www.nexflowclub.com/dreaming-api/ (nginx strips that prefix).
 import http from 'node:http';
 import crypto from 'node:crypto';
-import { readFileSync, createReadStream, existsSync } from 'node:fs';
+import { readFileSync, createReadStream, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { buildPrompt, generateImage } from './images.js';
+import { buildVideoPrompt, generateVideo } from './videos.js';
 
 try { process.loadEnvFile(fileURLToPath(new URL('./.env', import.meta.url))); } catch {}
 
@@ -21,6 +22,7 @@ const KEEP_DAYS = Number(process.env.KEEP_DAYS) || 60;
 const VERSION = '2';
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const IMAGE_DIR = process.env.IMAGE_DIR || join(HERE, 'images');
+const VIDEO_DIR = process.env.VIDEO_DIR || join(HERE, 'videos');
 const PLANS = JSON.parse(readFileSync(join(HERE, 'plans.json'), 'utf8'));
 
 if (ADMIN_KEY.length < 32) {
@@ -81,6 +83,24 @@ const SCHEMA = `
     finished_at timestamptz
   );
   create index if not exists images_created on images (created_at);
+  alter table usage add column if not exists videos int not null default 0;
+  create table if not exists videos (
+    id          text primary key,
+    device_id   text not null,
+    status      text not null default 'pending' check (status in ('pending', 'done', 'failed')),
+    style       text,
+    image_id    text,
+    prompt      text,
+    provider    text,
+    model       text,
+    units       numeric,
+    file        text,
+    bytes       bigint,
+    error       text,
+    created_at  timestamptz not null default now(),
+    finished_at timestamptz
+  );
+  create index if not exists videos_created on videos (created_at);
   -- Redeem codes (testers, gifts): grant Plus for N days.
   create table if not exists codes (
     code_hash  text primary key,
@@ -128,7 +148,7 @@ function corsHeaders(req) {
   if (!origin || !ALLOWED_ORIGINS.includes(origin)) return {};
   return {
     'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-Dream-Token, X-Device-Id, X-Device-Token',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
@@ -203,8 +223,8 @@ async function deviceOf(req) {
 const planOf = (d) => (d && d.plan === 'plus' && (!d.plus_until || new Date(d.plus_until) > new Date()) ? 'plus' : 'free');
 
 async function usageOf(deviceId) {
-  const { rows: [u] } = await pool.query('select images, analyses from usage where device_id = $1 and period = $2', [deviceId, period()]);
-  return { images: u?.images || 0, analyses: u?.analyses || 0 };
+  const { rows: [u] } = await pool.query('select images, analyses, videos from usage where device_id = $1 and period = $2', [deviceId, period()]);
+  return { images: u?.images || 0, analyses: u?.analyses || 0, videos: u?.videos || 0 };
 }
 
 async function addUsage(deviceId, field) {
@@ -228,7 +248,11 @@ async function accountView(d) {
     features: p.features,
     limits: p.limits,
     used,
-    remaining: { images: Math.max(0, p.limits.images - used.images), analyses: Math.max(0, p.limits.analyses - used.analyses) },
+    remaining: {
+      images: Math.max(0, p.limits.images - used.images),
+      analyses: Math.max(0, p.limits.analyses - used.analyses),
+      videos: Math.max(0, (p.limits.videos || 0) - used.videos),
+    },
     period: period(),
   };
 }
@@ -237,9 +261,11 @@ async function accountView(d) {
 async function checkLimit(d, field) {
   const view = await accountView(d);
   if (view.remaining[field] > 0) return view;
-  throw Object.assign(httpError(402, view.plan === 'free'
-    ? `You've used your free ${field === 'images' ? 'AI image' : 'interpretations'} for this month.`
-    : `You've reached this month's ${field === 'images' ? 'image' : 'interpretation'} limit.`), { limit: { field, plan: view.plan } });
+  const word = { images: ['AI image', 'image'], analyses: ['interpretations', 'interpretation'], videos: ['AI video', 'video'] }[field];
+  const message = view.plan === 'free'
+    ? (view.limits[field] ? `You've used your free ${word[0]} for this month.` : 'AI dream videos come with Dreaming Plus.')
+    : `You've reached this month's ${word[1]} limit.`;
+  throw Object.assign(httpError(402, message), { limit: { field, plan: view.plan } });
 }
 
 async function dailyCount(table) {
@@ -261,6 +287,47 @@ async function runImage(id, prompt, deviceId) {
     // A failed image does not count against the month's allowance.
     await pool.query('update usage set images = greatest(images - 1, 0) where device_id = $1 and period = $2', [deviceId, period()]);
   }
+}
+
+// Video generation runs in the background too (5–15 minutes); the phone polls GET /videos/:id.
+async function runVideo(id, { prompt, textPrompt, imagePath }, deviceId) {
+  try {
+    const out = await generateVideo({ id, prompt, textPrompt, imagePath, dir: VIDEO_DIR, cfg: PLANS.videos || {}, env: process.env });
+    // image_id stays only when the picture really was the first frame.
+    await pool.query(
+      `update videos set status = 'done', file = $2, provider = $3, model = $4, units = $5, bytes = $6,
+         image_id = case when $7 then image_id else null end, finished_at = now() where id = $1`,
+      [id, out.file, out.provider, out.model, out.units, out.bytes, out.fromImage],
+    );
+  } catch (err) {
+    console.error('video failed', id, err.message);
+    await pool.query(`update videos set status = 'failed', error = $2, finished_at = now() where id = $1`, [id, err.message.slice(0, 500)]);
+    // A failed video does not count against the month's allowance.
+    await pool.query('update usage set videos = greatest(videos - 1, 0) where device_id = $1 and period = $2', [deviceId, period()]);
+  }
+}
+
+/** Sends a file with HTTP Range support (iPhones only play video that can be fetched in ranges). */
+function sendFile(req, res, path, type, cors) {
+  const size = statSync(path).size;
+  const base = { 'Content-Type': type, 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, max-age=31536000, immutable', ...cors };
+  const m = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || ''));
+  if (m && (m[1] || m[2])) {
+    const start = m[1] ? Number(m[1]) : Math.max(0, size - Number(m[2]));
+    const end = m[1] && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+    if (start >= size || start > end) {
+      res.writeHead(416, { 'Content-Range': `bytes */${size}`, ...cors });
+      res.end();
+      return;
+    }
+    res.writeHead(206, { ...base, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': end - start + 1 });
+    if (req.method === 'HEAD') { res.end(); return; }
+    createReadStream(path, { start, end }).pipe(res);
+    return;
+  }
+  res.writeHead(200, { ...base, 'Content-Length': size });
+  if (req.method === 'HEAD') { res.end(); return; }
+  createReadStream(path).pipe(res);
 }
 
 // ---- Routes ----
@@ -348,9 +415,17 @@ async function handle(req, res) {
       if (!im) throw httpError(404, 'Not found');
       if (m[2]) {
         if (im.status !== 'done' || !im.file || !existsSync(join(IMAGE_DIR, im.file))) throw httpError(404, 'Not found');
-        const type = im.file.endsWith('.png') ? 'image/png' : im.file.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
+        let file = im.file;
+        if (m[3] === 'jpg' && !file.endsWith('.jpg')) {
+          file = `${im.id}.jpg`;
+          if (!existsSync(join(IMAGE_DIR, file))) {
+            const sharp = (await import('sharp')).default;
+            await sharp(join(IMAGE_DIR, im.file)).jpeg({ quality: 88 }).toFile(join(IMAGE_DIR, file));
+          }
+        }
+        const type = file.endsWith('.png') ? 'image/png' : file.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
         res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'private, max-age=31536000, immutable', ...cors });
-        createReadStream(join(IMAGE_DIR, im.file)).pipe(res);
+        createReadStream(join(IMAGE_DIR, file)).pipe(res);
         return undefined;
       }
       const d = await deviceOf(req);
@@ -361,6 +436,61 @@ async function handle(req, res) {
         url: im.status === 'done' ? `${im.id}.${im.file.split('.').pop()}` : null,
         style: im.style,
         error: im.status === 'failed' ? 'The image could not be created. Your allowance was not used up.' : null,
+      });
+    }
+    throw httpError(404, 'Not found');
+  }
+
+  // AI dream videos (Plus). The dream's AI image, when it has one, becomes the first frame.
+  if (parts[0] === 'videos') {
+    if (req.method === 'POST' && parts.length === 1) {
+      const d = await deviceOf(req);
+      if (!d) throw httpError(401, 'Unknown device');
+      if (limited(`video:${d.id}`, 3, 600000)) throw httpError(429, 'Please wait a moment before creating another video.');
+      if ((await dailyCount('videos')) >= (PLANS.budget?.videosPerDay || 50)) throw httpError(503, 'Video creation is paused for today. Please try again tomorrow.');
+      await checkLimit(d, 'videos');
+      const body = await readJson(req, 16 * 1024);
+      const dream = cleanDream(body);
+      const style = typeof body.style === 'string' ? body.style.slice(0, 30) : 'moonlit';
+      let imageId = null;
+      let imagePath = null;
+      if (typeof body.imageId === 'string' && /^im[\w-]{16,30}$/.test(body.imageId)) {
+        const { rows: [im] } = await pool.query('select id, device_id, status, file from images where id = $1', [body.imageId]);
+        if (im && im.device_id === d.id && im.status === 'done' && im.file && existsSync(join(IMAGE_DIR, im.file))) {
+          imageId = im.id;
+          imagePath = join(IMAGE_DIR, im.file);
+        }
+      }
+      const kind = body.kind === 'nightmare' ? 'nightmare' : 'dream';
+      const textPrompt = buildVideoPrompt({ ...dream, kind, style });
+      const prompt = imagePath ? buildVideoPrompt({ ...dream, kind, style, fromImage: true }) : textPrompt;
+      const id = `vd${crypto.randomBytes(15).toString('base64url')}`;
+      await pool.query('insert into videos (id, device_id, style, image_id, prompt) values ($1, $2, $3, $4, $5)', [id, d.id, style, imageId, prompt]);
+      await addUsage(d.id, 'videos');
+      runVideo(id, { prompt, textPrompt, imagePath }, d.id); // background
+      return send(202, { id, status: 'pending', fromImage: Boolean(imageId), account: await accountView(d) });
+    }
+    // GET /videos/<id>       → status for the owner (device headers)
+    // GET /videos/<id>.mp4   → the video itself, with Range support (the long random id is the access key)
+    const m = /^(vd[\w-]{16,30})(\.mp4)?$/.exec(parts[1] || '');
+    if ((req.method === 'GET' || req.method === 'HEAD') && m && parts.length === 2) {
+      const { rows: [v] } = await pool.query('select * from videos where id = $1', [m[1]]);
+      if (!v) throw httpError(404, 'Not found');
+      if (m[2]) {
+        if (v.status !== 'done' || !v.file || !existsSync(join(VIDEO_DIR, v.file))) throw httpError(404, 'Not found');
+        sendFile(req, res, join(VIDEO_DIR, v.file), 'video/mp4', cors);
+        return undefined;
+      }
+      const d = await deviceOf(req);
+      if (!d || d.id !== v.device_id) throw httpError(404, 'Not found');
+      return send(200, {
+        id: v.id,
+        status: v.status,
+        url: v.status === 'done' ? v.file : null,
+        style: v.style,
+        imageId: v.image_id,
+        seconds: PLANS.videos?.duration || null,
+        error: v.status === 'failed' ? 'The video could not be created. Your allowance was not used up.' : null,
       });
     }
     throw httpError(404, 'Not found');
@@ -453,7 +583,10 @@ async function handle(req, res) {
                 (select count(*)::int from devices where plan = 'plus' and (plus_until is null or plus_until > now())) as plus,
                 (select count(*)::int from images where created_at > now() - interval '1 day') as images_24h,
                 (select count(*)::int from images where status = 'failed' and created_at > now() - interval '1 day') as images_failed_24h,
-                (select coalesce(sum(units), 0)::float from images where status = 'done' and created_at > date_trunc('month', now())) as image_units_month`,
+                (select coalesce(sum(units), 0)::float from images where status = 'done' and created_at > date_trunc('month', now())) as image_units_month,
+                (select count(*)::int from videos where created_at > now() - interval '1 day') as videos_24h,
+                (select count(*)::int from videos where status = 'failed' and created_at > now() - interval '1 day') as videos_failed_24h,
+                (select coalesce(sum(units), 0)::float from videos where status = 'done' and created_at > date_trunc('month', now())) as video_units_month`,
       );
       return send(200, rows[0]);
     }

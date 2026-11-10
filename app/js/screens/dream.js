@@ -4,6 +4,8 @@
 // Routes: #dream/<id> · #dream/<id>/analyze (opens and starts Analyze) · #dream/<id>/edit (old link → editor).
 // AI images (js/images.js): "Create AI image" / "New image" on the picture, and Analyze also asks for one when the
 // plan allows it; the interpretation card opens with that picture.
+// AI videos (js/videos.js, Plus): "Create video" / "New video" on the picture. A finished video plays muted and
+// looping on the picture (tap → full-screen player with sound); the interpretation card links to it too.
 import { getDream, updateDream, deleteDream, withDefaults, SYMBOL_CATEGORIES, setSetting } from '../store.js';
 import { TAGS } from '../analyze.js';
 import { esc, formatDate, relativeDay, icons } from '../ui.js';
@@ -14,6 +16,10 @@ import {
   createImage, pollImage, resumePendingImages, dismissImageError, hasImage, isImageFailed, isPainting,
   imagesAllowed, imagesBlocked, imageBadge, hasImageConsent, giveImageConsent,
 } from '../images.js';
+import {
+  createVideo, pollVideo, dismissVideoError, hasVideo, isVideoFailed, isFilming, videosBlocked, videoBadge,
+  videoElapsed, VIDEO_WAIT_TEXT, hasVideoConsent, giveVideoConsent, openVideoPlayer,
+} from '../videos.js';
 
 /** The dream's picture: its AI image when it has one, else the generated painting. */
 function artSrc(dream) {
@@ -31,6 +37,44 @@ function imageCostLine() {
   if (!hasFeature('images') && left === 1) return 'Uses your free AI image for this month.';
   if (left != null && left > 0) return `Uses 1 of the ${left} AI images you have left this month.`;
   return "Uses one of this month's AI images.";
+}
+
+/** "4 videos left this month on Dreaming Plus." for the video consent sheet (no number while it's unknown). */
+function videoCostLine() {
+  const left = remaining('videos');
+  if (left != null && left > 0) return `${left} ${left === 1 ? 'video' : 'videos'} left this month on Dreaming Plus.`;
+  return "Uses one of this month's videos on Dreaming Plus.";
+}
+
+/** Small label inside a tool on the picture: 'PLUS' (gold outline), '4 left', or nothing. */
+const heroBadge = (badge) => (badge
+  ? `<span class="dream-hero-badge${badge === 'PLUS' ? ' dream-hero-badge-plus' : ''}">${esc(badge)}</span>` : '');
+
+/** A failed image or video on the picture: the reason, "Try again" (data-act) and × (data-act + '-dismiss'). */
+const heroFailHTML = (icon, message, act) => `
+  <div class="dream-hero-fail" role="alert">
+    <span class="dream-hero-fail-ico" aria-hidden="true">${icon}</span>
+    <p>${esc(message)}</p>
+    <div class="dream-hero-fail-btns">
+      <button type="button" class="dream-hero-btn" data-act="${act}">${icons.shuffle}<span>Try again</span></button>
+      <button type="button" class="dream-hero-x" data-act="${act}-dismiss" aria-label="Dismiss">${icons.close}</button>
+    </div>
+  </div>`;
+
+/** The phone asks for less motion: a still picture with a play button instead of the moving preview. */
+const reducedMotion = () => {
+  try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
+};
+
+/** Stops the preview video on the picture and lets go of its download. */
+function stopPreview(layer) {
+  const video = layer?.querySelector('video');
+  if (!video) return;
+  try {
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+  } catch {}
 }
 
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
@@ -141,7 +185,8 @@ function timeOf(iso) {
   return d && !Number.isNaN(d.getTime()) ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
 }
 
-// Stops the interpretation poller and timers when leaving the screen. Module state only; nothing runs at import.
+// Stops the interpretation poller, timers and the video preview when leaving the screen. Module state only; nothing
+// runs at import.
 let cleanup = null;
 
 export default {
@@ -165,17 +210,23 @@ export default {
     let noteOpen = false;      // show the optional note field right after rating
     let perspKey = 'psychology';
     let savedTimer = null;
+    let clock = null;          // ticks the "1:23" of a video being made
 
     cleanup?.();
-    // Image and account changes can arrive while this page is open (or after leaving and coming back).
+    // Image, video and account changes can arrive while this page is open (or after leaving and coming back).
     const onImageEvent = (e) => { if (e?.detail?.dreamId === id && root.isConnected) paintImage(); };
-    const onAccountEvent = () => { if (root.isConnected) { paintBar(); paintImage(); } };
+    const onVideoEvent = (e) => { if (e?.detail?.dreamId === id && root.isConnected) paintVideo(); };
+    const onAccountEvent = () => { if (root.isConnected) { paintBar(); paintImage(); paintVideo(); } };
     window.addEventListener('dreaming:image', onImageEvent);
+    window.addEventListener('dreaming:video', onVideoEvent);
     window.addEventListener('dreaming:account', onAccountEvent);
     cleanup = () => {
       stopPolling();
       clearTimeout(savedTimer);
+      stopClock();
+      stopPreview(root.querySelector('[data-hero-video]'));
       window.removeEventListener('dreaming:image', onImageEvent);
+      window.removeEventListener('dreaming:video', onVideoEvent);
       window.removeEventListener('dreaming:account', onAccountEvent);
     };
 
@@ -249,7 +300,7 @@ export default {
       paintInterp();
     }
 
-    // ---- AI image: tools on the picture, shimmer while painting, failure + retry ----
+    // ---- AI image: tools on the picture (shared with the video), shimmer while painting, failure + retry ----
 
     function paintImage() {
       paintHero();
@@ -276,42 +327,66 @@ export default {
       }
       if (img) img.alt = hasImage(dream) ? 'An AI image of this dream' : 'A picture painted from this dream';
 
+      paintHeroVideo(hero, dream);
+      // While something is being made the middle of the picture shows its progress, so the play button steps aside.
+      hero.classList.toggle('dream-hero-busy', isPainting(dream) || isFilming(dream));
       const slot = hero.querySelector('[data-hero-paint]');
       if (slot) slot.innerHTML = heroToolsHTML(dream);
     }
 
     function heroToolsHTML(dream) {
-      if (isPainting(dream)) {
-        return `
-          <div class="dream-hero-shimmer" aria-hidden="true"></div>
-          <div class="dream-hero-status" role="status">
-            <span class="dream-hero-status-icon" aria-hidden="true">${icons.moon}</span>
+      const painting = isPainting(dream);
+      const filming = isFilming(dream);
+      const imageFailed = !painting && isImageFailed(dream);
+      const videoFailed = !filming && isVideoFailed(dream);
+      // An image and a video can be made at the same time: one shimmer, both statuses stacked in the middle.
+      const status = painting || filming ? `
+        <div class="dream-hero-shimmer" aria-hidden="true"></div>
+        <div class="dream-hero-status${painting && filming ? ' dream-hero-status-two' : ''}" role="status">
+          <span class="dream-hero-status-icon" aria-hidden="true">${painting ? icons.moon : icons.film}</span>
+          ${painting ? `
             <p class="dream-hero-status-title">Creating your dream image…</p>
-            <p class="dream-hero-status-note">This can take up to a minute. You can leave this screen.</p>
-          </div>`;
-      }
-      if (isImageFailed(dream)) {
-        return `
-          <div class="dream-hero-tools">
-            <div class="dream-hero-fail" role="alert">
-              <p>${esc(dream.imageJob.error || "The image didn't work this time.")}</p>
-              <div class="dream-hero-fail-btns">
-                <button type="button" class="dream-hero-btn" data-act="image">${icons.shuffle}<span>Try again</span></button>
-                <button type="button" class="dream-hero-x" data-act="image-dismiss" aria-label="Dismiss">${icons.close}</button>
-              </div>
-            </div>
-          </div>`;
-      }
-      const has = hasImage(dream);
-      const badge = imagesBlocked() ? 'PLUS' : imageBadge();
-      return `
+            <p class="dream-hero-status-note">This can take up to a minute. You can leave this screen.</p>` : ''}
+          ${filming ? `
+            <p class="dream-hero-status-title${painting ? ' dream-hero-status-next' : ''}">Creating your dream video…
+              <span class="dream-hero-elapsed" data-video-elapsed aria-hidden="true">${esc(videoElapsed(dream))}</span></p>
+            <p class="dream-hero-status-note">${esc(VIDEO_WAIT_TEXT)}</p>` : ''}
+        </div>` : '';
+      const fails = [
+        imageFailed ? heroFailHTML(icons.image, dream.imageJob.error || "The image didn't work this time.", 'image') : '',
+        videoFailed ? heroFailHTML(icons.film, dream.videoJob.error || "The video didn't work this time.", 'video') : '',
+      ].join('');
+      const btns = [
+        painting || imageFailed ? '' : imageBtnHTML(dream),
+        filming || videoFailed ? '' : videoBtnHTML(dream),
+      ].join('');
+      // What the picture is showing, quietly in the corner (not while something new is being made).
+      const mark = painting || filming ? ''
+        : hasVideo(dream) ? `<span class="dream-hero-mark">${icons.film}<span>Dream video</span></span>`
+          : hasImage(dream) ? `<span class="dream-hero-mark">${icons.sparkle}<span>AI image</span></span>` : '';
+      if (!fails && !btns && !mark) return status;
+      return `${status}
         <div class="dream-hero-tools">
-          ${has ? `<span class="dream-hero-mark">${icons.sparkle}<span>AI image</span></span>` : ''}
-          <button type="button" class="dream-hero-btn" data-act="image">
-            ${has ? icons.shuffle : icons.sparkle}<span>${has ? 'New image' : 'Create AI image'}</span>
-            ${badge ? `<span class="dream-hero-badge${badge === 'PLUS' ? ' dream-hero-badge-plus' : ''}">${esc(badge)}</span>` : ''}
-          </button>
+          ${fails}
+          ${btns || mark ? `<div class="dream-hero-tools-row">${mark}<div class="dream-hero-btns">${btns}</div></div>` : ''}
         </div>`;
+    }
+
+    function imageBtnHTML(dream) {
+      const has = hasImage(dream);
+      return `
+        <button type="button" class="dream-hero-btn" data-act="image">
+          ${has ? icons.shuffle : icons.sparkle}<span>${has ? 'New image' : 'Create AI image'}</span>
+          ${heroBadge(imagesBlocked() ? 'PLUS' : imageBadge())}
+        </button>`;
+    }
+
+    function videoBtnHTML(dream) {
+      return `
+        <button type="button" class="dream-hero-btn" data-act="video">
+          ${icons.film}<span>${hasVideo(dream) ? 'New video' : 'Create video'}</span>
+          ${heroBadge(videoBadge())}
+        </button>`;
     }
 
     /** Top of the interpretation card: the AI image, a shimmer while it's painted, or an offer to make one. */
@@ -396,6 +471,162 @@ export default {
         </div>`;
       root.append(sheet);
       sheet.querySelector('[data-act="image-consent-yes"]')?.focus();
+    }
+
+    // ---- AI video: preview on the picture, progress, failure + retry, the full-screen player ----
+
+    function paintVideo() {
+      paintHero();
+      const box = root.querySelector('[data-interp-video]');
+      if (box) box.innerHTML = interpVideoHTML(read());
+      tickClock();
+    }
+
+    /** What the video shows before it plays: the picture on the page (after any offline fallback). */
+    function posterSrc(dream) {
+      return root.querySelector('.dream-hero-img')?.getAttribute('src') || artSrc(dream);
+    }
+
+    /**
+     * The dream's video on the picture, under the tools: muted and looping (a still with a play button when the
+     * phone asks for less motion). Built once per video, so repaints don't restart it. Tap → the player.
+     */
+    function paintHeroVideo(hero, dream) {
+      let layer = hero.querySelector('[data-hero-video]');
+      const url = hasVideo(dream) ? dream.video.url : '';
+      if (layer && layer.dataset.url !== url) {
+        stopPreview(layer);
+        layer.remove();
+        layer = null;
+      }
+      if (!url) return;
+      const poster = posterSrc(dream);
+      if (!layer) {
+        layer = document.createElement('div');
+        layer.className = 'dream-hero-video';
+        layer.dataset.heroVideo = '';
+        layer.dataset.url = url;
+        layer.dataset.act = 'video-play';
+        layer.innerHTML = `
+          ${reducedMotion() ? '' : `<video class="dream-hero-vid" src="${esc(url)}" muted loop playsinline autoplay preload="metadata" aria-hidden="true"></video>`}
+          <button type="button" class="dream-hero-play" data-act="video-play" aria-label="Play the dream video">${icons.play}</button>`;
+        hero.querySelector('[data-hero-paint]')?.before(layer);
+        const video = layer.querySelector('video');
+        if (video) {
+          if (poster) video.poster = poster; // may be a long data: address, so set it here, not in the markup
+          video.muted = true;
+          video.play().catch(() => {}); // autoplay refused (Low Power Mode): the still picture and play button stay
+        }
+        return;
+      }
+      // Same video, maybe a new picture (a new AI image, or the painting after an offline fallback).
+      const video = layer.querySelector('video');
+      if (video && poster && video.getAttribute('poster') !== poster) video.poster = poster;
+    }
+
+    /** Under the picture in the interpretation card: the dream's video, its progress, or an offer to make one. */
+    function interpVideoHTML(dream) {
+      if (!dream) return '';
+      const filming = isFilming(dream);
+      if (hasVideo(dream) && !filming) {
+        const thumb = artSrc(dream);
+        const secs = Math.round(Number(dream.video.seconds) || 0);
+        return `
+          <button type="button" class="dream-interp-imgrow dream-interp-vidrow" data-act="video-play">
+            <span class="dream-interp-vthumb" aria-hidden="true">
+              ${thumb ? `<img src="${esc(thumb)}" alt="">` : ''}
+              <span class="video-mark">${icons.play}</span>
+            </span>
+            <span class="dream-interp-imgrow-text">
+              <span class="dream-interp-vtitle">Watch your dream video</span>
+              <span class="dream-interp-vsub">${secs ? `${secs} seconds, with sound` : 'With sound'}</span>
+            </span>
+            <span class="dream-interp-vgo" aria-hidden="true">${icons.chevronRight}</span>
+          </button>`;
+      }
+      if (filming) {
+        return `
+          <div class="dream-interp-imgrow" role="status">
+            <span class="dream-interp-imgrow-ico dream-interp-vbusy" aria-hidden="true">${icons.film}</span>
+            <span class="dream-interp-imgrow-text">Creating your dream video…
+              <span class="dream-interp-left dream-interp-time" data-video-elapsed aria-hidden="true">${esc(videoElapsed(dream))}</span></span>
+          </div>`;
+      }
+      if (isVideoFailed(dream)) {
+        return `
+          <div class="dream-interp-imgrow">
+            <span class="dream-interp-imgrow-ico" aria-hidden="true">${icons.film}</span>
+            <span class="dream-interp-imgrow-text">${esc(dream.videoJob.error || "The video didn't work this time.")}</span>
+            <button type="button" class="dream-interp-imgbtn" data-act="video">Try again</button>
+          </div>`;
+      }
+      if (!hasFeature('videos')) {
+        return `
+          <button type="button" class="dream-interp-imgrow dream-interp-upsell" data-act="video-plus">
+            <span class="dream-interp-imgrow-ico" aria-hidden="true">${icons.film}</span>
+            <span class="dream-interp-imgrow-text">Turn this dream into a video</span>
+            <span class="dream-interp-plus">PLUS</span>
+          </button>`;
+      }
+      const badge = videoBadge();
+      return `
+        <div class="dream-interp-imgrow">
+          <span class="dream-interp-imgrow-ico" aria-hidden="true">${icons.film}</span>
+          <span class="dream-interp-imgrow-text">Turn this dream into a video${badge ? ` <span class="dream-interp-left">${esc(badge)}</span>` : ''}</span>
+          <button type="button" class="dream-interp-imgbtn" data-act="video">Create</button>
+        </div>`;
+    }
+
+    /** "Create video" / "New video" / "Try again". */
+    function onVideo() {
+      const dream = getDream(id);
+      if (!dream || isFilming(dream)) return;
+      if (videosBlocked()) { createVideo(dream, { toast: ctx.toast }); return; } // opens the paywall itself
+      if (!hasVideoConsent()) { openVideoConsent(); return; }
+      createVideo(dream, { toast: ctx.toast }); // repaints through the 'dreaming:video' event
+    }
+
+    /** The full-screen player. Runs right inside the tap, so iOS lets the sound play. */
+    function onPlay() {
+      const dream = getDream(id);
+      if (!hasVideo(dream)) return;
+      openVideoPlayer(dream, { poster: posterSrc(dream) });
+    }
+
+    /** Keeps the "1:23" next to "Creating your dream video…" current; stops by itself when the video is done. */
+    function tickClock() {
+      const dream = getDream(id);
+      if (!root.isConnected || !isFilming(dream)) { stopClock(); return; }
+      if (!clock) clock = setInterval(tickClock, 1000);
+      const t = videoElapsed(dream);
+      for (const n of root.querySelectorAll('[data-video-elapsed]')) if (n.textContent !== t) n.textContent = t;
+    }
+
+    function stopClock() {
+      clearInterval(clock);
+      clock = null;
+    }
+
+    function openVideoConsent() {
+      closeConsent();
+      const sheet = document.createElement('div');
+      sheet.className = 'dream-sheet';
+      sheet.dataset.sheet = '';
+      sheet.innerHTML = `
+        <div class="dream-sheet-scrim" data-act="sheet-close"></div>
+        <div class="glass dream-sheet-card" role="dialog" aria-modal="true" aria-labelledby="dream-sheet-title">
+          <div class="dream-sheet-icon" aria-hidden="true">${icons.film}</div>
+          <h2 class="dream-sheet-title" id="dream-sheet-title">Create a video of this dream?</h2>
+          <ul class="dream-sheet-points">
+            <li>${icons.share}<span>This dream's text, title and tags — and its AI image, if it has one — are sent to Dreaming's server, where an AI video service turns it into a short, lifelike video with sound.</span></li>
+            <li>${icons.moon}<span>It takes about 5–15 minutes. You can leave the app; the video keeps being made.</span></li>
+            <li>${icons.sparkle}<span>${esc(videoCostLine())} If it fails, it isn't counted.</span></li>
+          </ul>
+          <button type="button" class="btn" data-act="video-consent-yes">${icons.check}<span>Agree and create</span></button>
+          <button type="button" class="btn btn-ghost" data-act="sheet-close">Not now</button>
+        </div>`;
+      root.append(sheet);
+      sheet.querySelector('[data-act="video-consent-yes"]')?.focus();
     }
 
     function paintPanels(dream = read()) {
@@ -684,6 +915,7 @@ export default {
         slot.innerHTML = `
           <section class="glass dream-interp-card dream-interp-wait">
             <div data-interp-pic>${interpPicHTML(dream)}</div>
+            <div data-interp-video>${interpVideoHTML(dream)}</div>
             <div class="dream-interp-moon" aria-hidden="true">${icons.moon}</div>
             <p class="dream-interp-wait-title">Interpreting your dream…</p>
             <div class="dream-interp-shimmer" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -720,6 +952,7 @@ export default {
       parts.push(`
         <section class="glass dream-interp-card">
           <div data-interp-pic>${interpPicHTML(dream)}</div>
+          <div data-interp-video>${interpVideoHTML(dream)}</div>
           <p class="dream-interp-kicker"><span aria-hidden="true">✨</span> What it may mean <span class="dream-interp-beta">beta</span></p>
           ${essence ? `<p class="dream-interp-essence">${esc(essence)}</p>` : ''}
           ${stale}
@@ -884,6 +1117,15 @@ export default {
         closeConsent();
         onImage();
       }
+      else if (act === 'video') onVideo();
+      else if (act === 'video-play') onPlay();
+      else if (act === 'video-plus') openPaywall({ feature: 'videos' });
+      else if (act === 'video-dismiss') dismissVideoError(id);
+      else if (act === 'video-consent-yes') {
+        giveVideoConsent();
+        closeConsent();
+        onVideo();
+      }
       else if (act === 'interpret') askForInterpretation();
       else if (act === 'rate') rate(Number(target.dataset.rating) === -1 ? -1 : 1);
       else if (act === 'persp') {
@@ -919,14 +1161,22 @@ export default {
     });
 
     // An AI image that can't load (offline, removed): show the generated painting instead.
+    // The video on the picture can't load: hide it quietly; the still picture and the play button stay.
     root.addEventListener('error', (e) => {
       const img = e.target;
+      if (img?.tagName === 'VIDEO') {
+        if (img.classList.contains('dream-hero-vid')) img.hidden = true;
+        return;
+      }
       if (img?.tagName !== 'IMG' || img.dataset.fallback || !String(img.getAttribute('src') || '').startsWith('https://')) return;
       const dream = read();
       const alt = dream ? paintedSrc(dream) : '';
       img.dataset.fallback = '1';
       img.dataset.failed = img.getAttribute('src');
       if (alt) img.src = alt;
+      // The preview video starts on the same picture.
+      const video = alt && img.classList.contains('dream-hero-img') ? root.querySelector('.dream-hero-vid') : null;
+      if (video) video.poster = alt;
     }, true);
 
     root.addEventListener('submit', (e) => {
@@ -939,9 +1189,11 @@ export default {
     });
 
     show();
-    // Keep checking a picture that was still being painted when the user left (or closed the app).
+    // Keep checking a picture or video that was still being made when the user left (or closed the app).
     pollImage(id);
     resumePendingImages();
+    pollVideo(id);
+    tickClock();
     getAccount().catch(() => {}); // fresh plan + counts for the badges (repaints via 'dreaming:account')
 
     // #dream/<id>/analyze (Home's "Analyze this dream"): open the page, then start the Analyze flow straight away.

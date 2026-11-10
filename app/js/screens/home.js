@@ -1,16 +1,21 @@
 // Home: the daily landing page over the night sky.
 // Greeting · "Logged today" · last dream + Analyze · big record button (+ voice) · "Get started" checklist ·
 // Explore (a random past dream and a random symbol, both unlocked by progress) · recent dreams strip.
+// When the last dream has an AI video (js/videos.js) its picture becomes a muted, looping preview; a tap plays it.
 import {
-  listDreams, withDefaults, loggedToday, getProfile, getSetting, listGoals, SYMBOL_CATEGORIES,
+  listDreams, withDefaults, getDream, loggedToday, getProfile, getSetting, listGoals, SYMBOL_CATEGORIES,
 } from '../store.js';
 import { exploreState } from '../progress.js';
 import { TAGS } from '../analyze.js';
 import { esc, greeting, formatDate, formatLongDate, relativeDay, icons } from '../ui.js';
 import { dreamArtURL } from '../dreamart.js';
+import { hasImage } from '../images.js';
+import { hasVideo, openVideoPlayer } from '../videos.js';
 
 // What the Explore cards currently show. Kept in memory only (a fresh pick per app launch, shuffle re-rolls).
 const picked = { dream: null, symbol: null };
+
+let teardown = null; // stops the hero's video preview when Home closes
 
 const CATEGORY_LABEL = {
   people: 'Person', objects: 'Object', characters: 'Character', places: 'Place', themes: 'Theme', actions: 'Action',
@@ -20,14 +25,24 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 // ---------- pictures ----------
 
+/** Address of the dream's picture (its AI image or the painting), or '' if it can't be drawn. */
+function artURL(dream, px) {
+  try { return dreamArtURL(dream, px) || ''; } catch { return ''; }
+}
+
 /** The dream's generated picture, or a soft gradient if it can't be drawn. */
 function picture(dream, px, cls) {
-  let url = '';
-  try { url = dreamArtURL(dream, px) || ''; } catch { url = ''; }
+  const url = artURL(dream, px);
   if (url) return `<img class="${cls}" src="${esc(url)}" alt="" decoding="async">`;
   const hue = (Number(dream.seed) || 0) % 360;
   return `<div class="${cls} home-art-fallback" style="--h:${hue}"></div>`;
 }
+
+const videoMark = (dream) => (hasVideo(dream) ? `<span class="video-mark" aria-hidden="true">${icons.play}</span>` : '');
+
+const reducedMotion = () => {
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; }
+};
 
 function starMark(dream) {
   if (!dream.lucid && !dream.recurring) return '';
@@ -104,6 +119,20 @@ function header(now, name, today) {
 
 // ---------- 2. last dream + Analyze, or the first-dream invitation ----------
 
+/** The hero picture of a dream with a video: a muted looping preview (the still picture when motion is reduced). */
+function heroVideo(dream) {
+  const poster = artURL(dream, 340);
+  const media = reducedMotion()
+    ? picture(dream, 340, 'home-hero-art')
+    : `<video class="home-hero-art home-hero-video" src="${esc(dream.video.url)}"${poster ? ` poster="${esc(poster)}"` : ''}
+        muted loop playsinline autoplay preload="metadata" disableremoteplayback tabindex="-1" aria-hidden="true"></video>`;
+  return `
+    <button type="button" class="home-hero-media" data-play="${esc(dream.id)}" aria-label="Watch the video of your last dream">
+      ${media}
+      ${videoMark(dream)}
+    </button>`;
+}
+
 function lead(dreams, today) {
   const last = dreams[0];
   if (!last) {
@@ -113,18 +142,28 @@ function lead(dreams, today) {
         <p class="home-headline">Write down any dream you remember, from last night or from years ago.</p>
       </section>`;
   }
-  return `
-    ${today ? '' : '<p class="home-headline home-headline-small">Anything left from last night? Even a fragment is worth keeping.</p>'}
-    <a class="glass home-hero" href="#dream/${esc(last.id)}" aria-label="Your last dream: ${esc(last.title || 'Untitled dream')}">
-      ${picture(last, 340, 'home-hero-art')}
-      <div class="home-hero-body">
+  const label = `Your last dream: ${esc(last.title || 'Untitled dream')}`;
+  const body = `
         <h2 class="home-hero-title">${esc(last.title || 'Untitled dream')} ${starMark(last)}</h2>
         <div class="home-hero-meta">
           <span class="home-hero-when">${esc(when(last))}</span>
           ${chips(last)}
-        </div>
-      </div>
-    </a>
+        </div>`;
+  // With a video the picture plays it and the text opens the dream (a button can't sit inside a link).
+  const hero = hasVideo(last)
+    ? `
+    <div class="glass home-hero home-hero-video-card">
+      ${heroVideo(last)}
+      <a class="home-hero-body" href="#dream/${esc(last.id)}" aria-label="${label}">${body}</a>
+    </div>`
+    : `
+    <a class="glass home-hero" href="#dream/${esc(last.id)}" aria-label="${label}">
+      ${picture(last, 340, 'home-hero-art')}
+      <div class="home-hero-body">${body}</div>
+    </a>`;
+  return `
+    ${today ? '' : '<p class="home-headline home-headline-small">Anything left from last night? Even a fragment is worth keeping.</p>'}
+    ${hero}
     <a class="btn btn-ghost home-analyze" href="#dream/${esc(last.id)}/analyze">${icons.sparkle}<span>Analyze this dream</span></a>`;
 }
 
@@ -234,6 +273,7 @@ function dreamCard(state, dreams, reroll = false) {
       aria-label="A dream from your journal: ${esc(d.title || 'Untitled dream')}, ${esc(relativeDay(d.date))}">
       ${picture(d, 200, 'home-card-art')}
       <span class="home-card-shade"></span>
+      ${videoMark(d)}
       <span class="home-card-tag">Dream</span>
       <span class="home-card-foot">
         <span class="home-card-title">${esc(d.title || 'Untitled dream')}</span>
@@ -289,6 +329,7 @@ function recent(dreams) {
     <a class="home-thumb" href="#dream/${esc(d.id)}" aria-label="${esc(d.title || 'Untitled dream')}, ${esc(relativeDay(d.date))}">
       ${picture(d, 96, 'home-thumb-art')}
       ${d.lucid || d.recurring ? `<span class="home-thumb-star">${starMark(d)}</span>` : ''}
+      ${videoMark(d)}
     </a>`).join('');
   return `
     <section class="home-section home-recent" aria-labelledby="home-recent-title">
@@ -306,6 +347,8 @@ export default {
   icon: icons.home,
 
   render(el) {
+    teardown?.();
+    teardown = null;
     const dreams = listDreams().map(withDefaults);
     const name = String(getProfile()?.name ?? '').trim();
     const now = new Date();
@@ -326,6 +369,14 @@ export default {
     // Listeners live on our own root (the screen element is shared with other screens).
     const root = el.querySelector('.home');
     root.addEventListener('click', (e) => {
+      // Last dream's video: full screen, with sound (allowed because this runs inside the tap).
+      const play = e.target.closest('[data-play]');
+      if (play) {
+        const dream = getDream(play.dataset.play);
+        // Its AI image is the video's first frame, so it makes a seamless poster (the painting would not).
+        if (hasVideo(dream)) openVideoPlayer(dream, { poster: hasImage(dream) ? dream.image.url : '' });
+        return;
+      }
       const btn = e.target.closest('[data-shuffle]');
       if (!btn || btn.disabled) return;
       const kind = btn.dataset.shuffle;
@@ -341,5 +392,27 @@ export default {
       next.classList.add('is-new');
       card.replaceWith(next);
     });
+
+    // The hero's video preview: starts muted; if it can't load (offline), the still picture takes its place.
+    const video = root.querySelector('.home-hero-video');
+    if (video) {
+      const onError = () => {
+        if (video.isConnected) video.outerHTML = picture(dreams[0], 340, 'home-hero-art');
+      };
+      video.addEventListener('error', onError, { once: true });
+      video.muted = true;
+      video.play()?.catch(() => {}); // refused (e.g. Low Power Mode): the poster stays and the play mark still shows
+      teardown = () => {
+        video.removeEventListener('error', onError);
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+      };
+    }
+  },
+
+  destroy() {
+    teardown?.();
+    teardown = null;
   },
 };

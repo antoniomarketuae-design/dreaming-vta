@@ -1,0 +1,149 @@
+/* ---- AI dream videos: full-screen player (js/videos.js) and the small "video" marks other screens use ---- */
+
+body.vplayer-open { overflow: hidden; }
+
+.vplayer {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: vplayer-in 0.22s ease-out;
+}
+@keyframes vplayer-in { from { opacity: 0; } to { opacity: 1; } }
+
+.vplayer-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+.vplayer-top,
+.vplayer-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  pointer-events: none;
+}
+.vplayer-top {
+  top: 0;
+  padding-top: max(12px, env(safe-area-inset-top));
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent);
+}
+.vplayer-bottom {
+  bottom: 0;
+  justify-content: space-between;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+}
+.vplayer-top > *, .vplayer-bottom > * { pointer-events: auto; }
+
+.vplayer-title {
+  flex: 1;
+  margin: 0;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vplayer-btn {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  background: rgba(18, 13, 46, 0.55);
+  color: #fff;
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+}
+.vplayer-btn svg { width: 20px; height: 20px; }
+.vplayer-btn:active { transform: scale(0.95); }
+
+.vplayer-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.75);
+}
+.vplayer-tag svg { width: 15px; height: 15px; color: var(--moon); }
+
+.vplayer-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 8px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(18, 13, 46, 0.6);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+}
+.vplayer-save svg { width: 18px; height: 18px; color: var(--moon); }
+.vplayer-save:active { transform: scale(0.97); }
+
+.vplayer-wait {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.vplayer-wait[hidden] { display: none; }
+.vplayer-spin {
+  width: 34px;
+  height: 34px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--moon);
+  border-radius: 50%;
+  animation: vplayer-spin 0.9s linear infinite;
+}
+@keyframes vplayer-spin { to { transform: rotate(360deg); } }
+.vplayer-err {
+  max-width: 260px;
+  padding: 0 16px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+}
+
+/* Small round "play" mark for thumbnails of dreams that have a video (journal, home, dream page). */
+.video-mark {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(10, 6, 30, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  pointer-events: none;
+}
+.video-mark svg { width: 13px; height: 13px; margin-left: 2px; fill: currentColor; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vplayer { animation: none; }
+  .vplayer-spin { animation-duration: 2.5s; }
+}

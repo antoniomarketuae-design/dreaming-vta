@@ -5,7 +5,8 @@
       "label": "Free",
       "limits": {
         "images": 1,
-        "analyses": 3
+        "analyses": 3,
+        "videos": 0
       },
       "features": [
         "journal",
@@ -24,7 +25,8 @@
       "label": "Dreaming Plus",
       "limits": {
         "images": 30,
-        "analyses": 100
+        "analyses": 100,
+        "videos": 5
       },
       "features": [
         "journal",
@@ -43,7 +45,8 @@
         "symbols-map",
         "images",
         "analyses",
-        "image-styles"
+        "image-styles",
+        "videos"
       ]
     }
   },
@@ -85,6 +88,26 @@
   },
   "budget": {
     "imagesPerDay": 300,
-    "analysesPerDay": 1000
+    "analysesPerDay": 1000,
+    "videosPerDay": 50
+  },
+  "videos": {
+    "_about": "AI dream videos (Plus). duration in seconds (4-15), resolution 480p|720p, aspect 9:16 = full iPhone screen. poyo seedance-2 measured 2026-11-10: from text 4 s 480p = 80 credits / 158 s, 5 s 720p = 200 credits / 289 s; from a picture 4 s 480p = 80 credits / 395 s (about 2.5x slower). Faster and cheaper: model seedance-2-fast, or 480p.",
+    "duration": 5,
+    "resolution": "720p",
+    "aspect": "9:16",
+    "providers": [
+      {
+        "name": "poyo",
+        "model": "seedance-2",
+        "units": 1
+      },
+      {
+        "name": "fal",
+        "model": "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+        "imageModel": "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+        "units": 1
+      }
+    ]
   }
 }

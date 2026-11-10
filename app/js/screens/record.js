@@ -3,6 +3,7 @@
 // Routes: #record (type) · #record/voice (speak) · #record/edit/<id> (editor on a saved dream).
 // Details → Picture: the free painted picture ("New picture") plus an AI image (js/images.js): "Create AI image" on a
 // saved dream, or "Create an AI image when I save" for a new one (requested right after createDream).
+// Below it an AI video (js/videos.js, Dreaming Plus): "Create video" on a saved dream only; a new one is saved first.
 import { createDream, updateDream, getDream, withDefaults, collection, getSetting, setSetting, SYMBOL_CATEGORIES } from '../store.js';
 import { TAGS, detectTags, suggestTitle } from '../analyze.js';
 import { esc, icons } from '../ui.js';
@@ -12,6 +13,10 @@ import {
   createImage, pollImage, hasImage, isImageFailed, isPainting, imagesAllowed, imagesBlocked, imageBadge,
   hasImageConsent, giveImageConsent,
 } from '../images.js';
+import {
+  createVideo, pollVideo, hasVideo, isVideoPending, isVideoFailed, isFilming, videosBlocked, videoBadge, videoElapsed,
+  giveVideoConsent, openVideoPlayer,
+} from '../videos.js';
 
 // The body text stays a plain string under the old key; everything else sits next to it as JSON.
 const DRAFT_KEY = 'dreaming.draft';
@@ -61,7 +66,7 @@ const ic = {
 const HELP = {
   voice: 'Speak and your words are added to the end of the text. Only the text is kept, never a recording.',
   rating: 'How did this dream feel overall? 1 is very unpleasant, 5 is wonderful.',
-  picture: "The painted picture is made on your phone from your dream's themes; nothing is uploaded. Try a new one until you like it. An AI image is created on Dreaming's server from the dream's text and is shown instead of it.",
+  picture: "The painted picture is made on your phone from your dream's themes; nothing is uploaded. Try a new one until you like it. An AI image is created on Dreaming's server from the dream's text and is shown instead of it. An AI video is a few seconds of your dream in motion, with sound, made there too.",
   length: 'How long the dream seemed, from a short flash to a whole story.',
   inDream: 'Were you yourself in the dream, or watching it like a film?',
   emotions: 'Pick the feelings you had in the dream, or add your own.',
@@ -654,7 +659,8 @@ function mount(el, ctx, param) {
     panel.innerHTML = build();
     for (const t of panel.querySelectorAll('textarea')) autosize(t);
     updateMic();
-    if (st.tab === 'details') getAccount().catch(() => {}); // fresh plan + counts for the AI image row
+    startVideoClock();
+    if (st.tab === 'details') getAccount().catch(() => {}); // fresh plan + counts for the AI image and video rows
   }
 
   // Card: icon tile, title, optional "?" that opens a short explanation.
@@ -739,8 +745,12 @@ function mount(el, ctx, param) {
         </div>
       </div>
       <div class="rec-ai">${aiBody()}</div>
-      <p class="rec-ai-note faint">AI images: this dream's text is sent to Dreaming's server to create the image. The rest of your journal stays on this iPhone.</p>`;
+      <div class="rec-ai rec-vid">${videoBody()}</div>
+      <p class="rec-ai-note faint">AI images and videos: this dream's text is sent to Dreaming's server to create them. The rest of your journal stays on this iPhone.</p>`;
   }
+
+  /** Small label next to "Create AI image" / "Create video": 'PLUS', '4 left', … ('' when unknown). */
+  const pill = (b) => (b ? `<span class="rec-ai-badge${b === 'PLUS' ? ' rec-ai-badge-plus' : ''}">${esc(b)}</span>` : '');
 
   // --- AI image (same rules and limits as the dream page) ---
 
@@ -750,8 +760,7 @@ function mount(el, ctx, param) {
   let aiShown = false;
 
   function aiBadge() {
-    const b = imagesBlocked() ? 'PLUS' : imageBadge();
-    return b ? `<span class="rec-ai-badge${b === 'PLUS' ? ' rec-ai-badge-plus' : ''}">${esc(b)}</span>` : '';
+    return pill(imagesBlocked() ? 'PLUS' : imageBadge());
   }
 
   function aiBody() {
@@ -819,6 +828,97 @@ function mount(el, ctx, param) {
       tags: tagsForSave(),
       kind: st.d.kind === 'nightmare' ? 'nightmare' : 'dream',
     }, { toast: ctx.toast }); // repaints through the 'dreaming:image' event
+  }
+
+  // --- AI video (Dreaming Plus: a few seconds with sound, made on the server in 5–15 minutes) ---
+
+  // The "1:23" beside a video in progress ticks once a second while it is on screen.
+  let vidClock = null;
+
+  function startVideoClock() {
+    clearInterval(vidClock);
+    vidClock = null;
+    if (!root.querySelector('[data-vid-time]')) return;
+    vidClock = setInterval(() => {
+      const time = root.querySelector('[data-vid-time]');
+      const dream = editId ? getDream(editId) : null;
+      if (!time || !isVideoPending(dream)) { clearInterval(vidClock); vidClock = null; return; }
+      time.textContent = videoElapsed(dream);
+    }, 1000);
+  }
+
+  /** The picture shown for a video: the dream's AI image (the video starts from it) or else the painting. */
+  const videoPicture = (dream) => (hasImage(dream) ? dream.image.url : artSrc());
+
+  function videoBody() {
+    // A video is made from the saved dream, so a new one is saved first.
+    if (!editId) {
+      if (videosBlocked()) {
+        return `
+          <div class="rec-ai-row">
+            <span class="rec-ai-thumb rec-ai-thumb-empty" aria-hidden="true">${icons.film}</span>
+            <p class="rec-ai-text">Turn this dream into a short AI video.</p>
+            <button type="button" class="rec-ai-btn" data-act="vid-plus">${icons.film}<span>AI video</span>${pill(videoBadge())}</button>
+          </div>`;
+      }
+      return `
+        <div class="rec-ai-row">
+          <span class="rec-ai-thumb rec-ai-thumb-empty" aria-hidden="true">${icons.film}</span>
+          <p class="rec-ai-text">Turn this dream into a short AI video. ${pill(videoBadge())}<span class="rec-ai-sub faint">Save the dream first to make a video.</span></p>
+        </div>`;
+    }
+    const dream = getDream(editId);
+    if (!dream) return '';
+    if (isFilming(dream)) {
+      const under = videoPicture(dream);
+      const time = videoElapsed(dream);
+      return `
+        <div class="rec-ai-row" role="status">
+          <span class="rec-ai-thumb rec-ai-thumb-wait">${under ? `<img src="${esc(under)}" alt="">` : ''}<i aria-hidden="true"></i></span>
+          <p class="rec-ai-text">Creating your dream video…<span class="rec-ai-sub faint">Usually 5–15 minutes. You can keep editing or leave.</span></p>
+          ${time ? `<span class="rec-ai-time" data-vid-time aria-hidden="true">${esc(time)}</span>` : ''}
+        </div>`;
+    }
+    const has = hasVideo(dream);
+    const failed = isVideoFailed(dream);
+    const under = has ? videoPicture(dream) : '';
+    const thumb = has
+      ? `<button type="button" class="rec-ai-thumb rec-vid-thumb" data-act="vid-play" aria-label="Watch the video of this dream">${under ? `<img src="${esc(under)}" alt="">` : ''}<span class="video-mark" aria-hidden="true">${icons.play}</span></button>`
+      : `<span class="rec-ai-thumb rec-ai-thumb-empty" aria-hidden="true">${icons.film}</span>`;
+    const text = failed ? esc(dream.videoJob.error || "The video didn't work this time.")
+      : has ? 'Your dream video is ready. Tap the picture to watch it.'
+        : 'Turn this dream into a short AI video.';
+    const label = failed ? 'Try again' : has ? 'New video' : 'Create video';
+    return `
+      <div class="rec-ai-row">
+        ${thumb}
+        <p class="rec-ai-text">${text}</p>
+        <button type="button" class="rec-ai-btn" data-act="vid-create">${icons.film}<span>${label}</span>${pill(videoBadge())}</button>
+      </div>`;
+  }
+
+  function refreshVideo() {
+    const box = root.querySelector('.rec-vid');
+    if (box) box.innerHTML = videoBody();
+    startVideoClock();
+  }
+
+  /** Saved dream: make its video now, from the text as it is in the editor. Without Plus this opens the paywall. */
+  function createVideoNow() {
+    const saved = getDream(editId);
+    if (!saved || isFilming(saved)) return;
+    if (!videosBlocked()) {
+      // Only a few a month, and the new one takes the old one's place: ask first when there is one.
+      if (hasVideo(saved) && !confirm('Make a new video of this dream? It takes the place of the current one and uses one of this month’s videos.')) return;
+      giveVideoConsent(); // tapping counts as agreeing: the note under the row says what is sent
+    }
+    createVideo({
+      ...saved,
+      text: st.d.text.trim() || saved.text,
+      title: st.d.title.trim() || saved.title,
+      tags: tagsForSave(),
+      kind: st.d.kind === 'nightmare' ? 'nightmare' : 'dream',
+    }, { toast: ctx.toast }); // opens the paywall itself when blocked; repaints through the 'dreaming:video' event
   }
 
   function refreshArt() {
@@ -1156,6 +1256,18 @@ function mount(el, ctx, param) {
       case 'ai-create':
         createAiNow();
         break;
+      case 'vid-plus':
+        openPaywall({ feature: 'videos' });
+        break;
+      case 'vid-create':
+        createVideoNow();
+        break;
+      case 'vid-play': {
+        // Straight from the tap, so the player may start with sound.
+        const dream = editId ? getDream(editId) : null;
+        if (hasVideo(dream)) openVideoPlayer(dream, { poster: hasImage(dream) ? dream.image.url : '' });
+        break;
+      }
       case 'emo': {
         const v = btn.dataset.val;
         st.d.emotions = hasItem(st.d.emotions, v)
@@ -1187,12 +1299,18 @@ function mount(el, ctx, param) {
     }
   });
 
-  // AI image updates (painting finished / failed) and plan changes refresh the Picture card.
-  const onImageEvent = (e) => { if (editId && e?.detail?.dreamId === editId) refreshAi(); };
-  const onAccountEvent = () => refreshAi();
+  // AI image and video updates (finished / failed) and plan changes refresh the Picture card.
+  // A new AI image also changes the picture shown with the video, so it repaints both rows.
+  const onImageEvent = (e) => { if (editId && e?.detail?.dreamId === editId) { refreshAi(); refreshVideo(); } };
+  const onVideoEvent = (e) => { if (editId && e?.detail?.dreamId === editId) refreshVideo(); };
+  const onAccountEvent = () => { refreshAi(); refreshVideo(); };
   window.addEventListener('dreaming:image', onImageEvent);
+  window.addEventListener('dreaming:video', onVideoEvent);
   window.addEventListener('dreaming:account', onAccountEvent);
-  if (editId) pollImage(editId); // resume a picture still being painted
+  if (editId) {
+    pollImage(editId); // resume a picture still being painted
+    pollVideo(editId); // ...and a video still being made
+  }
 
   // An AI image that can't load (offline): show the painted picture instead.
   root.addEventListener('error', (e) => {
@@ -1208,7 +1326,10 @@ function mount(el, ctx, param) {
 
   return () => {
     window.removeEventListener('dreaming:image', onImageEvent);
+    window.removeEventListener('dreaming:video', onVideoEvent);
     window.removeEventListener('dreaming:account', onAccountEvent);
+    clearInterval(vidClock);
+    vidClock = null;
     if (rec) {
       const r = rec;
       detach();

@@ -120,10 +120,11 @@ function compareTable(limits) {
     ['Statistics and trends', yes, yes],
     ['Passcode lock and export', yes, yes],
     ['AI dream images', `${limits.free.images} a month`, `${limits.plus.images} a month`],
+    ['AI dream videos', limits.free.videos ? `${limits.free.videos} a month` : no, `${limits.plus.videos} a month`],
     ['Dream interpretations', `${limits.free.analyses} a month`, `${limits.plus.analyses} a month`],
     ['Sleep sounds', '1 soundscape and 1 beat', 'All of them'],
     ['Nightmares, correlations, symbols map', no, yes],
-    ['Choice of image style', no, yes],
+    ['Choice of art style', no, yes],
   ];
   return `
     <h2 class="section-title">Free and Plus</h2>
@@ -157,6 +158,7 @@ function mineCard(acc, limits) {
       <h2 class="plus-mine-title" id="plus-mine-title">You have Dreaming Plus${until ? ` until ${esc(until)}` : ''}</h2>
       <h3 class="plus-card-title plus-usage-title">This month</h3>
       ${usageRow('AI images', used.images || 0, lim.images ?? limits.plus.images)}
+      ${usageRow('AI videos', used.videos || 0, lim.videos ?? limits.plus.videos)}
       ${usageRow('Interpretations', used.analyses || 0, lim.analyses ?? limits.plus.analyses)}
       <p class="plus-usage-note">Counts start again on ${esc(renewDate(acc.period))}.</p>
     </section>`;
@@ -183,7 +185,7 @@ function pageHTML(afterOnboarding, first) {
       <h1 class="plus-title">Dreaming <em>Plus</em></h1>
       <p class="plus-lead">${plus
         ? 'Thank you for supporting Dreaming. Here is what your plan includes.'
-        : 'More from every dream: AI images, interpretations, every sleep sound and deeper analyses.'}</p>
+        : 'More from every dream: AI images and videos, interpretations, every sleep sound and deeper analyses.'}</p>
     </div>`;
 
   const body = plus

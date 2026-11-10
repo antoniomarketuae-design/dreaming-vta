@@ -26,6 +26,8 @@ const SHELL = [
   'js/account.js',
   'js/paywall.js',
   'js/images.js',
+  'js/videos.js',
+  'css/video.css',
   'css/paywall.css',
   'js/audio.js',
   'js/content/techniques.js',

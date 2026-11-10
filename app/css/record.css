@@ -494,12 +494,13 @@
   .rec-mic[aria-pressed="true"] { box-shadow: 0 0 54px 14px rgba(242, 154, 140, 0.4); }
 }
 
-/* AI image (Details → Picture) */
+/* AI image and AI video (Details → Picture). On a narrow phone the button moves under the text. */
 .rec-ai { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--glass-border); }
 .rec-ai-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 10px 12px;
   width: 100%;
   margin: 0;
   padding: 0;
@@ -537,7 +538,7 @@ button.rec-ai-row { cursor: pointer; }
   from { background-position: 120% 0; }
   to { background-position: -120% 0; }
 }
-.rec-ai-text { flex: 1; min-width: 0; margin: 0; color: var(--text-dim); font-size: 14px; line-height: 1.4; }
+.rec-ai-text { flex: 1 1 150px; min-width: 0; margin: 0; color: var(--text-dim); font-size: 14px; line-height: 1.4; }
 .rec-ai-switchrow .rec-ai-text { color: var(--text); font-size: 15px; }
 .rec-ai-sub { display: block; margin-top: 2px; font-size: 12.5px; }
 .rec-ai-badge {
@@ -559,6 +560,7 @@ button.rec-ai-row { cursor: pointer; }
   align-items: center;
   gap: 6px;
   min-height: 42px;
+  margin-left: auto;
   padding: 8px 12px;
   border: 1px solid var(--glass-border);
   border-radius: 999px;
@@ -592,6 +594,13 @@ button.rec-ai-row { cursor: pointer; }
 .rec-ai-switchrow[aria-checked="true"] .rec-switch { background: var(--violet); }
 .rec-ai-switchrow[aria-checked="true"] .rec-switch i { transform: translateX(20px); }
 .rec-ai-note { margin: 10px 0 0; font-size: 12.5px; line-height: 1.4; }
+
+/* AI video: elapsed time while it is made, and the picture that plays the finished video */
+.rec-ai-time { flex: none; color: var(--text-faint); font-size: 13px; font-variant-numeric: tabular-nums; }
+button.rec-ai-thumb { padding: 0; border: 0; cursor: pointer; }
+.rec-vid-thumb:active { opacity: 0.8; }
+.rec-vid-thumb .video-mark { right: 4px; bottom: 4px; width: 22px; height: 22px; }
+.rec-vid-thumb .video-mark svg { width: 11px; height: 11px; }
 
 @media (prefers-reduced-motion: reduce) {
   .rec-ai-thumb-wait i { animation: none; }

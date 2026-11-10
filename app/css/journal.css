@@ -254,8 +254,9 @@
 .jr-row:active { background: rgba(255, 255, 255, 0.08); }
 .jr-row-night { border-color: rgba(255, 159, 143, 0.22); }
 
+.jr-thumb-wrap { position: relative; flex: none; width: 64px; height: 64px; }
 .jr-thumb {
-  flex: none;
+  display: block;
   width: 64px;
   height: 64px;
   border-radius: 14px;
@@ -263,6 +264,9 @@
   background: linear-gradient(145deg, rgba(141, 108, 245, 0.35), rgba(242, 154, 140, 0.18));
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
 }
+/* Dream with an AI video: small play mark in the thumbnail's corner */
+.jr-thumb-wrap .video-mark { right: 4px; bottom: 4px; width: 22px; height: 22px; }
+.jr-thumb-wrap .video-mark svg { width: 11px; height: 11px; }
 
 .jr-row-body { flex: 1; min-width: 0; }
 .jr-row-top { display: flex; align-items: center; gap: 6px; }
