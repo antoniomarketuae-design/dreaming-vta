@@ -1,14 +1,27 @@
 import home from './screens/home.js';
 import journal from './screens/journal.js';
+import lucidity from './screens/lucidity.js';
 import insights from './screens/insights.js';
 import profile from './screens/profile.js';
 import record from './screens/record.js';
 import dream from './screens/dream.js';
+import onboarding, { ART_STYLES } from './screens/onboarding.js';
+import celebrate from './screens/celebrate.js';
+import technique from './screens/technique.js';
+import article from './screens/article.js';
+import goals from './screens/goals.js';
+import moduleScreen from './screens/module.js';
+import plus from './screens/plus.js';
+import lock from './screens/lock.js';
 import { icons } from './ui.js';
+import { getProfile, getSetting } from './store.js';
 
-// Tab-bar screens, in order. Other screens are reached by link: #record, #dream/<id>.
-const TABS = [home, journal, insights, profile];
-const SCREENS = [...TABS, record, dream];
+// Tab-bar screens, in order: Home · Journal · Lucidity · Progress · Settings.
+// Other screens are reached by link: #record[/voice|/edit/<id>], #dream/<id>[/analyze], #celebrate/<id>, #technique/<id>,
+// #article/<id>, #goals, #module/<id>, #onboarding, #plus, #lock.
+const TABS = [home, journal, lucidity, insights, profile];
+const SCREENS = [...TABS, record, dream, onboarding, celebrate, technique, article, goals, moduleScreen, plus, lock];
+const UNLOCKED_KEY = 'dreaming.unlocked';
 
 const screenEl = document.getElementById('screen');
 const tabbarEl = document.getElementById('tabbar');
@@ -47,22 +60,45 @@ function parseRoute() {
   return { screen, param };
 }
 
+// A tab shows a dot while its screen's badge() says there is something new (e.g. a technique just unlocked).
 function renderTabs() {
-  tabbarEl.innerHTML = TABS.map((s) => `
-    <a class="tab" href="#${s.id}" data-id="${s.id}">${s.icon}<span>${s.label}</span></a>
-  `).join('');
+  tabbarEl.innerHTML = TABS.map((s) => {
+    let dot = false;
+    try { dot = Boolean(s.badge?.()); } catch {}
+    return `<a class="tab" href="#${s.id}" data-id="${s.id}">${s.icon}<span>${s.label}</span>${dot ? '<i class="tab-dot" aria-label="New"></i>' : ''}</a>`;
+  }).join('');
 }
+
+const isLocked = () => {
+  if (!getSetting('passcode', null)) return false;
+  try { return sessionStorage.getItem(UNLOCKED_KEY) !== '1'; } catch { return false; }
+};
 
 let active = null;
 
 function render() {
-  const { screen, param } = parseRoute();
+  const route = parseRoute();
+  // Passcode first, then first-launch onboarding; both replace the route so Back doesn't return to a gated screen.
+  if (isLocked() && route.screen.id !== 'lock') {
+    try { sessionStorage.setItem('dreaming.afterUnlock', location.hash || '#home'); } catch {}
+    location.replace('#lock');
+    return;
+  }
+  if (!isLocked() && !getProfile().onboarded && !['onboarding', 'plus', 'lock'].includes(route.screen.id)) {
+    location.replace('#onboarding');
+    return;
+  }
+  const { screen, param } = route;
   try { active?.destroy?.(); } catch {}
   active = screen;
 
   document.body.dataset.screen = screen.id;
   document.body.dataset.tabbar = screen.hideTabbar ? 'hidden' : 'shown';
+  // The picture style chosen in onboarding tints every generated dream picture (see .css rule for data: images).
+  const style = ART_STYLES.find((s) => s.id === getProfile().artStyle);
+  document.documentElement.style.setProperty('--art-filter', style?.filter || 'none');
   tabbarEl.hidden = Boolean(screen.hideTabbar);
+  renderTabs();
   for (const tab of tabbarEl.querySelectorAll('.tab')) {
     if (tab.dataset.id === screen.id) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
@@ -139,7 +175,13 @@ if ('serviceWorker' in navigator) {
 }
 
 document.addEventListener('visibilitychange', () => {
+  // With a passcode set, leaving the app locks it again.
+  if (document.visibilityState === 'hidden' && getSetting('passcode', null)) {
+    try { sessionStorage.removeItem(UNLOCKED_KEY); } catch {}
+    return;
+  }
   if (document.visibilityState !== 'visible') return;
+  if (isLocked() && active?.id !== 'lock') { render(); return; }
   swRegistration?.update().catch(() => {});
   checkForUpdate('resume');
 });
@@ -176,7 +218,6 @@ function maybeShowInstallGuide() {
   document.body.append(el);
 }
 
-renderTabs();
 render();
 checkForUpdate('boot');
 maybeShowInstallGuide();

@@ -1,0 +1,141 @@
+/* Passcode lock (#lock) and the shared 4-dot keypad (also used by the Settings passcode sheet). Prefix .lock- */
+
+.lock-screen {
+  min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 44px);
+  min-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 44px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+}
+
+.lock-brand { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.lock-moon {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 217, 138, 0.35);
+  background: radial-gradient(circle at 35% 30%, rgba(255, 233, 180, 0.3), rgba(155, 123, 255, 0.2) 60%, rgba(22, 15, 56, 0.35));
+  box-shadow: 0 0 34px rgba(255, 217, 138, 0.25);
+  color: var(--moon);
+}
+.lock-moon svg { width: 28px; height: 28px; }
+.lock-app {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.lock-pad-host[hidden] { display: none; }
+
+/* ---- Keypad ---- */
+
+.lock-pad { display: flex; flex-direction: column; align-items: center; }
+.lock-title { margin: 0; color: var(--text); font-size: 21px; font-weight: 300; letter-spacing: -0.005em; }
+.lock-hint { min-height: 21px; margin: 6px 0 0; color: var(--text-dim); font-size: 14.5px; }
+
+.lock-dots { display: flex; gap: 22px; margin: 20px 0 34px; }
+.lock-dots i {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid rgba(222, 212, 255, 0.55);
+  border-radius: 50%;
+  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+.lock-dots i.is-on {
+  border-color: rgba(240, 234, 255, 0.9);
+  background: rgba(240, 234, 255, 0.9);
+}
+.lock-dots.is-ok i {
+  border-color: var(--moon);
+  background: var(--moon);
+  box-shadow: 0 0 10px rgba(255, 217, 138, 0.8);
+}
+.lock-dots.lock-shake { animation: lock-shake 0.44s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+.lock-dots.lock-shake i { border-color: var(--ember); }
+@keyframes lock-shake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(5px); }
+  30%, 50%, 70% { transform: translateX(-10px); }
+  40%, 60% { transform: translateX(10px); }
+}
+
+.lock-keys {
+  display: grid;
+  grid-template-columns: repeat(3, 76px);
+  gap: 16px 26px;
+}
+.lock-key {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  padding: 0;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  color: var(--text);
+  font-size: 31px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background 0.15s;
+}
+.lock-key:active { background: rgba(255, 255, 255, 0.24); transition: none; }
+.lock-key:disabled { opacity: 0.35; pointer-events: none; }
+.lock-key-del { border-color: transparent; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; color: var(--text-dim); }
+.lock-key-del svg { width: 28px; height: 28px; }
+.lock-key-del:active { background: var(--glass-hover); }
+
+@media (max-height: 640px) {
+  .lock-keys { grid-template-columns: repeat(3, 66px); gap: 12px 24px; }
+  .lock-key { width: 66px; height: 66px; font-size: 27px; }
+  .lock-dots { margin: 14px 0 22px; }
+}
+
+/* ---- Forgot passcode ---- */
+
+.lock-forgot {
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  font-size: 15px;
+  cursor: pointer;
+}
+.lock-forgot[hidden] { display: none; }
+.lock-forgot:active { color: var(--text-dim); }
+
+.lock-reset { width: 100%; max-width: 380px; padding: 22px 20px 18px; }
+.lock-reset[hidden] { display: none; }
+.lock-reset-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(155, 123, 255, 0.18);
+  color: var(--moon);
+}
+.lock-reset-icon svg { width: 22px; height: 22px; }
+.lock-reset-title { margin: 12px 0 8px; color: var(--text); font-size: 19px; font-weight: 400; }
+.lock-reset-text { margin: 0 0 10px; color: var(--text-dim); font-size: 14.5px; line-height: 1.5; }
+.lock-reset-warn { color: #ffb3b8; }
+.lock-reset-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lock-dots.lock-shake { animation: none; }
+  .lock-dots i, .lock-key { transition: none; }
+}

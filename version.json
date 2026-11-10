@@ -1,7 +1,12 @@
 {
-  "version": 6,
-  "updated": "2026-11-09",
+  "version": 7,
+  "updated": "2026-11-10",
   "notes": [
+    {
+      "version": 7,
+      "date": "2026-11-10",
+      "text": "The full Dreaming experience: personal onboarding, a two-step recorder with Story/Details/Symbols/Lucidity, a save celebration, a Lucidity tab with 10 unlockable techniques, articles and sounds, Progress with levels and analysis, Settings with reminders, passcode lock and export."
+    },
     {
       "version": 6,
       "date": "2026-11-09",

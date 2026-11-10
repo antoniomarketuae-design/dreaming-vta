@@ -47,10 +47,44 @@ export function getDream(id) {
   return all().find((d) => d.id === id) ?? null;
 }
 
-export function createDream({ text = '', title, tags, lucid = false, recurring = false, date, createdAt } = {}) {
+/** The six symbol categories of the editor's Symbols tab. */
+export const SYMBOL_CATEGORIES = ['people', 'objects', 'characters', 'places', 'themes', 'actions'];
+
+/**
+ * Full shape of a dream (older dreams lack the newer fields; read them through withDefaults).
+ *   kind: 'dream' | 'nightmare'
+ *   ratings: { rating, length, sleep }            each 1–5 or null
+ *   emotions: [string]
+ *   questions: { inDream, matchesMood, realLife }  each true / false / null  (recurring is top-level)
+ *   symbols: { people, objects, characters, places, themes, actions }  arrays of strings
+ *   lucidity: { control: true/false/null, vividness: 1–5 or null }    (lucid is top-level)
+ *   sleep: { bedtime: "23:30" | null, wake: "07:10" | null, quality: 1–5 or null }
+ *   notes: string
+ */
+export function withDefaults(d) {
+  return {
+    kind: 'dream',
+    ratings: { rating: null, length: null, sleep: null },
+    emotions: [],
+    questions: { inDream: null, matchesMood: null, realLife: null },
+    symbols: Object.fromEntries(SYMBOL_CATEGORIES.map((c) => [c, []])),
+    lucidity: { control: null, vividness: null },
+    sleep: { bedtime: null, wake: null, quality: null },
+    notes: '',
+    ...d,
+    ratings: { rating: null, length: null, sleep: null, ...(d?.ratings || {}) },
+    questions: { inDream: null, matchesMood: null, realLife: null, ...(d?.questions || {}) },
+    symbols: { ...Object.fromEntries(SYMBOL_CATEGORIES.map((c) => [c, []])), ...(d?.symbols || {}) },
+    lucidity: { control: null, vividness: null, ...(d?.lucidity || {}) },
+    sleep: { bedtime: null, wake: null, quality: null, ...(d?.sleep || {}) },
+  };
+}
+
+export function createDream({ text = '', title, tags, lucid = false, recurring = false, date, createdAt, ...extra } = {}) {
   const now = createdAt ? new Date(createdAt) : new Date();
   const clean = String(text).trim();
-  const dream = {
+  const dream = withDefaults({
+    ...extra,
     id: `d${now.getTime().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
     createdAt: now.toISOString(),
     date: date || localDay(now),
@@ -61,7 +95,7 @@ export function createDream({ text = '', title, tags, lucid = false, recurring =
     lucid: Boolean(lucid),
     recurring: Boolean(recurring),
     seed: Math.floor(Math.random() * 2 ** 31),
-  };
+  });
   all().push(dream);
   commit();
   return dream;
@@ -89,7 +123,81 @@ export function onChange(fn) {
   return () => listeners.delete(fn);
 }
 
-/** total, streak (consecutive days with a dream, ending today or yesterday), thisMonth, lucid. */
+/** Distinct symbols (all six categories) and emotions across all dreams. */
+export function collection() {
+  const symbols = new Set();
+  const emotions = new Set();
+  for (const d of all().map(withDefaults)) {
+    for (const c of SYMBOL_CATEGORIES) for (const s of d.symbols[c] || []) symbols.add(`${c}:${String(s).toLowerCase().trim()}`);
+    for (const e of d.emotions || []) emotions.add(String(e).toLowerCase().trim());
+  }
+  return { symbols: symbols.size, emotions: emotions.size, symbolList: [...symbols].map((s) => s.split(':')), emotionList: [...emotions] };
+}
+
+/** Dreams per day for the last `days` days, oldest first: [{ date, count }]. */
+export function recallByDay(days = 31) {
+  const counts = new Map();
+  for (const d of all()) counts.set(d.date, (counts.get(d.date) || 0) + 1);
+  const out = [];
+  const cursor = new Date();
+  cursor.setDate(cursor.getDate() - (days - 1));
+  for (let i = 0; i < days; i += 1) {
+    const day = localDay(cursor);
+    out.push({ date: day, count: counts.get(day) || 0 });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return out;
+}
+
+export function loggedToday() {
+  const today = localDay();
+  return all().some((d) => d.date === today || d.createdAt.slice(0, 10) === today);
+}
+
+// ---- Onboarding profile, dream goals, "seen" markers ----
+
+/**
+ * Profile keys (all optional): name, gender, age, foundVia, mainGoal ('analysis'|'lucid'|'journal'), recall,
+ * nightmares, techniquesKnown[], lucidGoals[], interpretationStyle, dreamTypes[], topics[], dailyMinutes,
+ * monthlyGoal, sleepSchedule {bedtime, wake}, artStyle, lifeGoals[], personalGoal, onboarded (bool), onboardedAt.
+ */
+export function getProfile() {
+  return getSetting('profile', {});
+}
+
+export function setProfile(patch) {
+  setSetting('profile', { ...getProfile(), ...patch });
+}
+
+export function listGoals() {
+  return getSetting('dreamGoals', []);
+}
+
+export function addGoal(text) {
+  const goal = { id: `g${Date.now().toString(36)}`, text: String(text).trim(), done: false, createdAt: new Date().toISOString() };
+  if (goal.text) setSetting('dreamGoals', [...listGoals(), goal]);
+  return goal;
+}
+
+export function updateGoal(id, patch) {
+  setSetting('dreamGoals', listGoals().map((g) => (g.id === id ? { ...g, ...patch } : g)));
+}
+
+export function deleteGoal(id) {
+  setSetting('dreamGoals', listGoals().filter((g) => g.id !== id));
+}
+
+/** Small "has the user seen X" flags, e.g. 'tab:lucidity', 'technique:wild'. */
+export function isSeen(key) {
+  return Boolean(getSetting('seen', {})[key]);
+}
+
+export function markSeen(key) {
+  const seen = getSetting('seen', {});
+  if (!seen[key]) setSetting('seen', { ...seen, [key]: true });
+}
+
+/** total, streak (consecutive days with a dream, ending today or yesterday), thisMonth, lucid, nightmares. */
 export function getStats() {
   const dreams = all();
   const days = new Set(dreams.map((d) => d.date));
@@ -103,6 +211,7 @@ export function getStats() {
     streak,
     thisMonth: dreams.filter((d) => d.date.startsWith(month)).length,
     lucid: dreams.filter((d) => d.lucid).length,
+    nightmares: dreams.filter((d) => d.kind === 'nightmare').length,
   };
 }
 

@@ -1,0 +1,116 @@
+/* Dreaming Plus placeholder (#plus). Every selector starts with .plus- so nothing leaks into other screens. */
+
+.plus {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 40px);
+  min-height: calc(100svh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 40px);
+}
+
+.plus-top { display: flex; min-height: 44px; }
+
+.plus-hero { padding: 12px 4px 0; text-align: center; animation: plus-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+
+.plus-orb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  color: var(--moon);
+  background: radial-gradient(circle at 35% 30%, rgba(255, 217, 138, 0.32), rgba(155, 123, 255, 0.24) 45%, rgba(155, 123, 255, 0) 72%);
+  box-shadow: 0 0 70px rgba(155, 123, 255, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.plus-orb svg { width: 50px; height: 50px; filter: drop-shadow(0 0 12px rgba(255, 217, 138, 0.65)); }
+.plus-orb::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    -96px 34px 0 0 rgba(255, 255, 255, 0.7),
+    -72px 100px 0 -0.5px rgba(255, 255, 255, 0.6),
+    14px 76px 0 0 rgba(255, 217, 138, 0.8),
+    -44px -10px 0 -0.5px rgba(255, 255, 255, 0.5);
+  animation: plus-twinkle 3.2s ease-in-out infinite;
+}
+
+.plus-kicker { margin: 0 0 4px; color: var(--text-dim); font-size: 15px; }
+
+.plus-title {
+  margin: 0;
+  color: var(--text);
+  font-size: 34px;
+  line-height: 1.15;
+  font-weight: 300;
+  letter-spacing: -0.015em;
+}
+.plus-title em { color: var(--moon); font-style: italic; font-weight: 400; text-shadow: 0 0 18px rgba(255, 217, 138, 0.35); }
+
+.plus-badge {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 4px 12px;
+  border: 1px solid rgba(255, 217, 138, 0.45);
+  border-radius: 999px;
+  background: rgba(255, 217, 138, 0.12);
+  color: var(--moon);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.plus-lead { max-width: 340px; margin: 16px auto 0; color: var(--text-dim); font-size: 16px; line-height: 1.5; }
+
+.plus-card {
+  margin-top: 24px;
+  padding: 16px 18px 8px;
+  animation: plus-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) 0.12s backwards;
+}
+.plus-card-title {
+  margin: 0 0 6px;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.plus-list { margin: 0; padding: 0; list-style: none; }
+.plus-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--glass-border);
+  font-size: 15.5px;
+}
+.plus-list li:last-child { border-bottom: 0; }
+.plus-check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 217, 138, 0.16);
+  color: var(--moon);
+}
+.plus-check svg { width: 16px; height: 16px; }
+
+.plus-actions { margin-top: auto; padding-top: 24px; animation: plus-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) 0.24s backwards; }
+.plus-cta { max-width: 340px; margin: 0 auto; border-radius: 999px; min-height: 54px; box-shadow: 0 12px 30px rgba(120, 80, 230, 0.35); }
+.plus-foot { margin: 12px 0 0; color: var(--text-faint); font-size: 13px; text-align: center; }
+
+@keyframes plus-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes plus-twinkle { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .plus-hero, .plus-card, .plus-actions, .plus-orb::after { animation: none; }
+}

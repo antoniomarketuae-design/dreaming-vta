@@ -1,11 +1,15 @@
 /* Home screen. Every selector starts with .home- so nothing leaks into other screens. */
 
-/* Fill the visible screen so the record button settles in the lower-middle, above the glow. */
-.home {
-  display: flex;
-  flex-direction: column;
-  min-height: calc(100vh - env(safe-area-inset-top) - 16px - var(--tabbar-h) - env(safe-area-inset-bottom) - 28px);
-  min-height: calc(100svh - env(safe-area-inset-top) - 16px - var(--tabbar-h) - env(safe-area-inset-bottom) - 28px);
+.home { display: flex; flex-direction: column; }
+
+.home-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 /* ---- 1. Greeting over the dark sky ---- */
@@ -13,43 +17,76 @@
 .home-top { padding: 6px 4px 0; }
 .home-greeting {
   margin: 0;
-  font-size: 26px;
+  font-size: 27px;
   line-height: 1.2;
   font-weight: 300;
   letter-spacing: -0.01em;
   color: var(--text);
+  text-shadow: 0 2px 18px rgba(8, 4, 30, 0.6);
 }
-.home-date { margin: 2px 0 0; font-size: 15px; font-weight: 300; color: var(--text-dim); }
-.home-stats { margin: 6px 0 0; font-size: 13px; color: var(--text-faint); letter-spacing: 0.01em; }
+.home-name { color: var(--moon); }
+.home-date { margin: 3px 0 0; font-size: 15px; font-weight: 300; color: var(--text-dim); }
 
-/* ---- 2. Hero: the last dream ---- */
+.home-today {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 5px 12px 5px 8px;
+  border: 1px solid rgba(255, 217, 138, 0.32);
+  border-radius: 999px;
+  background: rgba(255, 217, 138, 0.12);
+  color: var(--moon);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.home-today svg { width: 16px; height: 16px; stroke-width: 2.4; }
+
+/* ---- 2. First-dream invitation / last dream ---- */
+
+.home-intro { margin-top: 18px; text-align: center; }
+.home-empty-art { display: block; width: 100%; max-width: 230px; height: auto; margin: 0 auto; }
+.home-empty-cloud { animation: home-drift 9s ease-in-out infinite alternate; }
+@keyframes home-drift {
+  from { transform: translate(22px, 0); }
+  to { transform: translate(30px, -2px); }
+}
+
+.home-headline {
+  margin: 10px 4px 0;
+  font-size: 22px;
+  line-height: 1.32;
+  font-weight: 300;
+  color: var(--text);
+  text-wrap: balance;
+}
+.home-headline-small { margin-top: 16px; font-size: 16px; line-height: 1.4; color: var(--text-dim); text-wrap: pretty; }
 
 .home-hero {
   display: block;
-  margin-top: 20px;
+  margin-top: 16px;
   padding: 10px;
   text-decoration: none;
   color: inherit;
   box-shadow: 0 18px 50px rgba(8, 4, 30, 0.35);
   transition: transform 0.15s ease;
 }
-a.home-hero:active { transform: scale(0.985); }
-
+.home-hero:active { transform: scale(0.985); }
 .home-hero-art {
+  display: block;
   width: 100%;
   aspect-ratio: 3 / 2;
   object-fit: cover;
   border-radius: calc(var(--radius) - 8px);
   background: rgba(255, 255, 255, 0.05);
 }
-
 .home-art-fallback {
   background:
     radial-gradient(80% 70% at 30% 25%, hsla(var(--h), 70%, 70%, 0.55), transparent 70%),
     radial-gradient(70% 60% at 75% 80%, hsla(calc(var(--h) + 60), 80%, 70%, 0.45), transparent 70%),
     #241a5a;
 }
-
 .home-hero-body { padding: 12px 6px 4px; }
 .home-hero-title {
   display: -webkit-box;
@@ -63,41 +100,29 @@ a.home-hero:active { transform: scale(0.985); }
   color: var(--text);
 }
 .home-hero-title .star-mark { vertical-align: -1px; }
-.home-hero-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 8px;
-  margin-top: 8px;
-}
+.home-hero-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 8px; }
 .home-hero-when { margin-right: 2px; font-size: 14px; color: var(--text-dim); }
 
-/* Empty state */
-.home-empty { padding: 22px 18px 24px; text-align: center; }
-.home-empty-art { display: block; width: 100%; max-width: 240px; height: auto; margin: 0 auto; }
-.home-empty-cloud { animation: home-drift 9s ease-in-out infinite alternate; }
-.home-empty-text { margin: 10px 0 0; font-size: 16px; font-weight: 300; color: var(--text-dim); }
-
-@keyframes home-drift {
-  from { transform: translate(22px, 0); }
-  to { transform: translate(30px, -2px); }
+.home-analyze {
+  margin-top: 10px;
+  border-radius: 999px;
+  text-decoration: none;
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
 }
+.home-analyze svg { color: var(--moon); }
 
-/* ---- 3. Primary action ---- */
+/* ---- 3. The record action: big glowing button + round voice shortcut ---- */
 
-.home-action {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: auto;
-  padding-top: 28px;
-}
+.home-action { display: flex; align-items: center; gap: 12px; margin-top: 22px; }
 
 .home-record {
   position: relative;
   isolation: isolate;
+  flex: 1;
+  min-width: 0;
   min-height: 64px;
-  padding: 16px 26px;
+  padding: 16px 22px;
   border-radius: 999px;
   font-size: 18px;
   font-weight: 600;
@@ -108,7 +133,8 @@ a.home-hero:active { transform: scale(0.985); }
     0 10px 30px rgba(120, 84, 230, 0.45),
     0 0 46px rgba(255, 217, 138, 0.18);
 }
-.home-record svg { width: 24px; height: 24px; }
+.home-record svg { width: 24px; height: 24px; flex: none; }
+.home-record span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* The breathing halo: an opacity/scale animation on a pseudo-element (cheap to animate). */
 .home-record::before {
@@ -124,35 +150,249 @@ a.home-hero:active { transform: scale(0.985); }
   animation: home-breathe 4.8s ease-in-out infinite;
   pointer-events: none;
 }
-
 @keyframes home-breathe {
   0%, 100% { opacity: 0.4; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.03); }
 }
 
-.home-type {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  min-width: 120px;
-  margin-top: 6px;
-  padding: 0 16px;
-  color: var(--text-dim);
-  font-size: 15px;
-  text-decoration: none;
+.home-voice {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 1px solid rgba(255, 217, 138, 0.3);
+  border-radius: 50%;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  color: var(--moon);
+  box-shadow: 0 8px 24px rgba(8, 4, 30, 0.35), 0 0 22px rgba(255, 217, 138, 0.12);
 }
-.home-type:active { color: var(--text); }
+.home-voice svg { width: 26px; height: 26px; }
+.home-voice:active { transform: scale(0.96); opacity: 0.85; }
 
-/* ---- 4. Recent strip ---- */
+/* ---- Shared section heads ---- */
 
-.home-recent-head {
+.home-section { margin-top: 32px; }
+.home-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.home-h2 {
+  margin: 0 4px;
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 300;
+  color: var(--text);
+  text-shadow: 0 2px 14px rgba(8, 4, 30, 0.6);
+}
+.home-sub { margin: 4px 4px 0; font-size: 14px; line-height: 1.4; color: var(--text-dim); }
+
+/* ---- 4. Get started ---- */
+
+.home-count {
+  flex: none;
+  min-width: 44px;
+  padding: 4px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--glass-strong);
+  color: var(--moon);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-bar {
+  height: 4px;
+  margin: 12px 4px 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.home-bar span {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--violet), var(--moon));
+  box-shadow: 0 0 10px rgba(255, 217, 138, 0.5);
+}
+
+.home-steps { margin: 12px 0 0; padding: 4px 0; list-style: none; }
+.home-steps li + li .home-step { border-top: 1px solid var(--glass-border); }
+.home-step {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 14px;
+  gap: 12px;
+  min-height: 58px;
+  margin: 0 14px;
+  padding: 8px 0;
+  color: var(--text);
+  text-decoration: none;
 }
-.home-recent-head .section-title { margin: 0 4px; }
+.home-step:active { opacity: 0.7; }
+.home-step-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: rgba(155, 123, 255, 0.16);
+  color: #d4c6ff;
+}
+.home-step-icon svg { width: 20px; height: 20px; }
+.home-step-label { flex: 1; min-width: 0; font-size: 15px; line-height: 1.3; }
+.home-step-go { flex: none; color: var(--text-faint); }
+.home-step-go svg { width: 18px; height: 18px; display: block; }
+
+.home-step.is-done .home-step-icon { background: rgba(255, 217, 138, 0.16); color: var(--moon); }
+.home-step.is-done .home-step-icon svg { stroke-width: 2.4; }
+.home-step.is-done .home-step-label { color: var(--text-faint); text-decoration: line-through; text-decoration-color: rgba(222, 212, 255, 0.3); }
+
+/* ---- 5. Explore: two tall cards ---- */
+
+.home-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+
+.home-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  aspect-ratio: 2 / 3;
+  padding: 14px 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 217, 138, 0.28);
+  border-radius: 20px;
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(155, 123, 255, 0.28), transparent 70%),
+    radial-gradient(90% 60% at 50% 110%, rgba(255, 159, 143, 0.16), transparent 70%),
+    var(--glass-strong);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  color: var(--text);
+  text-align: center;
+  text-decoration: none;
+  box-shadow: inset 0 0 0 4px rgba(18, 12, 46, 0.35), inset 0 0 0 5px rgba(255, 217, 138, 0.14), 0 14px 36px rgba(8, 4, 30, 0.4);
+}
+a.home-card:active { transform: scale(0.98); }
+.home-card.is-new { animation: home-flip 0.45s ease-out; }
+@keyframes home-flip {
+  from { opacity: 0.2; transform: perspective(600px) rotateY(70deg); }
+  to { opacity: 1; transform: none; }
+}
+
+.home-card-tag {
+  position: relative;
+  z-index: 1;
+  color: var(--moon);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Locked */
+.home-card.is-locked {
+  justify-content: space-between;
+  border-color: var(--glass-border);
+  background: var(--glass);
+  box-shadow: inset 0 0 0 4px rgba(18, 12, 46, 0.25), inset 0 0 0 5px rgba(255, 255, 255, 0.05);
+}
+.home-card.is-locked .home-card-tag { color: var(--text-faint); }
+.home-lock {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  color: var(--text-dim);
+}
+.home-lock svg { position: relative; width: 24px; height: 24px; }
+.home-lock::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(222, 212, 255, 0.28);
+  background: rgba(255, 255, 255, 0.04);
+}
+.home-lock-circle::before { border-radius: 50%; }
+.home-lock-diamond::before { inset: 11px; border-radius: 6px; transform: rotate(45deg); }
+.home-card-lockline { font-size: 13px; line-height: 1.35; color: var(--text-dim); text-wrap: balance; }
+
+/* Unlocked dream */
+.home-card-dream:not(.is-locked) { justify-content: space-between; }
+.home-card-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.home-card-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(14, 10, 38, 0.45) 0%, transparent 30%, transparent 45%, rgba(14, 10, 38, 0.85) 100%);
+}
+.home-card-foot {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  margin-top: auto;
+}
+.home-card-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 1.25;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.94);
+  text-shadow: 0 1px 8px rgba(8, 4, 30, 0.7);
+}
+.home-card-meta { font-size: 12px; color: var(--text-dim); }
+
+/* Unlocked symbol */
+.home-glyph {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  margin: auto 0 12px;
+  color: var(--moon);
+}
+.home-glyph::before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 1px solid rgba(255, 217, 138, 0.45);
+  border-radius: 8px;
+  background: radial-gradient(circle, rgba(255, 217, 138, 0.22), transparent 70%);
+  transform: rotate(45deg);
+  box-shadow: 0 0 22px rgba(255, 217, 138, 0.2);
+}
+.home-glyph svg { position: relative; width: 30px; height: 30px; filter: drop-shadow(0 0 6px rgba(255, 217, 138, 0.6)); }
+.home-card-symbol .home-card-foot { margin-top: 0; }
+.home-symbol-name { font-size: 18px; font-weight: 400; overflow-wrap: anywhere; }
+.home-symbol-name::first-letter { text-transform: uppercase; }
+.home-card-count { color: var(--moon); opacity: 0.85; }
+
+.home-caption { margin: 12px 4px 0; font-size: 13px; color: var(--text-faint); text-align: center; }
+
+.home-shuffles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.home-shuffle {
+  min-height: 46px;
+  padding: 10px 8px;
+  border-radius: 999px;
+  font-size: 14px;
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+}
+.home-shuffle svg { width: 17px; height: 17px; flex: none; }
+.home-shuffle:disabled { opacity: 0.42; cursor: default; transform: none; }
+
+/* ---- 6. Recent dreams strip ---- */
+
 .home-see-all {
   display: inline-flex;
   align-items: center;
@@ -170,7 +410,7 @@ a.home-hero:active { transform: scale(0.985); }
   --home-edge-r: calc(20px + env(safe-area-inset-right));
   display: flex;
   gap: 10px;
-  margin: 0 calc(-1 * var(--home-edge-r)) 0 calc(-1 * var(--home-edge-l));
+  margin: 6px calc(-1 * var(--home-edge-r)) 0 calc(-1 * var(--home-edge-l));
   padding: 4px 0 6px var(--home-edge-l);
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -186,17 +426,16 @@ a.home-hero:active { transform: scale(0.985); }
 .home-thumb {
   position: relative;
   flex: none;
-  width: 72px;
-  height: 72px;
-  border-radius: 16px;
+  width: 84px;
+  height: 84px;
+  border-radius: 18px;
   overflow: hidden;
   scroll-snap-align: start;
   border: 1px solid var(--glass-border);
   box-shadow: 0 6px 18px rgba(8, 4, 30, 0.3);
 }
 .home-thumb:active { opacity: 0.8; }
-.home-thumb-art { width: 100%; height: 100%; object-fit: cover; }
-
+.home-thumb-art { display: block; width: 100%; height: 100%; object-fit: cover; }
 .home-thumb-star {
   position: absolute;
   top: 4px;
@@ -211,29 +450,11 @@ a.home-hero:active { transform: scale(0.985); }
 .home-thumb-star .star-mark { width: 16px; height: 16px; }
 .home-thumb-star .star-mark svg { width: 12px; height: 12px; }
 
-/* ---- 5. Morning reminder prompt ---- */
-
-.home-reminder { margin-top: 22px; padding: 16px; }
-.home-reminder-row { display: flex; align-items: flex-start; gap: 12px; }
-.home-reminder-icon {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: rgba(255, 217, 138, 0.12);
-  color: var(--moon);
-}
-.home-reminder-icon svg { width: 20px; height: 20px; }
-.home-reminder-text { margin: 0; font-size: 15px; line-height: 1.4; color: var(--text); }
-.home-reminder-actions { display: flex; gap: 10px; margin-top: 14px; }
-.home-reminder-btn { flex: 1; min-height: 44px; padding: 10px 14px; border-radius: 999px; font-size: 15px; }
-
 /* ---- Calm for people who turn motion off ---- */
 
 @media (prefers-reduced-motion: reduce) {
   .home-record::before { animation: none; opacity: 0.75; }
   .home-empty-cloud { animation: none; }
-  .home-hero { transition: none; }
+  .home-hero, a.home-card { transition: none; }
+  .home-card.is-new { animation: none; }
 }

@@ -38,6 +38,8 @@ a, button { touch-action: manipulation; }
 a { color: inherit; }
 button { font: inherit; color: inherit; }
 img { display: block; max-width: 100%; }
+/* Generated dream pictures are data: URLs; they follow the picture style chosen in onboarding. */
+img[src^="data:image"] { filter: var(--art-filter, none); }
 
 /* ---- Night-sky photo behind every screen; dimmed away from Home ---- */
 
@@ -231,6 +233,17 @@ button.chip[aria-pressed="false"] { opacity: 0.55; }
 }
 .tab svg { width: 25px; height: 25px; }
 .tab[aria-current="page"] { color: var(--moon); }
+.tab { position: relative; }
+.tab-dot {
+  position: absolute;
+  top: 3px;
+  left: calc(50% + 8px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--violet);
+  box-shadow: 0 0 8px rgba(155, 123, 255, 0.9);
+}
 
 /* ---- Toast ---- */
 

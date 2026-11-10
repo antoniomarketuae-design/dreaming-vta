@@ -1,0 +1,255 @@
+/* Analysis modules and collection lists (#module/<id>). Every selector starts with .mod- */
+
+.mod-head-icon { display: grid; place-items: center; width: 40px; height: 40px; color: var(--moon); opacity: 0.85; }
+.mod-head-icon svg { width: 24px; height: 24px; }
+
+.mod-intro { margin: 0 4px 12px; color: var(--text-dim); font-size: 14.5px; }
+.mod-card { margin-top: 12px; padding: 16px; }
+.mod-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 300;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+.mod-lead { margin: 0 0 12px; color: var(--text-dim); font-size: 15px; }
+.mod-lead b { color: var(--text); font-weight: 600; }
+.mod-center { text-align: center; }
+.mod-note { margin: 12px 0 0; color: var(--text-faint); font-size: 12.5px; line-height: 1.4; }
+.mod-sub { margin: 14px 0 8px; color: var(--text-faint); font-size: 11.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.mod-card > .mod-sub:first-child { margin-top: 0; }
+.mod-sub-out { margin: 22px 4px 0; }
+.mod-sub-out + .mod-card { margin-top: 8px; }
+
+/* Honest "not enough data yet" */
+.mod-need {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.mod-need svg { flex: none; width: 18px; height: 18px; margin-top: 1px; color: var(--text-faint); }
+
+/* ---- Tiles ---- */
+
+.mod-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mod-tile { display: flex; flex-direction: column; justify-content: space-between; min-height: 92px; padding: 14px; }
+.mod-tile-value { font-size: 32px; font-weight: 300; line-height: 1.05; letter-spacing: -0.02em; color: var(--text); font-variant-numeric: tabular-nums; }
+.mod-tile-unit { margin-left: 6px; font-size: 14px; letter-spacing: 0; color: var(--text-dim); }
+.mod-tile-label { margin-top: 6px; color: var(--text-faint); font-size: 12.5px; font-weight: 500; }
+
+/* ---- Share bar ---- */
+
+.mod-split { display: flex; gap: 3px; height: 14px; border-radius: 999px; overflow: hidden; background: rgba(255, 255, 255, 0.05); }
+.mod-split-a { background: linear-gradient(90deg, rgba(155, 123, 255, 0.5), rgba(199, 155, 255, 0.85)); }
+.mod-split-b { background: linear-gradient(90deg, rgba(255, 159, 143, 0.55), rgba(255, 159, 143, 0.9)); }
+.mod-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; color: var(--text-dim); font-size: 13px; }
+.mod-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.mod-key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.mod-key-a { background: rgba(199, 155, 255, 0.8); }
+.mod-key-b { background: var(--ember); }
+
+/* ---- Horizontal bars ---- */
+
+.mod-bars { display: flex; flex-direction: column; gap: 10px; }
+.mod-bar-row { display: grid; grid-template-columns: 104px 1fr 48px; align-items: center; gap: 10px; }
+.mod-bar-label { color: var(--text-dim); font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-bar-track { height: 9px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+.mod-bar {
+  --hue: 262;
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, hsla(var(--hue), 75%, 65%, 0.4), hsla(var(--hue), 85%, 75%, 0.9));
+  box-shadow: 0 0 10px hsla(var(--hue), 80%, 70%, 0.35);
+}
+.mod-bar-text { text-align: right; color: var(--text-faint); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mod-bar-text b { color: var(--text); font-weight: 600; font-size: 14px; }
+
+/* ---- Vertical columns ---- */
+
+.mod-cols { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 5px; align-items: end; }
+.mod-col { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
+.mod-col-area { display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 110px; padding-top: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.mod-col-bar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 68%;
+  max-width: 24px;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, rgba(199, 155, 255, 0.8), rgba(155, 123, 255, 0.3));
+  overflow: visible;
+}
+.mod-col.is-hot .mod-col-bar { background: linear-gradient(180deg, #ffe3a6, rgba(255, 217, 138, 0.4)); box-shadow: 0 0 12px rgba(255, 217, 138, 0.35); }
+.mod-col-part { display: block; width: 100%; border-radius: 0 0 2px 2px; background: var(--ember); }
+.mod-col-val { position: absolute; bottom: calc(100% + 3px); left: 50%; transform: translateX(-50%); color: var(--text-dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+.mod-col-ghost { width: 68%; max-width: 24px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); }
+.mod-col-label { height: 14px; max-width: 100%; overflow: hidden; color: var(--text-faint); font-size: 10.5px; line-height: 14px; white-space: nowrap; }
+.mod-col.is-hot .mod-col-label { color: var(--moon); }
+
+/* ---- Facts list ---- */
+
+.mod-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin: 0; }
+.mod-facts div { min-width: 0; }
+.mod-facts dt { color: var(--text-faint); font-size: 12.5px; }
+.mod-facts dd { margin: 2px 0 0; color: var(--text); font-size: 17px; font-weight: 300; }
+.mod-facts small { color: var(--text-faint); font-size: 12px; }
+
+/* ---- Trends ---- */
+
+.mod-trends { margin: 0; padding: 0; list-style: none; }
+.mod-trend { display: grid; grid-template-columns: 24px 1fr auto; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--glass-border); }
+.mod-trend:last-child { border-bottom: 0; }
+.mod-trend-icon { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; }
+.mod-trend-icon svg { width: 15px; height: 15px; }
+.mod-trend-icon i { display: block; width: 10px; height: 2px; border-radius: 1px; background: var(--text-faint); }
+.mod-trend-up .mod-trend-icon { background: rgba(255, 217, 138, 0.14); color: var(--moon); }
+.mod-trend-down .mod-trend-icon { background: rgba(155, 123, 255, 0.16); color: #c7b3ff; }
+.mod-trend-flat .mod-trend-icon { background: rgba(255, 255, 255, 0.06); }
+.mod-trend-name { color: var(--text); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-trend-text { color: var(--text-dim); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.mod-trend-text small { display: block; color: var(--text-faint); font-size: 11.5px; }
+
+.mod-heat { display: grid; grid-template-columns: 82px repeat(var(--n), minmax(0, 1fr)); gap: 4px; align-items: center; }
+.mod-heat-label { color: var(--text-dim); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-heat-cell { height: 18px; border-radius: 5px; background: rgba(199, 155, 255, var(--a, 0)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06); }
+.mod-heat-cell.is-empty { background: none; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04); }
+.mod-heat-x { color: var(--text-faint); font-size: 9.5px; text-align: center; white-space: nowrap; overflow: hidden; }
+
+.mod-lines { margin: 0; padding: 0 0 0 18px; color: var(--text-dim); font-size: 14.5px; }
+.mod-lines li { margin: 0 0 8px; }
+.mod-lines li:last-child { margin-bottom: 0; }
+.mod-lines b { color: var(--text); font-weight: 600; }
+.mod-lines a { color: var(--moon); }
+
+/* ---- Chips, pairs ---- */
+
+.mod-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mod-chip-n { margin-left: 2px; font-weight: 700; opacity: 0.7; }
+.mod-pairs { margin: 0; padding: 0; list-style: none; }
+.mod-pairs li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--glass-border); color: var(--text); font-size: 15px; }
+.mod-pairs li:last-child { border-bottom: 0; }
+.mod-pairs i { font-style: normal; color: var(--moon); padding: 0 2px; }
+.mod-pairs b { flex: none; color: var(--text-faint); font-size: 13px; font-weight: 500; }
+
+/* ---- Nightmares ---- */
+
+.mod-calm { display: grid; place-items: center; margin: 6px auto 10px; width: 56px; height: 56px; border-radius: 50%; background: rgba(255, 217, 138, 0.12); color: var(--moon); }
+.mod-calm svg { width: 28px; height: 28px; }
+.mod-care { border-color: rgba(255, 217, 138, 0.28); background: linear-gradient(160deg, rgba(255, 217, 138, 0.08), rgba(155, 123, 255, 0.06)), var(--glass); }
+.mod-care-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; color: var(--moon); }
+.mod-care-head svg { flex: none; width: 22px; height: 22px; }
+.mod-care-head .mod-card-title { margin: 0; }
+
+/* ---- Correlation grid ---- */
+
+.mod-grid-wrap { display: grid; grid-template-columns: 18px 1fr; grid-template-areas: "yt grid" ". xt"; gap: 4px 6px; }
+.mod-grid-ytitle { grid-area: yt; writing-mode: vertical-rl; transform: rotate(180deg); justify-self: center; align-self: center; color: var(--text-faint); font-size: 11.5px; }
+.mod-grid-xtitle { grid-area: xt; text-align: center; color: var(--text-faint); font-size: 11.5px; }
+.mod-grid { grid-area: grid; display: grid; grid-template-columns: 18px repeat(var(--n), minmax(0, 1fr)); gap: 4px; }
+.mod-grid-y, .mod-grid-x { color: var(--text-faint); font-size: 10.5px; text-align: center; align-self: center; white-space: nowrap; }
+.mod-grid-cell { display: grid; place-items: center; aspect-ratio: 1; max-height: 40px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); }
+.mod-grid-cell i { display: block; width: calc(var(--s) * 80%); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe3a6, rgba(199, 155, 255, 0.85)); box-shadow: 0 0 8px rgba(199, 155, 255, 0.5); }
+
+/* ---- Symbols map / collection lists ---- */
+
+.mod-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: hsla(var(--hue, 262), 85%, 72%, 0.9); box-shadow: 0 0 8px hsla(var(--hue, 262), 85%, 70%, 0.7); }
+.mod-count { margin-left: auto; color: var(--text-faint); font-size: 13px; font-weight: 500; }
+.mod-cloud { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.mod-sym {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-height: 34px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid hsla(var(--hue), 70%, 70%, 0.28);
+  background: hsla(var(--hue), 70%, 60%, 0.14);
+  color: hsla(var(--hue), 90%, 88%, 0.92);
+  line-height: 1.2;
+  cursor: pointer;
+}
+.mod-sym b { font-size: 11px; font-weight: 700; opacity: 0.6; }
+.mod-sym[aria-expanded="true"] { background: hsla(var(--hue), 70%, 60%, 0.32); border-color: hsla(var(--hue), 80%, 75%, 0.6); box-shadow: 0 0 12px hsla(var(--hue), 80%, 70%, 0.35); }
+
+.mod-rows { display: flex; flex-direction: column; }
+.mod-row-host { border-bottom: 1px solid var(--glass-border); }
+.mod-row-host:last-child { border-bottom: 0; }
+.mod-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 80px 28px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.mod-row-name { color: var(--text); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-row-track { height: 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+.mod-row-bar { display: block; height: 100%; border-radius: inherit; background: hsla(var(--hue), 80%, 72%, 0.8); }
+.mod-row-n { color: var(--text-faint); font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.mod-row[aria-expanded="true"] .mod-row-name { color: var(--moon); }
+
+.mod-detail { margin-top: 12px; padding: 10px 12px; border-radius: var(--radius-sm); background: rgba(10, 6, 30, 0.35); }
+.mod-row-host .mod-detail { margin: 0 0 10px; }
+.mod-detail[hidden] { display: none; }
+.mod-detail-title { margin: 0 0 4px; color: var(--text-faint); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+
+.mod-dreams { margin: 0; padding: 0; list-style: none; }
+.mod-dreams li { border-bottom: 1px solid var(--glass-border); }
+.mod-dreams li:last-child { border-bottom: 0; }
+.mod-dream { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 0; color: inherit; text-decoration: none; }
+.mod-dream > svg { flex: none; width: 18px; height: 18px; color: var(--text-faint); }
+.mod-dream-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mod-dream-title { color: var(--text); font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mod-dream-date { color: var(--text-faint); font-size: 12.5px; }
+
+/* ---- Locked module ---- */
+
+.mod-lock { display: flex; flex-direction: column; align-items: center; margin-top: 18px; padding: 26px 20px 20px; text-align: center; }
+.mod-lock-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: rgba(155, 123, 255, 0.18);
+  color: var(--text);
+}
+.mod-lock-icon > svg { width: 36px; height: 36px; }
+.mod-lock-badge {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #2a1e66;
+  border: 1px solid var(--glass-border);
+  color: var(--moon);
+}
+.mod-lock-badge svg { width: 15px; height: 15px; }
+.mod-lock-next { margin: 16px 0 0; color: var(--moon); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.mod-lock-title { margin: 14px 0 6px; font-size: 22px; font-weight: 300; color: var(--text); }
+.mod-lock-next + .mod-lock-title { margin-top: 4px; }
+.mod-lock-bar { display: block; width: 100%; height: 6px; margin: 4px 0 16px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.mod-lock-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--moon), #c79bff); }
+.mod-lock-about { margin: 0 0 18px; color: var(--text-dim); font-size: 14.5px; }

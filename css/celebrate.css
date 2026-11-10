@@ -1,0 +1,601 @@
+/* Save celebration (#celebrate/<id>): a full-screen sequence over the night sky. Every selector starts with .cel */
+
+.cel {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  padding:
+    calc(env(safe-area-inset-top) + 8px)
+    calc(env(safe-area-inset-right) + 20px)
+    calc(env(safe-area-inset-bottom) + 18px)
+    calc(env(safe-area-inset-left) + 20px);
+  overflow: hidden;
+  color: var(--text);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Soft glows and twinkling stars on top of the app's starry photo */
+.cel-sky {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(62% 36% at 50% 32%, rgba(155, 123, 255, 0.30), rgba(155, 123, 255, 0) 70%),
+    radial-gradient(50% 30% at 15% 88%, rgba(255, 159, 143, 0.14), rgba(255, 159, 143, 0) 70%),
+    radial-gradient(45% 28% at 88% 72%, rgba(130, 190, 255, 0.12), rgba(130, 190, 255, 0) 70%),
+    rgba(10, 7, 30, 0.42);
+}
+.cel-sky i {
+  position: absolute;
+  width: var(--s);
+  height: var(--s);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+  opacity: 0.5;
+  animation: cel-twinkle 3.4s ease-in-out var(--d) infinite;
+}
+
+.cel-confetti {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---- Top bar: step dots + Skip ---- */
+
+.cel-top {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+}
+.cel-dots { display: flex; gap: 6px; }
+.cel-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.18);
+  transition: width 0.3s, background 0.3s;
+}
+.cel-dots i.is-past { background: rgba(222, 212, 255, 0.45); }
+.cel-dots i.is-active { width: 18px; background: var(--moon); }
+.cel-skip {
+  min-height: 36px;
+  padding: 6px 15px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-dim);
+  font-size: 15px;
+  cursor: pointer;
+}
+.cel-skip:active { opacity: 0.7; }
+
+/* ---- Stage: centred when it fits, scrolls when it doesn't ---- */
+
+.cel-stage {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 8px 0;
+  text-align: center;
+  scrollbar-width: none;
+}
+.cel-stage::-webkit-scrollbar { display: none; }
+.cel-stage > :first-child { margin-top: auto; }
+.cel-stage > :last-child { margin-bottom: auto; }
+.cel-stage > :not(.cel-chart) { animation: cel-rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+.cel-foot {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  padding-top: 12px;
+}
+.cel-hint { margin: 0; font-size: 13px; text-align: center; color: var(--text-faint); }
+
+.cel-h {
+  margin: 0 0 8px;
+  font-size: 32px;
+  font-weight: 300;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.cel-sub { margin: 0; max-width: 310px; font-size: 16px; color: var(--text-dim); }
+
+/* ---- 1. Dream saved ---- */
+
+.cel-saved { display: flex; flex-direction: column; align-items: center; }
+.cel-cardwrap {
+  position: relative;
+  width: min(62vw, 236px);
+  margin: 18px 0 34px;
+  animation: cel-fly 1.05s cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+.cel-cardglow {
+  position: absolute;
+  inset: -32%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(155, 123, 255, 0.5), rgba(242, 154, 140, 0.12) 60%, rgba(155, 123, 255, 0));
+  filter: blur(8px);
+}
+.cel-frame {
+  position: absolute;
+  inset: -14px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 32px;
+  transform: rotate(3deg);
+}
+.cel-card {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  box-shadow: 0 24px 60px rgba(5, 3, 20, 0.55);
+  text-align: left;
+  transform: rotate(-4deg);
+  animation: cel-float 5s ease-in-out 1.1s infinite;
+}
+.cel-card-img {
+  width: 100%;
+  aspect-ratio: 5 / 4;
+  object-fit: cover;
+  background: linear-gradient(160deg, #2a1d63, #120d2e);
+}
+.cel-card-body { padding: 12px 16px 16px; }
+.cel-dash {
+  display: block;
+  width: 22px;
+  height: 2px;
+  margin-bottom: 10px;
+  border-radius: 1px;
+  background: var(--moon);
+  opacity: 0.85;
+}
+.cel-card-title {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.25;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.cel-card-date { margin: 4px 0 0; font-size: 13px; color: var(--text-dim); }
+.cel-saved .cel-h { animation: cel-rise 0.6s 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.cel-saved .cel-sub { animation: cel-rise 0.6s 0.92s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* ---- 2. Level ring ---- */
+
+.cel-levelbox { display: flex; flex-direction: column; align-items: center; }
+.cel-ringbox {
+  position: relative;
+  width: 212px;
+  height: 212px;
+  transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.cel-ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.cel-ring-track { fill: none; stroke: rgba(255, 255, 255, 0.1); }
+.cel-ring-dot { fill: rgba(255, 255, 255, 0.35); }
+.cel-ring-arc {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.2s cubic-bezier(0.3, 0.7, 0.2, 1), opacity 0.2s;
+  filter: drop-shadow(0 0 5px rgba(155, 123, 255, 0.75));
+}
+.cel-orb {
+  position: absolute;
+  inset: 14%;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 115%, rgba(255, 217, 138, 0.42), rgba(155, 123, 255, 0.22) 45%, rgba(20, 14, 52, 0.88) 78%);
+}
+.cel-orb-horizon {
+  position: absolute;
+  top: 70%;
+  left: -25%;
+  right: -25%;
+  height: 90%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 232, 186, 0.6), rgba(124, 94, 224, 0.55) 28%, rgba(28, 19, 68, 0.96) 60%);
+  box-shadow: 0 -6px 26px rgba(255, 217, 138, 0.42);
+}
+.cel-orb-moon {
+  position: absolute;
+  top: 24%;
+  left: 50%;
+  width: 34%;
+  color: var(--moon);
+  transform: translateX(-50%);
+  filter: drop-shadow(0 0 10px rgba(255, 217, 138, 0.8));
+}
+.cel-orb-moon svg { display: block; width: 100%; height: auto; }
+.cel-orb-star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 5px #fff;
+  animation: cel-twinkle 2.8s ease-in-out infinite;
+}
+.cel-orb-star.s1 { top: 22%; left: 24%; }
+.cel-orb-star.s2 { top: 40%; left: 78%; animation-delay: 0.9s; }
+.cel-orb-star.s3 { top: 14%; left: 64%; width: 2px; height: 2px; animation-delay: 1.7s; }
+
+.cel-levelup {
+  display: none;
+  margin: 16px 0 -6px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--moon);
+}
+.cel-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 18px;
+  padding: 7px 15px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 15px;
+}
+.cel-pill svg { width: 15px; height: 15px; color: var(--moon); }
+.cel-pill b { font-weight: 500; }
+.cel-levelsub { margin: 10px 0 0; font-size: 14px; color: var(--text-dim); }
+
+.cel-levelbox.is-levelup .cel-levelup { display: block; animation: cel-pop 0.6s cubic-bezier(0.2, 1.3, 0.3, 1) both; }
+.cel-levelbox.is-levelup .cel-pill {
+  border-color: rgba(255, 217, 138, 0.5);
+  box-shadow: 0 0 22px rgba(255, 217, 138, 0.25);
+  animation: cel-pop 0.6s cubic-bezier(0.2, 1.3, 0.3, 1) both;
+}
+.cel-levelbox.is-levelup .cel-ring-arc { filter: drop-shadow(0 0 9px rgba(255, 217, 138, 0.85)); }
+.cel-levelbox.is-levelup .cel-orb { animation: cel-glow 2.6s ease-in-out infinite; }
+
+/* ---- 3. Monthly recall chart (slides up under the shrinking ring) ---- */
+
+.cel-chart {
+  width: 100%;
+  max-width: 400px;
+  max-height: 0;
+  margin-top: 0;
+  padding: 0 16px;
+  overflow: hidden;
+  opacity: 0;
+  text-align: left;
+  transform: translateY(40px);
+  transition: max-height 0.6s, opacity 0.5s 0.1s, transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), margin 0.6s, padding 0.6s;
+}
+.cel-stage.is-recall .cel-ringbox { width: 128px; height: 128px; }
+.cel-stage.is-recall .cel-chart {
+  max-height: 320px;
+  margin-top: 22px;
+  padding: 16px 14px 14px;
+  opacity: 1;
+  transform: none;
+}
+.cel-chart-title {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #bca8ff;
+}
+.cel-chart-title span { color: var(--text-faint); }
+.cel-bars { display: flex; align-items: stretch; gap: 3px; height: 132px; }
+.cel-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cel-barslot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+.cel-bar { display: block; width: 100%; max-width: 10px; border-radius: 3px; }
+.cel-col.is-on .cel-bar {
+  height: var(--h);
+  background: linear-gradient(180deg, #bba2ff, #7b5cf0);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition-delay: calc(var(--i) * 16ms);
+}
+.cel-chart.is-in .cel-col.is-on .cel-bar { transform: scaleY(1); }
+.cel-col.is-empty .cel-bar { height: 10px; border: 1px dashed rgba(222, 212, 255, 0.24); background: transparent; }
+.cel-col.is-future .cel-bar { width: 3px; height: 3px; border-radius: 50%; background: rgba(222, 212, 255, 0.2); }
+.cel-col.is-today.is-on .cel-bar {
+  background: linear-gradient(180deg, #fff0c8, var(--moon));
+  box-shadow: 0 0 12px rgba(255, 217, 138, 0.5);
+}
+.cel-col.is-today.is-empty .cel-bar { border-color: rgba(255, 217, 138, 0.6); }
+.cel-val {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--moon);
+  opacity: 0;
+  transition: opacity 0.4s 0.8s;
+}
+.cel-chart.is-in .cel-val { opacity: 1; }
+.cel-day {
+  display: flex;
+  justify-content: center;
+  height: 15px;
+  margin-top: 6px;
+  overflow: visible;
+  font-size: 10px;
+  line-height: 15px;
+  white-space: nowrap;
+  color: var(--text-faint);
+}
+.cel-col.is-today .cel-day { font-weight: 700; color: var(--moon); }
+.cel-chart-sum { margin: 12px 0 0; font-size: 13px; color: var(--text-dim); }
+
+/* ---- 4. Technique progress ---- */
+
+.cel-eyebrow {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.cel-tech { width: 100%; max-width: 390px; padding: 18px 16px 16px; text-align: left; }
+.cel-path {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--glass-border);
+}
+.cel-path-node {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-faint);
+  transition: background 0.4s, border-color 0.4s, color 0.4s, box-shadow 0.4s;
+}
+.cel-path-node svg { width: 19px; height: 19px; }
+.cel-path-node.is-done { border-color: rgba(185, 160, 255, 0.4); background: rgba(155, 123, 255, 0.22); color: var(--text); }
+.cel-path-node.is-target {
+  width: 48px;
+  height: 48px;
+  border-color: rgba(255, 217, 138, 0.55);
+  background: rgba(255, 217, 138, 0.08);
+  color: var(--moon);
+  box-shadow: 0 0 18px rgba(255, 217, 138, 0.22);
+}
+.cel-path-node.is-target.is-done { background: rgba(255, 217, 138, 0.2); box-shadow: 0 0 24px rgba(255, 217, 138, 0.45); }
+.cel-path-dash {
+  flex: 1;
+  min-width: 8px;
+  max-width: 26px;
+  margin: 0 4px;
+  border-top: 2px dashed rgba(222, 212, 255, 0.22);
+}
+.cel-path-dash.is-edge { max-width: 14px; opacity: 0.6; }
+.cel-tech-row { display: flex; align-items: center; gap: 12px; }
+.cel-tech-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255, 217, 138, 0.1);
+  color: var(--moon);
+}
+.cel-tech-icon svg { width: 22px; height: 22px; }
+.cel-tech-text { flex: 1; min-width: 0; }
+.cel-tech-cap {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--moon);
+}
+.cel-tech-name { margin: 2px 0 0; font-size: 18px; font-weight: 500; line-height: 1.25; }
+.cel-tech-status { margin: 2px 0 0; font-size: 14px; color: var(--text-dim); transition: color 0.3s; }
+.cel-tech.is-unlocked .cel-tech-status { font-weight: 600; color: var(--moon); }
+.cel-tech-ringbox { position: relative; flex: none; width: 58px; height: 58px; }
+.cel-ring--tech .cel-ring-arc { filter: drop-shadow(0 0 5px rgba(255, 217, 138, 0.6)); }
+.cel-tech-check {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--moon);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.4s, transform 0.4s cubic-bezier(0.2, 1.3, 0.3, 1);
+}
+.cel-tech-check svg { width: 22px; height: 22px; }
+.cel-tech.is-unlocked .cel-tech-check { opacity: 1; transform: none; }
+.cel-tech-foot { margin: 16px 0 0; max-width: 300px; font-size: 14px; color: var(--text-dim); }
+
+/* ---- 5. Technique unlock reveal ---- */
+
+.cel-reveal { display: flex; flex-direction: column; align-items: center; }
+.cel-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--moon);
+}
+.cel-new svg { width: 15px; height: 15px; }
+.cel-tcard {
+  width: min(60vw, 228px);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 24px;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  box-shadow: 0 26px 60px rgba(5, 3, 20, 0.55), 0 0 44px hsla(var(--hue), 80%, 65%, 0.28);
+  transform: rotate(-5deg);
+  animation: cel-reveal 0.85s cubic-bezier(0.2, 1.2, 0.3, 1) both;
+}
+.cel-tcard-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1 / 1;
+  background: radial-gradient(circle at 50% 42%, hsla(var(--hue), 80%, 70%, 0.55), hsla(var(--hue), 60%, 32%, 0.32) 50%, rgba(14, 10, 38, 0.92) 86%);
+  color: rgba(255, 255, 255, 0.92);
+}
+.cel-tcard-art::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.6px 1.6px at 18% 24%, #fff, rgba(255, 255, 255, 0)),
+    radial-gradient(1.1px 1.1px at 76% 16%, #fff, rgba(255, 255, 255, 0)),
+    radial-gradient(1.6px 1.6px at 84% 72%, #fff, rgba(255, 255, 255, 0)),
+    radial-gradient(1.1px 1.1px at 28% 82%, #fff, rgba(255, 255, 255, 0)),
+    radial-gradient(1.1px 1.1px at 58% 62%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0)),
+    radial-gradient(1.3px 1.3px at 40% 12%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0));
+  opacity: 0.85;
+}
+.cel-tcard-art svg {
+  position: relative;
+  width: 38%;
+  height: auto;
+  filter: drop-shadow(0 0 14px hsla(var(--hue), 90%, 78%, 0.85));
+}
+.cel-tcard-name { margin: 0; padding: 14px 16px 16px; font-size: 19px; font-weight: 500; line-height: 1.25; text-align: center; }
+.cel-tagline { margin: 24px 0 0; max-width: 310px; font-size: 16px; color: var(--text); animation: cel-rise 0.6s 0.45s both; }
+.cel-reveal-note { margin: 8px 0 0; font-size: 13px; color: var(--text-faint); animation: cel-rise 0.6s 0.6s both; }
+
+/* ---- Unlocked analysis modules ---- */
+
+.cel-modules { display: flex; flex-direction: column; align-items: center; width: 100%; }
+.cel-mod-badge {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 18px;
+  border: 1px solid rgba(185, 160, 255, 0.35);
+  border-radius: 24px;
+  background: rgba(155, 123, 255, 0.18);
+  color: #ddd2ff;
+  box-shadow: 0 0 32px rgba(155, 123, 255, 0.3);
+  animation: cel-pop 0.7s cubic-bezier(0.2, 1.3, 0.3, 1) both;
+}
+.cel-mod-badge svg { width: 34px; height: 34px; }
+.cel-mod-list { display: grid; gap: 10px; width: 100%; max-width: 380px; margin-top: 22px; }
+.cel-mod {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.cel-mod:active { opacity: 0.75; }
+.cel-mod-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: rgba(255, 217, 138, 0.12);
+  color: var(--moon);
+}
+.cel-mod-icon svg { width: 18px; height: 18px; }
+.cel-mod-name { flex: 1; font-weight: 500; }
+.cel-mod > svg { width: 18px; height: 18px; color: var(--text-faint); }
+
+/* ---- Motion ---- */
+
+@keyframes cel-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cel-fly {
+  0% { opacity: 0; transform: translateY(72vh) rotate(-16deg) scale(0.7); }
+  35% { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes cel-float {
+  0%, 100% { transform: rotate(-4deg) translateY(0); }
+  50% { transform: rotate(-2.5deg) translateY(-7px); }
+}
+@keyframes cel-twinkle {
+  0%, 100% { opacity: 0.15; transform: scale(0.7); }
+  50% { opacity: 0.9; transform: scale(1); }
+}
+@keyframes cel-pop {
+  0% { opacity: 0; transform: scale(0.6); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes cel-glow {
+  0%, 100% { box-shadow: 0 0 18px rgba(255, 217, 138, 0.2); }
+  50% { box-shadow: 0 0 36px rgba(255, 217, 138, 0.5); }
+}
+@keyframes cel-reveal {
+  from { opacity: 0; transform: translateY(46px) rotate(9deg) scale(0.6); }
+  to { opacity: 1; transform: rotate(-5deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cel *,
+  .cel *::before,
+  .cel *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .cel-col.is-on .cel-bar { transform: none; }
+  .cel-val { opacity: 1; }
+}
