@@ -1,0 +1,88 @@
+{
+  "_about": "Plans, limits, prices and image providers. Edit and restart dreaming-api to apply. Limits are per calendar month per device. Prices are what the subscriptions page shows; no payment provider is connected yet.",
+  "plans": {
+    "free": {
+      "label": "Free",
+      "limits": {
+        "images": 1,
+        "analyses": 3
+      },
+      "features": [
+        "journal",
+        "voice",
+        "techniques",
+        "articles",
+        "reminders",
+        "passcode",
+        "export",
+        "statistics",
+        "trends",
+        "sounds-basic"
+      ]
+    },
+    "plus": {
+      "label": "Dreaming Plus",
+      "limits": {
+        "images": 30,
+        "analyses": 100
+      },
+      "features": [
+        "journal",
+        "voice",
+        "techniques",
+        "articles",
+        "reminders",
+        "passcode",
+        "export",
+        "statistics",
+        "trends",
+        "sounds-basic",
+        "sounds-all",
+        "nightmares",
+        "correlations",
+        "symbols-map",
+        "images",
+        "analyses",
+        "image-styles"
+      ]
+    }
+  },
+  "prices": {
+    "currency": "USD",
+    "trialDays": 7,
+    "monthly": {
+      "id": "plus-monthly",
+      "amount": 4.99,
+      "label": "Monthly"
+    },
+    "yearly": {
+      "id": "plus-yearly",
+      "amount": 29.99,
+      "label": "Yearly",
+      "badge": "Best value"
+    }
+  },
+  "images": {
+    "providers": [
+      {
+        "name": "poyo",
+        "model": "nano-banana-2",
+        "units": 1
+      },
+      {
+        "name": "fal",
+        "model": "fal-ai/nano-banana-2",
+        "units": 1
+      },
+      {
+        "name": "poyo",
+        "model": "seedream-5.0-lite",
+        "units": 1
+      }
+    ]
+  },
+  "budget": {
+    "imagesPerDay": 300,
+    "analysesPerDay": 1000
+  }
+}
