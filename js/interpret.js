@@ -2,6 +2,7 @@
 // then checks back until an answer is ready. The journal itself never leaves the phone.
 // Touches document/window/localStorage only inside functions, never at import time.
 import { getDream, updateDream, getSetting } from './store.js';
+import { authHeaders, applyAccount } from './account.js';
 
 export const API_BASE = 'https://nexflowclub.com/dreaming-api';
 
@@ -33,15 +34,18 @@ export function isStale(dream) {
 }
 
 class InterpretError extends Error {
-  constructor(message, status = 0) {
+  constructor(message, status = 0, body = null) {
     super(message);
     this.name = 'InterpretError';
     this.status = status;
+    this.body = body; // the server's answer (for 402: { error, limit } → account.handleLimit)
   }
 }
 
-async function call(path, { method = 'GET', token, body } = {}) {
+async function call(path, { method = 'GET', token, body, auth = false } = {}) {
   const headers = {};
+  // The device account (plan limits). If it can't be set up, send without: the server still serves the request.
+  if (auth) { try { Object.assign(headers, await authHeaders()); } catch {} }
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (token) headers['X-Dream-Token'] = token;
   const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
@@ -64,21 +68,28 @@ async function call(path, { method = 'GET', token, body } = {}) {
   let data = null;
   try { data = await res.json(); } catch {}
   if (!res.ok) {
-    const msg = res.status === 429 ? 'Lots of dreams are waiting right now. Please try again in a little while.'
+    const serverMsg = typeof data?.error === 'string' ? data.error.trim() : '';
+    const msg = res.status === 402 ? serverMsg || "You've used this month's interpretations."
+      : res.status === 429 ? serverMsg || 'Lots of dreams are waiting right now. Please try again in a little while.'
+      : res.status === 503 ? serverMsg || 'Interpretations are paused for today. Please try again tomorrow.'
       : res.status === 400 ? 'Write a little more about this dream first.'
       : res.status === 404 ? 'That interpretation could not be found.'
       : 'Something went wrong on the server. Please try again later.';
-    throw new InterpretError(msg, res.status);
+    throw new InterpretError(msg, res.status, data);
   }
   return data ?? {};
 }
 
-/** Asks the server to interpret this dream. Resolves to the updated dream; throws InterpretError with a friendly message. */
+/**
+ * Asks the server to interpret this dream. Resolves to the updated dream; throws InterpretError with a friendly
+ * message (status 402 = this month's interpretations are used up; err.body goes to account.handleLimit).
+ */
 export async function requestInterpretation(dream) {
   const text = String(dream?.text ?? '').trim();
   if (text.length < 3) throw new InterpretError('Write a little more about this dream first.', 400);
   const data = await call('/interpretations', {
     method: 'POST',
+    auth: true,
     body: {
       text,
       title: dream.title || '',
@@ -89,6 +100,7 @@ export async function requestInterpretation(dream) {
       lang: 'en',
     },
   });
+  if (data.account) applyAccount(data.account);
   if (!data.id || !data.token) throw new InterpretError('Something went wrong on the server. Please try again later.');
   return updateDream(dream.id, {
     interpretation: {

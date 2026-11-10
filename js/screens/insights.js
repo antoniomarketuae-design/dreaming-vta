@@ -1,9 +1,17 @@
 // Progress tab: the dreamer's level, how often they remember (recall chart), what they have collected,
 // and the analysis modules that open up as the journal grows. Thresholds and levels come from progress.js.
+// Dreaming Plus: Nightmares, Correlations and Symbols map also need their Plus feature; for free users those cards
+// carry a PLUS pill and a tap opens the paywall instead of the module.
 import { listDreams, getStats, getProfile, collection, recallByDay, isSeen, markSeen } from '../store.js';
 import { LEVELS, MODULES, levelFor, unlockState } from '../progress.js';
 import { esc, icons } from '../ui.js';
 import { MODULE_INFO, MOD_ICONS } from './module.js';
+import { hasFeature, openPaywall, getAccount } from '../account.js';
+import { plusPill } from '../paywall.js';
+
+const PLUS_MODULES = ['nightmares', 'correlations', 'symbols-map'];
+const needsPlus = (id) => PLUS_MODULES.includes(id) && !hasFeature(id);
+let offAccount = null;
 
 const DAY = 86400000;
 let period = 'M'; // recall chart: 'W' | 'M' | 'Y' (kept while the app is open)
@@ -222,9 +230,22 @@ function collectionHTML() {
 // ---- Analysis modules ----
 
 function analysisHTML(total) {
+  let anyPlus = false;
   const cards = unlockState(MODULES, total).map((m) => {
     const info = MODULE_INFO[m.id];
     const wide = m.id === 'symbols-map' ? ' ins-mod-wide' : '';
+    const plus = needsPlus(m.id);
+    if (plus) anyPlus = true;
+    const plusAttr = plus ? ` data-plus="${esc(m.id)}"` : '';
+    const marks = (inner) => (plus ? `<span class="ins-mod-marks">${plusPill()}${inner}</span>` : inner);
+    if (plus && m.unlocked) {
+      return `
+        <a class="ins-mod glass ins-mod-plus${wide}" href="#module/${m.id}"${plusAttr} aria-label="${esc(m.name)}: part of Dreaming Plus">
+          <span class="ins-mod-top"><span class="ins-mod-icon">${info.icon}</span>${marks(`<span class="ins-mod-badge">${icons.lock}</span>`)}</span>
+          <span class="ins-mod-name">${esc(m.name)}</span>
+          <span class="ins-mod-blurb">${esc(info.blurb)}</span>
+        </a>`;
+    }
     if (m.unlocked) {
       const fresh = !isSeen(`module:${m.id}`);
       return `
@@ -236,16 +257,16 @@ function analysisHTML(total) {
     }
     if (m.isNext) {
       return `
-        <a class="ins-mod glass ins-mod-next${wide}" href="#module/${m.id}" aria-label="${esc(m.name)}: next unlock, ${plural(m.toGo, 'dream')} to go">
-          <span class="ins-mod-top"><span class="ins-mod-icon">${info.icon}</span><span class="ins-mod-togo"><b>${m.toGo}</b><small>to go</small></span></span>
+        <a class="ins-mod glass ins-mod-next${wide}" href="#module/${m.id}"${plusAttr} aria-label="${esc(m.name)}: next unlock, ${plural(m.toGo, 'dream')} to go${plus ? ', part of Dreaming Plus' : ''}">
+          <span class="ins-mod-top"><span class="ins-mod-icon">${info.icon}</span>${marks(`<span class="ins-mod-togo"><b>${m.toGo}</b><small>to go</small></span>`)}</span>
           <span class="ins-mod-tag">Next unlock</span>
           <span class="ins-mod-name">${esc(m.name)}</span>
           <span class="ins-mod-bar"><i style="width:${(m.progress * 100).toFixed(1)}%"></i></span>
         </a>`;
     }
     return `
-      <a class="ins-mod glass ins-mod-locked${wide}" href="#module/${m.id}" aria-label="${esc(m.name)}: opens at ${plural(m.unlockAt, 'dream')}">
-        <span class="ins-mod-top"><span class="ins-mod-icon">${info.icon}</span><span class="ins-mod-badge">${icons.lock}${m.unlockAt}</span></span>
+      <a class="ins-mod glass ins-mod-locked${plus ? ' has-plus' : ''}${wide}" href="#module/${m.id}"${plusAttr} aria-label="${esc(m.name)}: opens at ${plural(m.unlockAt, 'dream')}${plus ? ', part of Dreaming Plus' : ''}">
+        <span class="ins-mod-top"><span class="ins-mod-icon">${info.icon}</span>${marks(`<span class="ins-mod-badge">${icons.lock}${m.unlockAt}</span>`)}</span>
         <span class="ins-mod-name">${esc(m.name)}</span>
         <span class="ins-mod-blurb">${esc(info.blurb)}</span>
       </a>`;
@@ -253,7 +274,8 @@ function analysisHTML(total) {
   return `
     <h2 class="section-title">Analysis</h2>
     <div class="ins-mods">${cards}</div>
-    <p class="ins-foot">Each analysis opens as your journal grows, and works only with the dreams on this phone.</p>`;
+    <p class="ins-foot">Each analysis opens as your journal grows, and works only with the dreams on this phone.${anyPlus
+      ? ' Nightmares, Correlations and Symbols map are part of <a class="ins-foot-link" href="#plus">Dreaming Plus</a>.' : ''}</p>`;
 }
 
 // ---- Screen ----
@@ -266,7 +288,8 @@ export default {
   // A dot on the tab while a newly opened analysis has not been seen on this tab yet.
   badge() {
     const n = listDreams().length;
-    return MODULES.some((m) => n >= m.unlockAt && !isSeen(`progress:${m.id}`));
+    // A Plus-only module a free user can't open doesn't light the dot.
+    return MODULES.some((m) => n >= m.unlockAt && !needsPlus(m.id) && !isSeen(`progress:${m.id}`));
   },
 
   render(el) {
@@ -278,7 +301,7 @@ export default {
         ${headerHTML(total, lv)}
         <section class="ins-recall glass">${recallHTML()}</section>
         ${collectionHTML()}
-        ${analysisHTML(total)}
+        <section data-analysis>${analysisHTML(total)}</section>
       </div>`;
 
     // Visiting the tab clears its dot; each card keeps its "New" tag until the analysis is opened.
@@ -292,5 +315,26 @@ export default {
       period = btn.dataset.period;
       recall.innerHTML = recallHTML();
     });
+
+    // A Plus module tapped by a free user opens the paywall instead of the module.
+    const analysis = el.querySelector('[data-analysis]');
+    analysis.addEventListener('click', (e) => {
+      const card = e.target.closest('[data-plus]');
+      if (!card || !needsPlus(card.dataset.plus)) return;
+      e.preventDefault();
+      openPaywall({ feature: card.dataset.plus });
+    });
+
+    // Plan changes (code redeemed, Plus ended) re-draw the cards in place.
+    offAccount?.();
+    const onAccount = () => { analysis.innerHTML = analysisHTML(listDreams().length); };
+    window.addEventListener('dreaming:account', onAccount);
+    offAccount = () => window.removeEventListener('dreaming:account', onAccount);
+    getAccount().catch(() => {});
+  },
+
+  destroy() {
+    offAccount?.();
+    offAccount = null;
   },
 };

@@ -493,3 +493,106 @@
   .rec-mic[aria-pressed="true"]::after { animation: none; transition: none; }
   .rec-mic[aria-pressed="true"] { box-shadow: 0 0 54px 14px rgba(242, 154, 140, 0.4); }
 }
+
+/* AI image (Details → Picture) */
+.rec-ai { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--glass-border); }
+.rec-ai-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 15px;
+  text-align: left;
+}
+button.rec-ai-row { cursor: pointer; }
+.rec-ai-thumb {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: radial-gradient(circle at 40% 35%, rgba(155, 123, 255, 0.35), rgba(22, 15, 56, 0.6));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  color: var(--moon);
+}
+.rec-ai-thumb svg { width: 22px; height: 22px; }
+.rec-ai-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.rec-ai-thumb-wait img { filter: blur(3px) brightness(0.7); transform: scale(1.1); }
+.rec-ai-thumb-wait i {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, rgba(255, 236, 214, 0) 30%, rgba(255, 236, 214, 0.3) 50%, rgba(255, 236, 214, 0) 70%);
+  background-size: 250% 100%;
+  animation: rec-ai-shimmer 1.8s ease-in-out infinite;
+}
+@keyframes rec-ai-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+.rec-ai-text { flex: 1; min-width: 0; margin: 0; color: var(--text-dim); font-size: 14px; line-height: 1.4; }
+.rec-ai-switchrow .rec-ai-text { color: var(--text); font-size: 15px; }
+.rec-ai-sub { display: block; margin-top: 2px; font-size: 12.5px; }
+.rec-ai-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+.rec-ai-badge-plus { background: none; border: 1px solid rgba(255, 217, 138, 0.45); color: var(--moon); }
+.rec-ai-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+}
+.rec-ai-btn svg { width: 16px; height: 16px; color: var(--moon); }
+.rec-ai-btn:active { opacity: 0.7; }
+.rec-switch {
+  flex: none;
+  position: relative;
+  width: 50px;
+  height: 30px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  transition: background 0.2s;
+}
+.rec-switch i {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(240, 234, 255, 0.95);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+}
+.rec-ai-switchrow[aria-checked="true"] .rec-switch { background: var(--violet); }
+.rec-ai-switchrow[aria-checked="true"] .rec-switch i { transform: translateX(20px); }
+.rec-ai-note { margin: 10px 0 0; font-size: 12.5px; line-height: 1.4; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rec-ai-thumb-wait i { animation: none; }
+}

@@ -235,3 +235,12 @@
 .ins-mod-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--moon), #c79bff); }
 
 .ins-foot { margin: 14px 4px 0; color: var(--text-faint); font-size: 12.5px; text-align: center; }
+
+/* ---- Dreaming Plus markers on analysis cards ---- */
+
+.ins-mod-marks { display: inline-flex; align-items: center; gap: 8px; }
+.ins-mod-plus { border-color: rgba(255, 217, 138, 0.22); }
+.ins-mod-plus .ins-mod-icon { background: rgba(255, 217, 138, 0.1); color: var(--text-dim); }
+.ins-mod-plus .ins-mod-name { color: var(--text-dim); }
+.ins-mod-locked.has-plus { opacity: 0.62; }
+.ins-foot-link { color: var(--moon); text-decoration: none; }

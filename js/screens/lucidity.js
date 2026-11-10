@@ -1,5 +1,7 @@
 // Lucidity: the lucid-dreaming hub. Dream goals, techniques that unlock as dreams are logged,
 // sleep sounds and binaural beats generated on the phone (js/audio.js), and short articles.
+// Dreaming Plus: the first soundscape and the first binaural beat are free; the others need feature 'sounds-all'
+// (PLUS pill, tap opens the paywall). Free users also see an inline Plus card after Techniques.
 // Touches document/storage only inside render, handlers and badge(), never at import time.
 import { listGoals, addGoal, updateGoal, isSeen, markSeen, getSetting, setSetting } from '../store.js';
 import { TECHNIQUES, unlockState, dreamCount } from '../progress.js';
@@ -7,13 +9,15 @@ import { esc, icons } from '../ui.js';
 import { TECHNIQUE_CONTENT, techniqueGlyph } from '../content/techniques.js';
 import { ARTICLES } from '../content/articles.js';
 import * as audio from '../audio.js';
+import { hasFeature, isPlus, openPaywall, getAccount } from '../account.js';
+import { plusPill, priceInfo } from '../paywall.js';
 
 // The tab dot clears once the tab has been opened after an unlock; the card's NEW tag stays until the guide is opened.
 const listedKey = (id) => `lucidity-tab:${id}`;
 const seenKey = (id) => `technique:${id}`;
 const GOALS_OPEN = 'lucidityGoalsOpen';
 const SCROLL_KEY = 'dreaming.lucidityScroll';
-const SUB_ROUTES = ['#technique/', '#article/', '#goals'];
+const SUB_ROUTES = ['#technique/', '#article/', '#goals', '#plus'];
 
 const svg = (body, fill = 'none') => `<svg viewBox="0 0 24 24" fill="${fill}" stroke="${fill === 'none' ? 'currentColor' : 'none'}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 const PLAY = svg('<path d="M8 5.2v13.6L19 12z"/>', 'currentColor');
@@ -124,11 +128,17 @@ function sectionState(section, count) {
 
 // ---- Sounds ----
 
+// Free: the first soundscape and the first binaural beat. Everything else needs Dreaming Plus.
+const FREE_TRACKS = [audio.SOUNDSCAPES[0]?.id, audio.BINAURAL[0]?.id];
+const isLockedTrack = (t) => !FREE_TRACKS.includes(t.id) && !hasFeature('sounds-all');
+const lockAttrs = (t) => (isLockedTrack(t) ? ` data-locked="1" aria-label="${esc(audio.trackTitle(t))}, needs Dreaming Plus"` : '');
+
 function soundTile(t, st) {
   const on = st.id === t.id && st.playing;
+  const locked = isLockedTrack(t);
   return `
-    <button type="button" class="luc-sound" data-track="${t.id}" aria-pressed="${on ? 'true' : 'false'}" style="--h:${t.hue}">
-      <span class="luc-sound-art">${SOUND_ART[t.id] || icons.music}<span class="luc-sound-state">${on ? PAUSE : PLAY}</span></span>
+    <button type="button" class="luc-sound${locked ? ' is-locked' : ''}" data-track="${t.id}"${lockAttrs(t)} aria-pressed="${on ? 'true' : 'false'}" style="--h:${t.hue}">
+      <span class="luc-sound-art">${locked ? plusPill('luc-sound-pill') : ''}${SOUND_ART[t.id] || icons.music}<span class="luc-sound-state">${locked ? icons.lock : on ? PAUSE : PLAY}</span></span>
       <span class="luc-sound-name">${esc(t.name)}</span>
       <span class="luc-sound-line">${esc(t.line)}</span>
     </button>`;
@@ -136,13 +146,35 @@ function soundTile(t, st) {
 
 function beatTile(t, st) {
   const on = st.id === t.id && st.playing;
+  const locked = isLockedTrack(t);
   return `
-    <button type="button" class="glass luc-beat" data-track="${t.id}" aria-pressed="${on ? 'true' : 'false'}">
-      <span class="luc-beat-top"><span class="luc-beat-icon">${icons.headphones}</span><span class="luc-beat-state">${on ? PAUSE : PLAY}</span></span>
+    <button type="button" class="glass luc-beat${locked ? ' is-locked' : ''}" data-track="${t.id}"${lockAttrs(t)} aria-pressed="${on ? 'true' : 'false'}">
+      <span class="luc-beat-top"><span class="luc-beat-icon">${icons.headphones}</span>${locked ? plusPill('luc-beat-pill') : ''}<span class="luc-beat-state">${locked ? icons.lock : on ? PAUSE : PLAY}</span></span>
       <span class="luc-beat-name">${esc(audio.trackTitle(t))}</span>
       <span class="luc-beat-base">${t.base} Hz base tone</span>
       <span class="luc-beat-line">${esc(t.line)}</span>
     </button>`;
+}
+
+/** One line under a sound section for free users: which track is free. */
+function freeNote(list) {
+  if (hasFeature('sounds-all') || !list[0]) return '';
+  return `<p class="luc-plus-note">${plusPill()}<span>${esc(audio.trackTitle(list[0]))} is free. Dreaming Plus opens all the others.</span></p>`;
+}
+
+// Inline Dreaming Plus card (free users only), placed after Techniques as in the reference.
+function plusCard() {
+  if (isPlus()) return '';
+  const p = priceInfo();
+  const price = p ? `${p.trialDays ? `${p.trialDays} days free, then ` : ''}${p.yearly.price} a year or ${p.monthly.price} a month` : '';
+  return `
+    <a class="glass luc-plus" href="#plus">
+      <span class="luc-plus-top">${plusPill()}<span class="luc-plus-kicker">Dreaming Plus</span></span>
+      <span class="luc-plus-title">Every sound, deeper analyses</span>
+      <span class="luc-plus-text">All soundscapes and binaural beats, nightmare and symbol analyses, and more AI images and interpretations each month.</span>
+      <span class="btn luc-plus-btn">See Dreaming Plus</span>
+      ${price ? `<span class="luc-plus-price">${esc(price)}</span>` : ''}
+    </a>`;
 }
 
 const TIMER_CHOICES = [0, 15, 30, 60];
@@ -219,6 +251,8 @@ export default {
           <div class="luc-stack">${techs.map(wideCard).join('')}</div>
         </section>
 
+        <div data-plus-slot>${plusCard()}</div>
+
         <section class="luc-section" aria-label="While falling asleep">
           <h2 class="luc-h2">While falling asleep</h2>
           <p class="luc-sub">Methods for the moment between waking and sleep.</p>
@@ -229,6 +263,7 @@ export default {
           <h2 class="luc-h2">Soundtracks</h2>
           <p class="luc-sub">Calm sounds to fall asleep to, made live on your phone. Nothing to download.</p>
           <div class="luc-sounds" data-sounds>${audio.SOUNDSCAPES.map((t) => soundTile(t, st)).join('')}</div>
+          <div data-free-note="sounds">${freeNote(audio.SOUNDSCAPES)}</div>
           ${canPlay ? '' : '<p class="luc-note">Sound is not available in this browser.</p>'}
         </section>
 
@@ -242,6 +277,7 @@ export default {
           <h2 class="luc-h2">Binaural beats</h2>
           <p class="luc-sub">Two slightly different tones, one in each ear, are heard as a slow pulse. Use headphones at low volume. Research on their effects is limited, so treat them as a relaxing backdrop.</p>
           <div class="luc-rail" data-beats>${audio.BINAURAL.map((t) => beatTile(t, st)).join('')}</div>
+          <div data-free-note="beats">${freeNote(audio.BINAURAL)}</div>
         </section>
 
         <section class="luc-section" aria-label="Articles">
@@ -260,6 +296,7 @@ export default {
     const refreshAudio = () => {
       const s = audio.state();
       for (const btn of el.querySelectorAll('[data-track]')) {
+        if (btn.dataset.locked) continue;
         const on = s.id === btn.dataset.track && s.playing;
         btn.setAttribute('aria-pressed', on ? 'true' : 'false');
         const icon = btn.querySelector('.luc-sound-state, .luc-beat-state');
@@ -312,6 +349,7 @@ export default {
         return;
       }
       if (target.dataset.track) {
+        if (target.dataset.locked && !hasFeature('sounds-all')) { openPaywall({ feature: 'sounds-all' }); return; }
         if (!canPlay) { ctx.toast('Sound is not available in this browser'); return; }
         audio.toggle(target.dataset.track);
         return;
@@ -346,6 +384,24 @@ export default {
       el.removeEventListener('click', onClick);
       el.removeEventListener('submit', onSubmit);
     });
+
+    // Plan changes (code redeemed, Plus ended) re-draw the locks and the Plus card in place.
+    const repaintPlus = () => {
+      const s = audio.state();
+      const sounds = el.querySelector('[data-sounds]');
+      const beats = el.querySelector('[data-beats]');
+      if (sounds) sounds.innerHTML = audio.SOUNDSCAPES.map((t) => soundTile(t, s)).join('');
+      if (beats) beats.innerHTML = audio.BINAURAL.map((t) => beatTile(t, s)).join('');
+      const n1 = el.querySelector('[data-free-note="sounds"]');
+      const n2 = el.querySelector('[data-free-note="beats"]');
+      if (n1) n1.innerHTML = freeNote(audio.SOUNDSCAPES);
+      if (n2) n2.innerHTML = freeNote(audio.BINAURAL);
+      const slot = el.querySelector('[data-plus-slot]');
+      if (slot) slot.innerHTML = plusCard();
+    };
+    window.addEventListener('dreaming:account', repaintPlus);
+    addCleanup(() => window.removeEventListener('dreaming:account', repaintPlus));
+    getAccount().catch(() => {});
 
     // First use: apply the remembered sleep timer (30 minutes unless changed).
     if (!audio.state().id) audio.setTimer(getSetting('sleepTimerMin', 30));
