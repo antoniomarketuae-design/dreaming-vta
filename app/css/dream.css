@@ -970,3 +970,40 @@ button.dream-interp-imgrow:active { opacity: 0.75; }
   .dream-hero-status-icon,
   .dream-interp-vbusy { animation: none; }
 }
+
+/* ---- New layout: dream type switch and "Your day before" ---- */
+.dream-type {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin: 12px 0 4px;
+  padding: 4px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: var(--glass);
+}
+.dream-type-btn {
+  min-height: 36px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+.dream-type-btn[aria-checked="true"] { background: rgba(255, 217, 138, 0.16); color: var(--moon); box-shadow: 0 0 0 1px rgba(255, 217, 138, 0.35) inset; }
+.dream-type-btn[data-type="nightmare"][aria-checked="true"] { background: rgba(255, 159, 143, 0.16); color: var(--ember); box-shadow: 0 0 0 1px rgba(255, 159, 143, 0.35) inset; }
+.dream-type-btn:active { transform: scale(0.97); }
+
+.dream-day { display: flex; flex-direction: column; gap: 8px; }
+.dream-day-when { display: flex; align-items: center; justify-content: space-between; margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+.dream-day-text { margin: 0; white-space: pre-wrap; line-height: 1.5; color: var(--text); }
+.dream-day-label { margin: 4px 0 0; font-size: 13px; color: var(--text-dim); }
+.dream-day-chip { background: rgba(255, 217, 138, 0.12); color: var(--moon); }
+.dream-day-empty p { margin: 0; color: var(--text-dim); line-height: 1.45; }
+.dream-day-empty .btn { align-self: flex-start; }
+.dream-day-input { width: 100%; min-height: 96px; resize: vertical; }
+.dream-day-actions { display: flex; gap: 8px; }
+.dream-day-actions .btn { flex: 1; }

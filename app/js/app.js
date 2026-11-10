@@ -13,17 +13,27 @@ import goals from './screens/goals.js';
 import moduleScreen from './screens/module.js';
 import plus from './screens/plus.js';
 import lock from './screens/lock.js';
+import homeNew from './screens/b/home.js';
+import insightsNew from './screens/b/insights.js';
+import me from './screens/b/me.js';
+import calendar from './screens/b/calendar.js';
+import { getLayout } from './layout.js';
 import { icons } from './ui.js';
 import { getProfile, getSetting } from './store.js';
 import { resumePendingImages } from './images.js';
 import { resumePendingVideos } from './videos.js';
 import { getAccount } from './account.js';
 
-// Tab-bar screens, in order: Home · Journal · Lucidity · Progress · Settings.
+// Two layouts (Settings → App layout, js/layout.js), same dreams and account:
+//   current: Home · Journal · Lucidity · Progress · Settings
+//   new:     Home · Journal · Insights · Profile (#me) · Calendar — Settings (#profile) and Lucidity stay reachable by link.
 // Other screens are reached by link: #record[/voice|/edit/<id>], #dream/<id>[/analyze], #celebrate/<id>, #technique/<id>,
 // #article/<id>, #goals, #module/<id>, #onboarding, #plus, #lock.
-const TABS = [home, journal, lucidity, insights, profile];
-const SCREENS = [...TABS, record, dream, onboarding, celebrate, technique, article, goals, moduleScreen, plus, lock];
+const TABS_CURRENT = [home, journal, lucidity, insights, profile];
+const TABS_NEW = [homeNew, journal, insightsNew, me, calendar];
+const SHARED = [record, dream, onboarding, celebrate, technique, article, goals, moduleScreen, plus, lock];
+const tabs = () => (getLayout() === 'new' ? TABS_NEW : TABS_CURRENT);
+const screens = () => (getLayout() === 'new' ? [...TABS_NEW, profile, lucidity, ...SHARED] : [...TABS_CURRENT, ...SHARED]);
 const UNLOCKED_KEY = 'dreaming.unlocked';
 
 const screenEl = document.getElementById('screen');
@@ -58,14 +68,14 @@ let inAppMoves = 0;
 
 function parseRoute() {
   const [id, ...rest] = location.hash.slice(1).split('/');
-  const screen = SCREENS.find((s) => s.id === id) ?? home;
+  const screen = screens().find((s) => s.id === id) ?? tabs()[0];
   const param = rest.length ? decodeURIComponent(rest.join('/')) : null;
   return { screen, param };
 }
 
 // A tab shows a dot while its screen's badge() says there is something new (e.g. a technique just unlocked).
 function renderTabs() {
-  tabbarEl.innerHTML = TABS.map((s) => {
+  tabbarEl.innerHTML = tabs().map((s) => {
     let dot = false;
     try { dot = Boolean(s.badge?.()); } catch {}
     return `<a class="tab" href="#${s.id}" data-id="${s.id}">${s.icon}<span>${s.label}</span>${dot ? '<i class="tab-dot" aria-label="New"></i>' : ''}</a>`;
@@ -102,8 +112,10 @@ function render() {
   document.documentElement.style.setProperty('--art-filter', style?.filter || 'none');
   tabbarEl.hidden = Boolean(screen.hideTabbar);
   renderTabs();
+  // In the new layout Settings (#profile) belongs to the Profile tab.
+  const current = getLayout() === 'new' && screen.id === 'profile' ? 'me' : screen.id;
   for (const tab of tabbarEl.querySelectorAll('.tab')) {
-    if (tab.dataset.id === screen.id) tab.setAttribute('aria-current', 'page');
+    if (tab.dataset.id === current) tab.setAttribute('aria-current', 'page');
     else tab.removeAttribute('aria-current');
   }
 
@@ -116,6 +128,8 @@ function render() {
 }
 
 window.addEventListener('hashchange', () => { inAppMoves += 1; render(); window.scrollTo(0, 0); });
+// Switching layout starts again from Home.
+window.addEventListener('dreaming:layout', () => { inAppMoves = 0; if (location.hash === '#home') render(); else location.hash = '#home'; });
 
 // ---- Messages at the top of the screen ----
 

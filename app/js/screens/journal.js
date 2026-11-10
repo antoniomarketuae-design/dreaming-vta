@@ -1,11 +1,16 @@
 // Journal: every dream, with search, a filter sheet, quick chips and a List / Calendar switch.
 // Dreams are read through withDefaults(). They live only on this iPhone, and the screen says so honestly.
+// The new layout (js/layout.js) adds two things, and only there: a Gallery view of the dreams' AI pictures,
+// and each row's small chips show the dream's main symbols instead of its tags. The current layout is unchanged.
 import { listDreams, withDefaults, localDay, SYMBOL_CATEGORIES, getSetting, setSetting } from '../store.js';
 import { TAGS } from '../analyze.js';
 import { nextTechnique } from '../progress.js';
 import { esc, icons, relativeDay } from '../ui.js';
 import { dreamArtURL } from '../dreamart.js';
 import { hasVideo } from '../videos.js';
+import { hasImage } from '../images.js';
+import { symbolsOf } from '../symbols.js';
+import { isNewLayout } from '../layout.js';
 
 const VIEW_KEY = 'dreaming.journal.view';
 const NOTE_KEY = 'journalNoteHiddenAt'; // dream count when the "only on this iPhone" note was tucked away
@@ -20,6 +25,7 @@ let filters = blankFilters();
 let cal = null; // { y, m (0-11), selected: 'YYYY-MM-DD' | null }
 let thumbJob = 0;
 let teardown = null;
+let newLayout = false; // read at each render: Gallery view + main-symbol chips
 
 const pad = (n) => String(n).padStart(2, '0');
 const dayDate = (iso) => new Date(`${iso}T00:00:00`);
@@ -28,8 +34,13 @@ const cap = (s) => { const t = String(s ?? '').trim(); return t ? t[0].toUpperCa
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const arr = (v) => (Array.isArray(v) ? v : []);
 
+// 'gallery' exists only in the new layout; a saved 'gallery' opens the list in the current one.
 function getView() {
-  try { return sessionStorage.getItem(VIEW_KEY) === 'calendar' ? 'calendar' : 'list'; } catch { return 'list'; }
+  let v = '';
+  try { v = sessionStorage.getItem(VIEW_KEY) || ''; } catch {}
+  if (v === 'calendar') return 'calendar';
+  if (v === 'gallery' && newLayout) return 'gallery';
+  return 'list';
 }
 function setView(v) {
   try { sessionStorage.setItem(VIEW_KEY, v); } catch {}
@@ -177,15 +188,23 @@ function nextHTML(count) {
     </a>`;
 }
 
+// New layout: the dream's three main symbols (from its interpretation first, then the user's, then the detected ones).
+function mainSymbols(e) {
+  if (!e.main) e.main = symbolsOf(e.d).slice(0, 3).map((s) => s.name);
+  return e.main;
+}
+
 function rowHTML(e) {
   const d = e.d;
   const title = String(d.title || '').trim() || 'Untitled dream';
   const first = String(d.text || '').split('\n').map((s) => s.trim()).find(Boolean) || '';
   const night = d.kind === 'nightmare';
-  const chips = [
-    ...[...e.emotions].slice(0, 2).map(([k, label]) => `<span class="chip" style="--hue:${hueFor(k)}">${esc(cap(label))}</span>`),
-    ...[...e.symbols].slice(0, 3).map(([, label]) => `<span class="chip">${esc(cap(label))}</span>`),
-  ].slice(0, 3).join('');
+  const chips = newLayout
+    ? mainSymbols(e).map((name) => `<span class="chip">${esc(name)}</span>`).join('')
+    : [
+      ...[...e.emotions].slice(0, 2).map(([k, label]) => `<span class="chip" style="--hue:${hueFor(k)}">${esc(cap(label))}</span>`),
+      ...[...e.symbols].slice(0, 3).map(([, label]) => `<span class="chip">${esc(cap(label))}</span>`),
+    ].slice(0, 3).join('');
   return `
     <a class="jr-row glass${night ? ' jr-row-night' : ''}" href="#dream/${encodeURIComponent(d.id)}">
       <span class="jr-thumb-wrap">
@@ -208,11 +227,11 @@ function rowHTML(e) {
     </a>`;
 }
 
-function noMatchHTML() {
+function noMatchHTML(what = 'dreams') {
   const q = query.trim();
   return `
     <div class="jr-none glass">
-      <p>${q ? `No dreams match “${esc(q)}”${activeCount(filters) ? ' with these filters' : ''}.` : 'No dreams match these filters.'}</p>
+      <p>${q ? `No ${what} match “${esc(q)}”${activeCount(filters) ? ' with these filters' : ''}.` : `No ${what} match these filters.`}</p>
       <button type="button" class="btn btn-ghost" data-clear-all>Show all dreams</button>
     </div>`;
 }
@@ -237,6 +256,54 @@ function listHTML(shown, filtering) {
   const end = filtering
     ? `${plural(shown.length, 'dream')} found.`
     : 'You have reached your first recorded dream.';
+  return `${months}
+    <div class="jr-end" aria-hidden="true">${icons.sparkle}</div>
+    <p class="jr-end-text">${end}</p>`;
+}
+
+// ---- Gallery (new layout): the dreams' AI pictures, newest first, by month ----
+
+function galleryTileHTML(e) {
+  const d = e.d;
+  const title = String(d.title || '').trim() || 'Untitled dream';
+  return `
+    <a class="jr-gal-tile" href="#dream/${encodeURIComponent(d.id)}" aria-label="${esc(`${title}, ${relativeDay(e.day)}${hasVideo(d) ? ', has a video' : ''}`)}">
+      <img class="jr-gal-img" data-id="${esc(d.id)}" src="${esc(d.image.url)}" alt="" width="120" height="120" loading="lazy" decoding="async">
+      ${hasVideo(d) ? `<span class="video-mark" aria-hidden="true">${icons.play}</span>` : ''}
+    </a>`;
+}
+
+function galleryEmptyHTML(newest) {
+  return `
+    <div class="jr-gal-empty glass">
+      <span class="jr-gal-empty-icon" aria-hidden="true">${icons.image}</span>
+      <p class="jr-gal-empty-title">Pictures you create from your dreams appear here.</p>
+      <p class="jr-gal-empty-hint">Open a dream and tap <b>Create AI image</b> to make one.</p>
+      ${newest ? `<a class="btn btn-ghost" href="#dream/${encodeURIComponent(newest.d.id)}">Open your latest dream</a>` : ''}
+    </div>`;
+}
+
+function galleryHTML(shown, filtering, all) {
+  const pictured = shown.filter((e) => hasImage(e.d));
+  if (!pictured.length) {
+    return filtering && all.some((e) => hasImage(e.d)) ? noMatchHTML('pictures') : galleryEmptyHTML(all[0]);
+  }
+  const groups = new Map();
+  for (const e of pictured) {
+    const key = e.day.slice(0, 7);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(e);
+  }
+  const months = [...groups.entries()].map(([key, items]) => {
+    const [y, m] = key.split('-').map(Number);
+    const label = y && m ? monthName(y, m - 1) : 'Undated';
+    return `
+      <section class="jr-month">
+        <h2 class="section-title">${esc(label)} <span class="jr-count">${items.length}</span></h2>
+        <div class="jr-gal-grid">${items.map(galleryTileHTML).join('')}</div>
+      </section>`;
+  }).join('');
+  const end = filtering ? `${plural(pictured.length, 'picture')} found.` : `${plural(pictured.length, 'picture')} from your dreams.`;
   return `${months}
     <div class="jr-end" aria-hidden="true">${icons.sparkle}</div>
     <p class="jr-end-text">${end}</p>`;
@@ -400,6 +467,7 @@ export default {
     teardown?.();
     teardown = null;
     thumbJob += 1;
+    newLayout = isNewLayout();
 
     const entries = listDreams().map(prepare).sort(byNewest);
     if (!entries.length) {
@@ -433,9 +501,10 @@ export default {
         </div>
         <div class="jr-active" hidden></div>
         <div class="jr-body"></div>
-        <div class="jr-seg" role="group" aria-label="View">
+        <div class="jr-seg${newLayout ? ' jr-seg-3' : ''}" role="group" aria-label="View">
           <button type="button" data-view="list" aria-pressed="${view === 'list'}">${icons.list}<span>List</span></button>
           <button type="button" data-view="calendar" aria-pressed="${view === 'calendar'}">${icons.calendar}<span>Calendar</span></button>
+          ${newLayout ? `<button type="button" data-view="gallery" aria-pressed="${view === 'gallery'}">${icons.image}<span>Gallery</span></button>` : ''}
         </div>
         <div class="jr-sheet" role="dialog" aria-modal="true" aria-labelledby="jr-sheet-title" hidden></div>
       </div>`;
@@ -472,6 +541,8 @@ export default {
       const filtering = isFiltering();
       if (view === 'list') {
         body.innerHTML = (filtering ? '' : noteHTML(entries.length) + nextHTML(entries.length)) + listHTML(current, filtering);
+      } else if (view === 'gallery') {
+        body.innerHTML = galleryHTML(current, filtering, entries);
       } else {
         const byDay = new Map();
         for (const e of current) {
@@ -619,6 +690,20 @@ export default {
         if (cal.selected) body.querySelector('.jr-daylist')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     });
+
+    // Gallery: a picture that can't load (offline, removed) shows the dream's painting instead.
+    // 'error' doesn't bubble, so this listens in the capture phase.
+    if (newLayout) {
+      root.addEventListener('error', (ev) => {
+        const img = ev.target;
+        if (!img?.classList?.contains('jr-gal-img') || img.dataset.fallback) return;
+        const d = byId.get(img.dataset.id);
+        img.dataset.fallback = '1';
+        let url = '';
+        try { url = d ? dreamArtURL({ ...d, image: null }, 120) || '' : ''; } catch {}
+        if (url) img.src = url;
+      }, true);
+    }
 
     // The title bar stays pinned; it gains a frosted backing once the list scrolls under it.
     const onScroll = () => head.classList.toggle('jr-stuck', window.scrollY > 6);

@@ -227,8 +227,33 @@ export function setSetting(key, value) {
   write(SETTINGS_KEY, s);
 }
 
+// ---- Day journal (new layout: connect what happened in the day with the dreams after it) ----
+// Kept in settings as dayNotes = { 'YYYY-MM-DD': { text, updatedAt } }.
+
+/** The note for a day ('' when none). */
+export function getDayNote(day) {
+  return getSetting('dayNotes', {})?.[day]?.text || '';
+}
+
+/** Saves (or, with empty text, removes) the note for a day. */
+export function setDayNote(day, text) {
+  const notes = { ...(getSetting('dayNotes', {}) || {}) };
+  const clean = String(text || '').trim().slice(0, 4000);
+  if (clean) notes[day] = { text: clean, updatedAt: new Date().toISOString() };
+  else delete notes[day];
+  setSetting('dayNotes', notes);
+}
+
+/** All day notes, newest day first: [{ day, text, updatedAt }]. */
+export function listDayNotes() {
+  return Object.entries(getSetting('dayNotes', {}) || {})
+    .map(([day, n]) => ({ day, text: n?.text || '', updatedAt: n?.updatedAt || '' }))
+    .filter((n) => n.text)
+    .sort((a, b) => b.day.localeCompare(a.day));
+}
+
 export function exportData() {
-  return JSON.stringify({ app: 'dreaming', exportedAt: new Date().toISOString(), dreams: all() }, null, 2);
+  return JSON.stringify({ app: 'dreaming', exportedAt: new Date().toISOString(), dreams: all(), dayNotes: getSetting('dayNotes', {}) }, null, 2);
 }
 
 /** Adds dreams from an export file; skips ones already here. Returns how many were added. */
@@ -242,6 +267,12 @@ export function importData(json) {
     if (d?.id && d.createdAt && !ids.has(d.id)) { all().push(d); added += 1; }
   }
   commit();
+  // Day notes from the file fill in days that have none here.
+  if (data?.dayNotes && typeof data.dayNotes === 'object') {
+    const notes = { ...(getSetting('dayNotes', {}) || {}) };
+    for (const [day, n] of Object.entries(data.dayNotes)) if (/^\d{4}-\d{2}-\d{2}$/.test(day) && n?.text && !notes[day]) notes[day] = n;
+    setSetting('dayNotes', notes);
+  }
   return added;
 }
 

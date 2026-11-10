@@ -1,0 +1,333 @@
+/* New layout: calendar (js/screens/b/calendar.js). Every selector starts with .bc- so nothing leaks into other screens.
+   Colours: violet glow = dreams, ember = day-journal notes, moon gold = today. The day sheet is shared with Home. */
+
+.bc { display: flex; flex-direction: column; }
+.bc-title { margin-bottom: 14px; }
+
+/* ---- Month ---- */
+
+.bc-cal { padding: 10px 10px 12px; overflow: hidden; touch-action: pan-y; }
+.bc-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.bc-head-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+.bc-month { margin: 0; font-size: 20px; line-height: 1.25; font-weight: 300; letter-spacing: 0.01em; text-align: center; }
+.bc-back-now {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  color: var(--moon);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bc-back-now:active { opacity: 0.7; }
+.bc-nav { background: rgba(255, 255, 255, 0.05); }
+.bc-nav:disabled { opacity: 0.3; cursor: default; }
+
+.bc-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+.bc-weekdays span { padding: 6px 0 4px; color: var(--text-faint); font-size: 12px; font-weight: 600; text-align: center; }
+
+.bc-day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: 50px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: var(--text-dim);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+button.bc-day { color: var(--text); cursor: pointer; }
+.bc-blank { pointer-events: none; }
+.bc-future { color: var(--text-faint); opacity: 0.45; }
+
+/* The number sits in a disc, nudged up a little to leave room for the note mark below it */
+.bc-disc {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(38px, 100%);
+  aspect-ratio: 1;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  line-height: 1;
+  transition: transform 0.12s ease;
+}
+button.bc-day:active .bc-disc { transform: scale(0.9); }
+
+/* Days with dreams: a glowing violet disc, with a count when there are several */
+.bc-has .bc-disc {
+  background: radial-gradient(circle at 35% 30%, rgba(205, 186, 255, 0.88), rgba(125, 95, 235, 0.72) 70%);
+  box-shadow: 0 0 12px rgba(155, 123, 255, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-weight: 600;
+}
+.bc-count {
+  position: absolute;
+  top: -4px;
+  right: -5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgba(240, 234, 255, 0.95);
+  color: #24184f;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(8, 4, 30, 0.4);
+}
+
+/* Days with a day-journal note: a short ember line under the number */
+.bc-note-mark {
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ember);
+  box-shadow: 0 0 6px rgba(255, 159, 143, 0.7);
+  transform: translateX(-50%);
+}
+
+/* Today: a moon-gold ring */
+.bc-today .bc-disc { box-shadow: inset 0 0 0 1.5px var(--moon); color: var(--moon); font-weight: 600; }
+.bc-today.bc-has .bc-disc { box-shadow: inset 0 0 0 2px var(--moon), 0 0 14px rgba(255, 217, 138, 0.5); color: #fff; }
+
+/* Turning the page */
+.bc-in-next { animation: bc-in-next 0.28s ease-out; }
+.bc-in-prev { animation: bc-in-prev 0.28s ease-out; }
+@keyframes bc-in-next { from { opacity: 0; transform: translateX(18px); } }
+@keyframes bc-in-prev { from { opacity: 0; transform: translateX(-18px); } }
+
+.bc-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 16px;
+  margin-top: 8px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.bc-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.bc-key { display: inline-block; flex: none; }
+.bc-key-dream {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(205, 186, 255, 0.95), rgba(125, 95, 235, 0.8) 70%);
+  box-shadow: 0 0 6px rgba(155, 123, 255, 0.7);
+}
+.bc-key-note { width: 12px; height: 3px; border-radius: 2px; background: var(--ember); }
+.bc-key-today { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--moon); }
+
+/* ---- This month's totals ---- */
+
+.bc-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.bc-total {
+  display: flex;
+  flex-direction: column-reverse; /* number on top, label under it (dt stays first for screen readers) */
+  justify-content: flex-end;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 18px;
+}
+.bc-total dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 26px;
+  line-height: 1.1;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+}
+.bc-total dt { color: var(--text-dim); font-size: 12.5px; line-height: 1.3; }
+.bc-total-notes dd { color: #ffc4b8; }
+
+.bc-hint { margin: 14px 4px 0; color: var(--text-faint); font-size: 14px; line-height: 1.4; text-align: center; text-wrap: balance; }
+
+/* ---- Day sheet (appended to <body>; under the toast, over the tab bar) ---- */
+
+body.bc-sheet-open { overflow: hidden; }
+
+.bc-sheet {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100%; /* js follows the visual viewport, so the panel stays above the keyboard */
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.bc-sheet-out { pointer-events: none; }
+.bc-sheet-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 5, 24, 0.58);
+  touch-action: none;
+  animation: bc-fade 0.2s ease-out;
+}
+.bc-sheet-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100% - env(safe-area-inset-top) - 24px);
+  margin: 0 auto;
+  border: 1px solid var(--glass-border);
+  border-bottom: 0;
+  border-radius: 26px 26px 0 0;
+  background: rgba(26, 18, 64, 0.94);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  backdrop-filter: blur(24px) saturate(150%);
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.4);
+  animation: bc-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.bc-sheet.bc-kb .bc-sheet-panel { max-height: calc(100% - env(safe-area-inset-top) - 8px); }
+.bc-sheet-out .bc-sheet-panel { animation: bc-down 0.18s ease-in forwards; }
+.bc-sheet-out .bc-sheet-scrim { animation: bc-fade-out 0.18s ease-in forwards; }
+
+@keyframes bc-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes bc-down { to { transform: translateY(100%); } }
+@keyframes bc-fade { from { opacity: 0; } }
+@keyframes bc-fade-out { to { opacity: 0; } }
+
+.bc-sheet-grab { flex: none; width: 38px; height: 5px; margin: 8px auto 0; border-radius: 3px; background: rgba(255, 255, 255, 0.22); }
+.bc-sheet-head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px calc(14px + env(safe-area-inset-right)) 4px calc(20px + env(safe-area-inset-left));
+}
+.bc-sheet-titles { min-width: 0; padding-top: 4px; }
+.bc-sheet-title { margin: 0; font-size: 22px; line-height: 1.2; font-weight: 300; color: var(--text); }
+.bc-sheet-sub { margin: 2px 0 0; color: var(--moon); font-size: 13px; font-weight: 600; }
+.bc-sheet-close { background: rgba(255, 255, 255, 0.06); }
+.bc-sheet-close svg { width: 18px; height: 18px; }
+
+.bc-sheet-scroll {
+  flex: 1;
+  min-height: 0;
+  padding:
+    0
+    calc(20px + env(safe-area-inset-right))
+    calc(env(safe-area-inset-bottom) + 18px)
+    calc(20px + env(safe-area-inset-left));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.bc-sheet.bc-kb .bc-sheet-scroll { padding-bottom: 14px; }
+
+.bc-sheet-sec { margin-top: 14px; }
+.bc-sheet-sec + .bc-sheet-sec { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--glass-border); }
+.bc-sheet-label {
+  display: flex;
+  align-items: center;
+  margin: 0 2px 10px;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.bc-sheet-label label { display: inline-flex; align-items: center; gap: 6px; }
+.bc-sheet-label svg { width: 15px; height: 15px; color: #ffc4b8; }
+.bc-sheet-none { margin: 0 2px 2px; color: var(--text-dim); font-size: 15px; line-height: 1.4; }
+.bc-sheet-hint { margin: -4px 2px 10px; color: var(--text-faint); font-size: 13px; line-height: 1.4; }
+.bc-sheet-record + .bc-sheet-hint { margin: -4px 2px 0 26px; }
+
+/* That day's dreams */
+.bc-dreams { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.bc-dream {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 8px 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  text-decoration: none;
+}
+.bc-dream:active { background: rgba(255, 255, 255, 0.1); }
+.bc-thumb {
+  position: relative;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(141, 108, 245, 0.35), rgba(242, 154, 140, 0.18));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+.bc-thumb-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.bc-thumb-fallback {
+  background:
+    radial-gradient(80% 70% at 30% 25%, hsla(var(--h), 70%, 70%, 0.55), transparent 70%),
+    radial-gradient(70% 60% at 75% 80%, hsla(calc(var(--h) + 60), 80%, 70%, 0.45), transparent 70%),
+    #241a5a;
+}
+.bc-thumb .video-mark { right: 3px; bottom: 3px; width: 20px; height: 20px; }
+.bc-thumb .video-mark svg { width: 10px; height: 10px; }
+.bc-dream-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.bc-dream-title { overflow: hidden; font-size: 15.5px; font-weight: 500; line-height: 1.3; white-space: nowrap; text-overflow: ellipsis; }
+.bc-chips { display: flex; gap: 6px; min-width: 0; overflow: hidden; }
+.bc-chip {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 24px;
+  padding: 2px 9px;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+}
+.bc-dream-go { flex: none; color: var(--text-faint); }
+.bc-dream-go svg { display: block; width: 18px; height: 18px; }
+
+.bc-sheet-record {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  margin-top: 6px;
+  color: var(--moon);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.bc-sheet-record svg { width: 18px; height: 18px; flex: none; }
+.bc-sheet-record:active { opacity: 0.7; }
+
+/* That day's journal */
+.bc-note { display: block; min-height: 132px; resize: vertical; line-height: 1.5; }
+.bc-save { margin-top: 12px; }
+
+/* ---- Calm for people who turn motion off ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  .bc-in-next, .bc-in-prev,
+  .bc-sheet-panel, .bc-sheet-scrim,
+  .bc-sheet-out .bc-sheet-panel, .bc-sheet-out .bc-sheet-scrim { animation: none; }
+  .bc-disc { transition: none; }
+}
+
+@media (max-width: 350px) {
+  .bc-cal { padding: 8px 6px 10px; }
+  .bc-day { height: 46px; font-size: 14px; }
+  .bc-total { padding: 10px; }
+  .bc-total dd { font-size: 22px; }
+}

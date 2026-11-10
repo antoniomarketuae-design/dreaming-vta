@@ -1,7 +1,12 @@
 {
-  "version": 13,
-  "updated": "2026-11-10",
+  "version": 14,
+  "updated": "2026-11-11",
   "notes": [
+    {
+      "version": 14,
+      "date": "2026-11-11",
+      "text": "A second layout to compare: Settings → App layout → New layout. Home · Journal · Insights · Profile · Calendar, with recurring symbols and their meanings, dream types (general, lucid, nightmare, prophetic), a picture gallery, reflection questions, a personalisation survey, and a day journal that connects what happened in your day with the dreams that follow."
+    },
     {
       "version": 13,
       "date": "2026-11-10",
