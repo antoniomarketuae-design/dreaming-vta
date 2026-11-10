@@ -365,13 +365,15 @@ function openPinSheet(el, ctx, mode, done) {
 
 // ---- Plan card (Free / Dreaming Plus) ----
 
+/** One allowance: what is left this month ("50 left of 60"); the bar empties as it is used. */
 function usageLine(label, used, limit) {
-  const pct = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+  const left = Math.max(0, limit - used);
+  const pct = limit ? Math.min(100, Math.round((left / limit) * 100)) : 0;
   return `
     <div class="prof-plan-use">
       <span class="prof-plan-use-label">${esc(label)}</span>
-      <span class="prof-plan-use-num"><b>${used}</b> / ${limit}</span>
-      <span class="prof-plan-bar" role="progressbar" aria-label="${esc(label)} used this month" aria-valuemin="0" aria-valuemax="${limit}" aria-valuenow="${used}"><i style="width:${pct}%"></i></span>
+      <span class="prof-plan-use-num"><b>${left}</b> left of ${limit}</span>
+      <span class="prof-plan-bar" role="progressbar" aria-label="${esc(label)} left this month" aria-valuemin="0" aria-valuemax="${limit}" aria-valuenow="${left}"><i style="width:${pct}%"></i></span>
     </div>`;
 }
 
@@ -408,7 +410,8 @@ function planCard() {
             ${usageLine('AI images', used.images || 0, lim.images ?? 0)}
             ${plus ? usageLine('Video credits', used.videos || 0, lim.videos ?? limits.plus.videos) : lockedLine('AI videos')}
             ${usageLine('Interpretations', used.analyses || 0, lim.analyses ?? 0)}
-            <p class="prof-plan-note">Counts start again on ${esc(renewDate(acc.period))}.</p>
+            ${plus ? '<p class="prof-plan-note">1 video credit = 1 second of Standard video. HD uses 2 per second.</p>' : ''}
+            <p class="prof-plan-note">Everything fills up again on ${esc(renewDate(acc.period))}.</p>
           </div>`
         : '<p class="prof-plan-note prof-plan-offline">Your monthly usage shows once Dreaming is online.</p>'}
       <a class="btn ${plus ? 'btn-ghost' : ''} prof-plan-btn" href="#plus">${plus ? 'View my plan' : 'See plans'}</a>

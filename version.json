@@ -1,7 +1,12 @@
 {
-  "version": 12,
+  "version": 13,
   "updated": "2026-11-10",
   "notes": [
+    {
+      "version": 13,
+      "date": "2026-11-10",
+      "text": "Clearer allowance: Settings and your plan now show what's left this month (e.g. '50 left of 60 video credits') and explain that 1 video credit = 1 second of Standard video (HD uses 2)."
+    },
     {
       "version": 12,
       "date": "2026-11-10",
