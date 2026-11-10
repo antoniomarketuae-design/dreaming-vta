@@ -8,7 +8,7 @@ import { remaining } from './account.js';
 import { hasImage } from './images.js';
 import {
   createVideo, giveVideoConsent, hasVideo, videoOptions, wordCount, maxSeconds, wordsFor, videoCost,
-  estimateMinutes, minutesRange,
+  estimateMinutes, minutesRange, clipsFor, allLengths,
 } from './videos.js';
 import { esc, icons } from './ui.js';
 
@@ -29,7 +29,8 @@ export function openVideoPicker(dream, { toast } = {}) {
   const prefs = getSetting('videoPrefs', {}) || {};
   const left = remaining('videos');
 
-  // Start with the longest length this dream allows that the credits cover, and the last quality used.
+  // Start with the longest single video this dream allows that the credits cover, and the last quality used.
+  // Films (several scenes, many credits) are always the user's own choice, never preselected.
   const state = {
     quality: opts.qualities.some((q) => q.id === prefs.quality) ? prefs.quality : opts.defaultQuality,
     useImage: photo && prefs.useImage !== false,
@@ -37,6 +38,7 @@ export function openVideoPicker(dream, { toast } = {}) {
   };
   const fits = (s, q = state.quality) => left == null || videoCost(opts, s, q) <= left;
   const allowed = opts.durations.filter((s) => s <= maxLen);
+  const films = opts.films || [];
   state.seconds = [...allowed].reverse().find((s) => fits(s)) ?? allowed[0] ?? opts.durations[0];
 
   const el = document.createElement('div');
@@ -60,11 +62,23 @@ export function openVideoPicker(dream, { toast } = {}) {
   const body = el.querySelector('[data-p-body]');
 
   function lengthHint() {
-    const next = opts.durations.find((s) => s > maxLen);
+    const next = allLengths(opts).find((s) => s > maxLen);
     const has = `Your dream has ${words} ${words === 1 ? 'word' : 'words'}, enough for up to ${maxLen} seconds.`;
     if (!next) return has;
     const need = wordsFor(opts, next) - words;
     return `${has} Write ${need} more ${need === 1 ? 'word' : 'words'} to unlock ${next} seconds.`;
+  }
+
+  /** One length chip (a single video or a film). */
+  function chip(s) {
+    const locked = s > maxLen;
+    const scenes = clipsFor(opts, s).length;
+    const sub = locked ? `${icons.lock}${wordsFor(opts, s)}+ words`
+      : `${videoCost(opts, s, state.quality)} credits${scenes > 1 ? ` · ${scenes} scenes` : ''}`;
+    return `<button type="button" class="vpick-chip" role="radio" data-p="len" data-v="${s}"
+        aria-checked="${s === state.seconds}" ${locked ? 'disabled' : ''}>
+      <b>${s} s</b><small>${sub}</small>
+    </button>`;
   }
 
   function paint() {
@@ -76,14 +90,13 @@ export function openVideoPicker(dream, { toast } = {}) {
       <p class="vpick-label">Length</p>
       <p class="vpick-hint">${esc(lengthHint())}</p>
       <div class="vpick-chips" role="radiogroup" aria-label="Video length">
-        ${opts.durations.map((s) => {
-          const locked = s > maxLen;
-          return `<button type="button" class="vpick-chip" role="radio" data-p="len" data-v="${s}"
-              aria-checked="${s === state.seconds}" ${locked ? 'disabled' : ''}>
-            <b>${s} s</b><small>${locked ? `${icons.lock}${wordsFor(opts, s)}+ words` : `${videoCost(opts, s, state.quality)} credits`}</small>
-          </button>`;
-        }).join('')}
+        ${opts.durations.map(chip).join('')}
       </div>
+      ${films.length ? `
+        <p class="vpick-sublabel">Dream film <span>for long dreams: several scenes in one video</span></p>
+        <div class="vpick-chips vpick-chips-3" role="radiogroup" aria-label="Dream film length">
+          ${films.map((f) => chip(f.seconds)).join('')}
+        </div>` : ''}
 
       <p class="vpick-label">Quality</p>
       <div class="vpick-chips vpick-chips-2" role="radiogroup" aria-label="Video quality">
@@ -104,9 +117,10 @@ export function openVideoPicker(dream, { toast } = {}) {
         <span>${icons.moon}About ${esc(minutesRange(minutes))}</span>
       </div>
       ${enough ? '' : '<p class="vpick-warn">Not enough credits for this one. Choose a shorter length or Standard quality.</p>'}
+      ${clipsFor(opts, state.seconds).length > 1 ? `<p class="vpick-note">Your dream is told in ${clipsFor(opts, state.seconds).length} scenes, in order, made at the same time and joined into one film.${fromImage ? ' The first scene starts from your AI photo.' : ''}</p>` : ''}
       ${hasVideo(saved) ? '<p class="vpick-note">The new video takes the place of this dream\'s current one.</p>' : ''}
       <p class="vpick-note">This dream's text, title and tags${fromImage ? ', and its AI photo,' : ''} are sent to Dreaming's server, where an AI video service makes the video with sound. You can leave the app while it's made. If it fails, your credits come back.</p>
-      <button type="button" class="btn vpick-go" data-p="go" ${enough ? '' : 'disabled'}>${icons.film}<span>Create ${state.seconds}-second video</span></button>
+      <button type="button" class="btn vpick-go" data-p="go" ${enough ? '' : 'disabled'}>${icons.film}<span>Create ${state.seconds}-second ${clipsFor(opts, state.seconds).length > 1 ? 'film' : 'video'}</span></button>
       <button type="button" class="btn btn-ghost" data-p="close">Cancel</button>`;
   }
 

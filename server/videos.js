@@ -4,13 +4,17 @@
 // When the dream already has an AI image, it becomes the first frame (image-to-video), so the video matches it:
 // the picture is cropped to the video's shape on this server and uploaded to the provider (poyo can't always
 // reach our public address). If every provider refuses the picture, the video is made from the text alone.
+// A dream film (generateFilm) is 2–3 clips, one per scene of the dream in order, made at the same time and joined
+// into one mp4 with ffmpeg (the ffmpeg-static package: nothing is installed system-wide on the shared server).
 import { createWriteStream } from 'node:fs';
-import { mkdir, rm, stat } from 'node:fs/promises';
+import { mkdir, rm, stat, writeFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { lightFor } from './images.js';
-import { estimateMinutes } from './video-options.js';
+import { estimateMinutes, wordCount } from './video-options.js';
 
 const POYO_BASE = 'https://api.poyo.ai/api/generate';
 const MAX_BYTES = 80 * 1024 * 1024;
@@ -19,11 +23,14 @@ const MAX_BYTES = 80 * 1024 * 1024;
 const waitMs = (minutes) => Math.min(90, Math.max(20, Math.ceil(minutes * 2.5))) * 60 * 1000;
 
 /** Builds the video prompt from the dream. fromImage: the dream's AI image is the first frame. Longer videos
- *  carry more of the dream and follow its events in order. */
-export function buildVideoPrompt({ text, tags = [], kind, style, fromImage = false, seconds = 5 }) {
+ *  carry more of the dream and follow its events in order. part = { index, total } for one scene of a film. */
+export function buildVideoPrompt({ text, tags = [], kind, style, fromImage = false, seconds = 5, part = null }) {
   const room = seconds >= 15 ? 1400 : seconds >= 10 ? 1000 : seconds >= 8 ? 800 : 450;
   const scene = String(text || '').replace(/\s+/g, ' ').trim().slice(0, room);
   const flow = seconds >= 8 ? 'Show what happens in the order it happens, as one continuous dreamlike sequence.' : '';
+  const film = part
+    ? `This is part ${part.index} of ${part.total} of one dream: keep the same people, places, lighting and look as the other parts.`
+    : '';
   const mood = tags.length ? `Mood: ${tags.slice(0, 5).join(', ')}.` : '';
   const soft = kind === 'nightmare'
     ? 'Tense and eerie but not graphic: atmosphere, shadow and suspense; no gore, no blood, no injuries.'
@@ -32,7 +39,7 @@ export function buildVideoPrompt({ text, tags = [], kind, style, fromImage = fal
     fromImage
       ? `Bring this photo to life as a short scene from a dream: ${scene}`
       : `A photorealistic cinematic video of this scene from a dream: ${scene}`,
-    flow, mood, soft,
+    film, flow, mood, soft,
     `Lighting and colour: ${lightFor(style)}.`,
     'Slow, smooth camera movement such as a gentle push-in or drift, natural realistic motion, true-to-life textures and materials, soft ambient sound, slightly dreamlike atmosphere but fully realistic, as if filmed on a cinema camera.',
     'Not a cartoon, not animation, not a 3D render.',
@@ -168,6 +175,87 @@ export async function generateVideo({ id, prompt, textPrompt, imagePath, seconds
     if (out) return { ...out, fromImage: Boolean(round.frame) };
   }
   throw new Error(errors.join(' | ') || 'no video provider configured');
+}
+
+/**
+ * Splits the dream into `n` scenes in order, by sentences, each with about the same number of words. A dream with
+ * fewer sentences than scenes is split by words instead.
+ */
+export function splitScenes(text, n) {
+  const clean = String(text || '').replace(/\s+/g, ' ').trim();
+  if (n <= 1) return [clean];
+  const sentences = (clean.match(/[^.!?…]+(?:[.!?…]+["')\]]*|$)/g) || []).map((s) => s.trim()).filter(Boolean);
+  if (sentences.length < n) {
+    const words = clean.split(' ');
+    const size = Math.ceil(words.length / n);
+    return Array.from({ length: n }, (_, i) => words.slice(i * size, (i + 1) * size).join(' ') || clean);
+  }
+  const target = wordCount(clean) / n;
+  const scenes = [];
+  let cur = [];
+  let acc = 0;
+  sentences.forEach((s, i) => {
+    cur.push(s);
+    acc += wordCount(s);
+    const stillToFill = n - scenes.length - 1; // scenes after this one
+    const left = sentences.length - i - 1;     // sentences after this one
+    if (stillToFill > 0 && (acc >= target * (scenes.length + 1) || left === stillToFill)) {
+      scenes.push(cur.join(' '));
+      cur = [];
+    }
+  });
+  scenes.push(cur.join(' '));
+  return scenes;
+}
+
+const run = promisify(execFile);
+
+/** Joins clips into one mp4: a fast copy first, re-encoding only if the clips don't match exactly. */
+async function joinClips(paths, out, workDir) {
+  const ffmpeg = (await import('ffmpeg-static')).default;
+  if (!ffmpeg) throw new Error('ffmpeg is not available');
+  const list = join(workDir, 'list.txt');
+  await writeFile(list, paths.map((p) => `file '${p.replace(/'/g, "'\\''")}'`).join('\n'));
+  const base = ['-y', '-v', 'error', '-f', 'concat', '-safe', '0', '-i', list];
+  try {
+    await run(ffmpeg, [...base, '-c', 'copy', '-movflags', '+faststart', out], { timeout: 120000 });
+  } catch {
+    await run(ffmpeg, [...base, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-c:a', 'aac', '-movflags', '+faststart', out], { timeout: 600000 });
+  }
+}
+
+/**
+ * Makes a dream film: one clip per scene (scenes = [{ prompt, textPrompt, seconds }]), all at the same time; only
+ * the first starts from the AI photo. onProgress(done) after each finished clip. If any clip fails the film fails
+ * (the caller refunds). Joins them into <id>.mp4 in `dir`. Returns { file, provider, model, units, bytes, fromImage }.
+ */
+export async function generateFilm({ id, scenes, imagePath, quality, dir, cfg, env, onProgress }) {
+  const work = join(dir, `${id}-parts`);
+  await mkdir(work, { recursive: true });
+  let done = 0;
+  try {
+    const results = await Promise.allSettled(scenes.map((s, i) => generateVideo({
+      id: `${id}-p${i + 1}`, prompt: s.prompt, textPrompt: s.textPrompt, imagePath: i === 0 ? imagePath : null,
+      seconds: s.seconds, quality, dir: work, cfg, env,
+    }).then((out) => { done += 1; onProgress?.(done); return out; })));
+    const failed = results.map((r, i) => (r.status === 'rejected' ? `scene ${i + 1}: ${r.reason?.message || r.reason}` : '')).filter(Boolean);
+    if (failed.length) throw new Error(failed.join(' | '));
+    const clips = results.map((r) => r.value);
+    const file = `${id}.mp4`;
+    await joinClips(clips.map((c) => join(work, c.file)), join(dir, file), work);
+    const { size } = await stat(join(dir, file));
+    if (size < 10 * 1024) throw new Error(`film size ${size}`);
+    return {
+      file,
+      provider: clips[0].provider,
+      model: clips[0].model,
+      units: clips.reduce((sum, c) => sum + (c.units || 0), 0),
+      bytes: size,
+      fromImage: clips[0].fromImage,
+    };
+  } finally {
+    await rm(work, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
 async function tryProviders({ id, round, settings, dir, cfg, env, errors }) {

@@ -92,7 +92,7 @@
     "videosPerDay": 50
   },
   "videos": {
-    "_about": "AI dream videos (Plus). The user picks length and quality; a longer dream unlocks longer videos. \"videos\" in plan limits/usage counts VIDEO CREDITS: 1 credit = 1 second at the cheapest quality. poyo seedance-2 measured 2026-11-10: 480p = 20 poyo credits per second (4 s = 80), 720p = 40 per second (5 s = 200). Time: from text ~0.65 min per second of video at 480p, ~1 min at 720p; starting from a picture is ~2.5x slower.",
+    "_about": "AI dream videos (Plus). The user picks length and quality; a longer dream unlocks longer videos. \"videos\" in plan limits/usage counts VIDEO CREDITS: 1 credit = 1 second at the cheapest quality. poyo seedance-2 measured 2026-11-10: 480p = 20 poyo credits per second (4 s = 80), 720p = 40 per second (5 s = 200). Time: from text ~0.65 min per second of video at 480p, ~1 min at 720p; starting from a picture is ~2.5x slower. Dream films: a dream of 250+ words can become a 20/30/45 s film of 2-3 clips (one per scene, in order), made at the same time and joined with ffmpeg; it costs what its clips cost together (filmJoinMinutes = time to download and join).",
     "aspect": "9:16",
     "durations": [
       5,
@@ -116,6 +116,43 @@
       {
         "words": 180,
         "max": 15
+      },
+      {
+        "words": 250,
+        "max": 20
+      },
+      {
+        "words": 350,
+        "max": 30
+      },
+      {
+        "words": 500,
+        "max": 45
+      }
+    ],
+    "films": [
+      {
+        "seconds": 20,
+        "clips": [
+          10,
+          10
+        ]
+      },
+      {
+        "seconds": 30,
+        "clips": [
+          10,
+          10,
+          10
+        ]
+      },
+      {
+        "seconds": 45,
+        "clips": [
+          15,
+          15,
+          15
+        ]
       }
     ],
     "qualities": [
@@ -138,6 +175,7 @@
       "720p": 1
     },
     "photoFactor": 2.5,
+    "filmJoinMinutes": 1,
     "providers": [
       {
         "name": "poyo",

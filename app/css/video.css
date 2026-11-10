@@ -305,3 +305,17 @@ body.vpick-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .vpick-card, .vpick-scrim { animation: none; }
 }
+
+/* Dream film row in the picker (2–3 scenes joined into one video) */
+.vpick-chips-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.vpick-sublabel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin: 14px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.vpick-sublabel span { font-size: 12px; font-weight: 400; color: var(--text-faint); }

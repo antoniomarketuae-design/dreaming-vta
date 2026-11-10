@@ -6,6 +6,8 @@
 // Screens listen for window 'dreaming:video' ({ detail: { dreamId } }) to repaint.
 // The user picks length and quality (js/videopicker.js); a longer dream unlocks longer videos. The plan's video
 // allowance is counted in CREDITS: 1 credit = 1 second at Standard quality, HD costs more (numbers from GET /plans).
+// A very long dream can become a "dream film" (20–45 s): 2–3 scenes made at the same time and joined on the server;
+// while it's made the job shows how many scenes are ready.
 // openVideoPlayer(dream) shows the full-screen player (sound toggle, Save to Photos via the share sheet).
 // Touches document/window/storage only inside functions, never at import time.
 import { getDream, updateDream, listDreams, getProfile, getSetting, setSetting } from './store.js';
@@ -27,8 +29,10 @@ const SERVER_ERROR = 'Something went wrong on the server. Please try again later
 /** How long a video usually takes, for progress text (uses the job's own estimate when there is one). */
 export const VIDEO_WAIT_TEXT = 'Usually 5–15 minutes. You can leave this screen; it keeps going.';
 export function videoWaitText(dream) {
-  const min = dream?.videoJob?.minutes;
-  return Number.isFinite(min) ? `Usually ${minutesRange(min)}. You can leave this screen; it keeps going.` : VIDEO_WAIT_TEXT;
+  const job = dream?.videoJob;
+  const min = job?.minutes;
+  const scenes = job?.scenes > 1 ? `${job.scenesDone || 0} of ${job.scenes} scenes ready. ` : '';
+  return Number.isFinite(min) ? `${scenes}Usually ${minutesRange(min)}. You can leave this screen; it keeps going.` : scenes + VIDEO_WAIT_TEXT;
 }
 
 // ---- Length, quality and credits ----
@@ -36,7 +40,11 @@ export function videoWaitText(dream) {
 // Mirrors server/plans.json "videos" until GET /plans has answered once.
 const DEFAULT_OPTIONS = {
   durations: [5, 8, 10, 15],
-  lengthByWords: [{ words: 0, max: 5 }, { words: 40, max: 8 }, { words: 100, max: 10 }, { words: 180, max: 15 }],
+  lengthByWords: [
+    { words: 0, max: 5 }, { words: 40, max: 8 }, { words: 100, max: 10 }, { words: 180, max: 15 },
+    { words: 250, max: 20 }, { words: 350, max: 30 }, { words: 500, max: 45 },
+  ],
+  films: [{ seconds: 20, clips: [10, 10] }, { seconds: 30, clips: [10, 10, 10] }, { seconds: 45, clips: [15, 15, 15] }],
   qualities: [
     { id: '480p', label: 'Standard', note: 'Faster', perSecond: 1 },
     { id: '720p', label: 'HD', note: 'Sharper', perSecond: 2 },
@@ -44,6 +52,7 @@ const DEFAULT_OPTIONS = {
   defaultQuality: '720p',
   minutesPerSecond: { '480p': 0.65, '720p': 1 },
   photoFactor: 2.5,
+  filmJoinMinutes: 1,
 };
 
 /** Video options from the last GET /plans (refreshed in the background), else the built-in copy. */
@@ -52,6 +61,11 @@ export function videoOptions() {
   const o = getSetting('plansCache', null)?.videos;
   return o?.durations?.length && o?.qualities?.length ? { ...DEFAULT_OPTIONS, ...o } : DEFAULT_OPTIONS;
 }
+
+/** The clip lengths a video of `seconds` is made of: [seconds], or one per scene for a film. */
+export const clipsFor = (opts, seconds) => (opts.films || []).find((f) => f.seconds === seconds)?.clips || [seconds];
+/** Every length on offer, single videos first, then films. */
+export const allLengths = (opts) => [...opts.durations, ...(opts.films || []).map((f) => f.seconds)];
 
 /** Words in the dream's text. */
 export const wordCount = (dream) => (String(dream?.text || '').trim().match(/\S+/g) || []).length;
@@ -68,15 +82,19 @@ export function wordsFor(opts, seconds) {
   return opts.lengthByWords.find((s) => s.max >= seconds)?.words ?? 0;
 }
 
-/** Credits a video takes. */
+/** Credits a video takes (a film: what its scenes cost together). */
 export function videoCost(opts, seconds, quality) {
   const q = opts.qualities.find((x) => x.id === quality) || opts.qualities[0];
-  return Math.ceil(seconds * q.perSecond);
+  return clipsFor(opts, seconds).reduce((sum, s) => sum + Math.ceil(s * q.perSecond), 0);
 }
 
-/** Usual time in minutes to make a video. */
+/** Usual time in minutes to make a video. A film's scenes are made at the same time (only the first starts from
+ *  the photo), so it takes as long as its slowest scene, plus joining. */
 export function estimateMinutes(opts, seconds, quality, fromImage) {
-  return seconds * (opts.minutesPerSecond[quality] ?? 1) * (fromImage ? opts.photoFactor : 1);
+  const perSecond = opts.minutesPerSecond[quality] ?? 1;
+  const clips = clipsFor(opts, seconds);
+  const slowest = Math.max(...clips.map((s, i) => s * perSecond * (fromImage && i === 0 ? opts.photoFactor : 1)));
+  return slowest + (clips.length > 1 ? opts.filmJoinMinutes ?? 1 : 0);
 }
 
 /** "about 4–7 minutes" style range around an estimate. */
@@ -224,6 +242,8 @@ export async function requestVideo(dream, { seconds, quality, useImage = true } 
       seconds: Number.isFinite(data.seconds) ? data.seconds : seconds,
       quality: typeof data.quality === 'string' ? data.quality : quality,
       minutes: Number.isFinite(data.minutes) ? data.minutes : undefined,
+      scenes: Number.isFinite(data.scenes) ? data.scenes : 1,
+      scenesDone: 0,
       requestedAt: new Date().toISOString(),
     },
   });
@@ -301,6 +321,11 @@ async function checkOnce(dreamId) {
       videoJob: null,
     });
     return { dream, changed: true, finished: true };
+  }
+  // A film reports its scenes as they finish: save that so the progress line moves.
+  if (data.status === 'pending' && Number.isFinite(data.scenesDone) && data.scenesDone !== (cur.scenesDone || 0)) {
+    const dream = updateDream(dreamId, { videoJob: { ...cur, scenesDone: data.scenesDone, scenes: data.scenes || cur.scenes } });
+    return { dream, changed: true, finished: false };
   }
   const failed = data.status === 'failed' || data.status === 'done';
   const giveUpMs = Math.max(GIVE_UP_MIN, Math.min(150, (cur.minutes || 10) * 3)) * 60_000;

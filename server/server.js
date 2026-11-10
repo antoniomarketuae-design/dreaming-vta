@@ -10,8 +10,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { buildPrompt, generateImage } from './images.js';
-import { buildVideoPrompt, generateVideo } from './videos.js';
-import { publicVideoOptions, wordCount, maxSeconds, videoCost, estimateMinutes } from './video-options.js';
+import { buildVideoPrompt, generateVideo, generateFilm, splitScenes } from './videos.js';
+import { publicVideoOptions, wordCount, maxSeconds, videoCost, estimateMinutes, isLength, clipsFor } from './video-options.js';
 
 try { process.loadEnvFile(fileURLToPath(new URL('./.env', import.meta.url))); } catch {}
 
@@ -105,6 +105,8 @@ const SCHEMA = `
   alter table videos add column if not exists seconds int;
   alter table videos add column if not exists quality text;
   alter table videos add column if not exists credits int;
+  alter table videos add column if not exists scenes int not null default 1;
+  alter table videos add column if not exists scenes_done int not null default 0;
   -- Redeem codes (testers, gifts): grant Plus for N days.
   create table if not exists codes (
     code_hash  text primary key,
@@ -299,9 +301,15 @@ async function runImage(id, prompt, deviceId) {
 }
 
 // Video generation runs in the background too (5–15 minutes); the phone polls GET /videos/:id.
-async function runVideo(id, { prompt, textPrompt, imagePath, seconds, quality, credits }, deviceId) {
+async function runVideo(id, { prompt, textPrompt, imagePath, seconds, quality, credits, scenes }, deviceId) {
   try {
-    const out = await generateVideo({ id, prompt, textPrompt, imagePath, seconds, quality, dir: VIDEO_DIR, cfg: PLANS.videos || {}, env: process.env });
+    const cfg = PLANS.videos || {};
+    const out = scenes
+      ? await generateFilm({
+        id, scenes, imagePath, quality, dir: VIDEO_DIR, cfg, env: process.env,
+        onProgress: (done) => pool.query('update videos set scenes_done = $2 where id = $1', [id, done]).catch(() => {}),
+      })
+      : await generateVideo({ id, prompt, textPrompt, imagePath, seconds, quality, dir: VIDEO_DIR, cfg, env: process.env });
     // image_id stays only when the picture really was the first frame.
     await pool.query(
       `update videos set status = 'done', file = $2, provider = $3, model = $4, units = $5, bytes = $6,
@@ -463,7 +471,7 @@ async function handle(req, res) {
       const vcfg = PLANS.videos || {};
       const words = wordCount(dream.text);
       const seconds = Number(body.seconds) || Math.min(5, maxSeconds(vcfg, words));
-      if (!(vcfg.durations || [5]).includes(seconds)) throw httpError(400, 'That video length is not available.');
+      if (!isLength(vcfg, seconds)) throw httpError(400, 'That video length is not available.');
       if (seconds > maxSeconds(vcfg, words)) throw httpError(400, `A ${seconds}-second video needs a longer dream. Write a little more first.`);
       const quality = typeof body.quality === 'string' ? body.quality : vcfg.defaultQuality || '720p';
       const credits = videoCost(vcfg, seconds, quality);
@@ -481,17 +489,27 @@ async function handle(req, res) {
         }
       }
       const kind = body.kind === 'nightmare' ? 'nightmare' : 'dream';
+      // A film: one clip per scene of the dream, in order; only the first may start from the AI photo.
+      const clips = clipsFor(vcfg, seconds);
+      const scenes = clips.length > 1
+        ? splitScenes(dream.text, clips.length).map((text, i) => {
+          const part = { index: i + 1, total: clips.length };
+          const scene = { ...dream, text, kind, style, seconds: clips[i], part };
+          const sceneText = buildVideoPrompt(scene);
+          return { seconds: clips[i], textPrompt: sceneText, prompt: i === 0 && imagePath ? buildVideoPrompt({ ...scene, fromImage: true }) : sceneText };
+        })
+        : null;
       const textPrompt = buildVideoPrompt({ ...dream, kind, style, seconds });
-      const prompt = imagePath ? buildVideoPrompt({ ...dream, kind, style, seconds, fromImage: true }) : textPrompt;
+      const prompt = scenes ? scenes.map((s) => s.prompt).join('\n---\n') : imagePath ? buildVideoPrompt({ ...dream, kind, style, seconds, fromImage: true }) : textPrompt;
       const id = `vd${crypto.randomBytes(15).toString('base64url')}`;
       await pool.query(
-        'insert into videos (id, device_id, style, image_id, prompt, seconds, quality, credits) values ($1, $2, $3, $4, $5, $6, $7, $8)',
-        [id, d.id, style, imageId, prompt, seconds, quality, credits],
+        'insert into videos (id, device_id, style, image_id, prompt, seconds, quality, credits, scenes) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+        [id, d.id, style, imageId, prompt, seconds, quality, credits, clips.length],
       );
       await addUsage(d.id, 'videos', credits);
-      runVideo(id, { prompt, textPrompt, imagePath, seconds, quality, credits }, d.id); // background
+      runVideo(id, { prompt, textPrompt, imagePath, seconds, quality, credits, scenes }, d.id); // background
       return send(202, {
-        id, status: 'pending', fromImage: Boolean(imageId), seconds, quality, credits,
+        id, status: 'pending', fromImage: Boolean(imageId), seconds, quality, credits, scenes: clips.length,
         minutes: Math.round(estimateMinutes(vcfg, seconds, quality, Boolean(imageId)) * 10) / 10,
         account: await accountView(d),
       });
@@ -517,6 +535,8 @@ async function handle(req, res) {
         imageId: v.image_id,
         seconds: v.seconds || null,
         quality: v.quality || null,
+        scenes: v.scenes || 1,
+        scenesDone: v.scenes_done || 0,
         error: v.status === 'failed' ? 'The video could not be created. Your allowance was not used up.' : null,
       });
     }
