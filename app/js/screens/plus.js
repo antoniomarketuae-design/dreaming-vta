@@ -19,7 +19,7 @@ const ui = { plan: 'yearly', codeOpen: false, code: '', error: '', busy: false, 
 let offAccount = null;
 let live = 0; // render generation: async work from an older render (or after leaving) must not paint
 
-const pct = (used, limit) => (limit ? Math.min(100, Math.round((used / limit) * 100)) : 0);
+const pct = (part, limit) => (limit ? Math.min(100, Math.round((part / limit) * 100)) : 0);
 
 function benefitsCard(title, limits) {
   return `
@@ -138,12 +138,14 @@ function compareTable(limits) {
     </div>`;
 }
 
+/** One allowance: what is left this month ("50 left of 60"); the bar empties as it is used. */
 function usageRow(label, used, limit) {
+  const left = Math.max(0, limit - used);
   return `
     <div class="plus-usage-row">
       <span class="plus-usage-label">${esc(label)}</span>
-      <span class="plus-usage-num"><b>${used}</b> / ${limit}</span>
-      <span class="plus-usage-bar" role="progressbar" aria-label="${esc(label)} used" aria-valuemin="0" aria-valuemax="${limit}" aria-valuenow="${used}"><i style="width:${pct(used, limit)}%"></i></span>
+      <span class="plus-usage-num"><b>${left}</b> left of ${limit}</span>
+      <span class="plus-usage-bar" role="progressbar" aria-label="${esc(label)} left" aria-valuemin="0" aria-valuemax="${limit}" aria-valuenow="${left}"><i style="width:${pct(left, limit)}%"></i></span>
     </div>`;
 }
 
@@ -160,7 +162,8 @@ function mineCard(acc, limits) {
       ${usageRow('AI images', used.images || 0, lim.images ?? limits.plus.images)}
       ${usageRow('Video credits', used.videos || 0, lim.videos ?? limits.plus.videos)}
       ${usageRow('Interpretations', used.analyses || 0, lim.analyses ?? limits.plus.analyses)}
-      <p class="plus-usage-note">Counts start again on ${esc(renewDate(acc.period))}.</p>
+      <p class="plus-usage-note">1 video credit = 1 second of Standard video. HD uses 2 per second.</p>
+      <p class="plus-usage-note">Everything fills up again on ${esc(renewDate(acc.period))}.</p>
     </section>`;
 }
 
