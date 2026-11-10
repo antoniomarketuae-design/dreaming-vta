@@ -6,7 +6,11 @@
 // plan allows it; the interpretation card opens with that picture.
 // AI videos (js/videos.js, Plus): "Create video" / "New video" on the picture. A finished video plays muted and
 // looping on the picture (tap → full-screen player with sound); the interpretation card links to it too.
-import { getDream, updateDream, deleteDream, withDefaults, SYMBOL_CATEGORIES, setSetting } from '../store.js';
+// New layout only (js/layout.js): a dream-type switch (general / lucid / nightmare / prophetic) under the title, and
+// "Your day before" in Story: the day-journal note of the day before the dream, with words both share.
+import { getDream, updateDream, deleteDream, withDefaults, SYMBOL_CATEGORIES, setSetting, getDayNote, setDayNote, localDay } from '../store.js';
+import { isNewLayout } from '../layout.js';
+import { DREAM_TYPES, dreamType, setDreamType, dreamDay } from '../symbols.js';
 import { TAGS } from '../analyze.js';
 import { esc, formatDate, relativeDay, icons } from '../ui.js';
 import { dreamArtURL } from '../dreamart.js';
@@ -21,6 +25,21 @@ import {
   videoElapsed, videoWaitText, openVideoPlayer,
 } from '../videos.js';
 import { openVideoPicker } from '../videopicker.js';
+
+const STOP = new Set('that this with from have were they them then there their what when where which while would could should about after again also been before being because into just like more most much only other over some such than very will your yours mine ours really thing things something nothing everything maybe still back down even ever every here know made make many might never next once same seem seemed take took went going gone came come into onto upon under felt feel feeling dream dreamed dreamt dreaming woke wake today yesterday night morning evening'.split(' '));
+const stem = (w) => w.replace(/(ings?|ed|es|s)$/, '').replace(/(.)\1$/, '$1');
+
+/** Words a day note and a dream share (up to 6), in the order they appear in the note. */
+function sharedWords(note, text) {
+  const words = (t) => (String(t).toLowerCase().match(/[a-z']+/g) || []).filter((w) => w.length >= 4 && !STOP.has(w));
+  const inDream = new Set(words(text).map(stem));
+  const out = [];
+  for (const w of words(note)) {
+    if (inDream.has(stem(w)) && !out.some((o) => stem(o) === stem(w))) out.push(w);
+    if (out.length === 6) break;
+  }
+  return out;
+}
 
 /** The dream's picture: its AI image when it has one, else the generated painting. */
 function artSrc(dream) {
@@ -224,6 +243,7 @@ export default {
       window.removeEventListener('dreaming:account', onAccountEvent);
     };
 
+    let editingDay = false; // new layout: the day-before note is being written
     const root = document.createElement('div');
     root.className = 'dream';
     el.innerHTML = '';
@@ -255,9 +275,11 @@ export default {
       const src = artSrc(dream);
       const hue = TAGS[dream.tags?.[0]]?.hue ?? 260;
       const nightmare = dream.kind === 'nightmare';
+      // The new layout shows the type as a switch instead of the nightmare / lucid badges.
+      const typed = isNewLayout();
       const badges = [
-        nightmare ? `<span class="chip dream-badge-nightmare">${icons.flame}<span>Nightmare</span></span>` : '',
-        dream.lucid ? `<span class="chip dream-badge-mark"><span class="star-mark">${icons.star}</span>Lucid</span>` : '',
+        nightmare && !typed ? `<span class="chip dream-badge-nightmare">${icons.flame}<span>Nightmare</span></span>` : '',
+        dream.lucid && !typed ? `<span class="chip dream-badge-mark"><span class="star-mark">${icons.star}</span>Lucid</span>` : '',
         dream.recurring ? `<span class="chip dream-badge-mark">${icons.repeat}<span>Recurring</span></span>` : '',
       ].join('');
       const TABS = [['story', 'Story'], ['details', 'Details'], ['sleep', 'Sleep']];
@@ -277,6 +299,7 @@ export default {
         <p class="dream-date">${esc(whenLabel(dream.date))}</p>
         <h1 class="dream-title">${esc(dream.title || 'Untitled dream')}</h1>
         ${badges ? `<div class="dream-badges">${badges}</div>` : ''}
+        ${typed ? typeSwitchHTML(dream) : ''}
 
         <div class="dream-tabs" role="tablist" aria-label="Dream sections">
           ${TABS.map(([k, label]) => `<button type="button" role="tab" class="dream-tab" id="dream-tab-${k}" data-act="tab" data-tab="${k}" aria-controls="dream-panel-${k}" aria-selected="${k === tab}">${label}</button>`).join('')}
@@ -647,7 +670,63 @@ export default {
 
       return `
         <div class="glass dream-text">${esc(dream.text) || '<span class="faint">No words written for this dream.</span>'}</div>
+        ${isNewLayout() ? dayBeforeHTML(dream) : ''}
         ${symbols}${feelings}${noticed}${empty}`;
+    }
+
+    // ---- New layout: dream type and the day before ----
+
+    function typeSwitchHTML(dream) {
+      const cur = dreamType(dream);
+      return `
+        <div class="dream-type" role="radiogroup" aria-label="Dream type">
+          ${DREAM_TYPES.map((t) => `<button type="button" class="dream-type-btn" role="radio" data-act="type" data-type="${t.id}" aria-checked="${t.id === cur}">${esc(t.label)}</button>`).join('')}
+        </div>`;
+    }
+
+    /** The day before the dream (a dream recorded in the morning follows that day's events). */
+    const dayBefore = (dream) => {
+      const d = new Date(`${dreamDay(dream)}T12:00:00`);
+      d.setDate(d.getDate() - 1);
+      return localDay(d);
+    };
+
+    function dayBeforeHTML(dream) {
+      const day = dayBefore(dream);
+      const note = getDayNote(day);
+      const when = esc(formatDate(day));
+      if (editingDay) {
+        return `
+          <h2 class="section-title">Your day before</h2>
+          <div class="glass dream-card dream-day">
+            <p class="dream-day-when">${when}</p>
+            <textarea class="field dream-day-input" data-day-input rows="4" maxlength="4000"
+              placeholder="What happened that day? Main events, people, feelings…" aria-label="What happened on ${when}">${esc(note)}</textarea>
+            <div class="dream-day-actions">
+              <button type="button" class="btn" data-act="day-save">${icons.check}<span>Save</span></button>
+              <button type="button" class="btn btn-ghost" data-act="day-cancel">Cancel</button>
+            </div>
+          </div>`;
+      }
+      if (!note) {
+        return `
+          <h2 class="section-title">Your day before</h2>
+          <div class="glass dream-card dream-day dream-day-empty">
+            <p>What happened on ${when}? Dreams often pick up the day before: write a few lines to see what connects.</p>
+            <button type="button" class="btn btn-ghost" data-act="day-edit">${icons.edit}<span>Write about that day</span></button>
+          </div>`;
+      }
+      const shared = sharedWords(note, `${dream.title || ''} ${dream.text || ''}`);
+      return `
+        <h2 class="section-title">Your day before</h2>
+        <div class="glass dream-card dream-day">
+          <p class="dream-day-when">${when}<button type="button" class="dream-link" data-act="day-edit">Edit</button></p>
+          <p class="dream-day-text">${esc(note)}</p>
+          ${shared.length ? `
+            <p class="dream-day-label">In your day and in this dream</p>
+            <div class="dream-chips">${shared.map((w) => `<span class="chip dream-day-chip">${esc(w)}</span>`).join('')}</div>`
+            : '<p class="dream-day-label faint">No words in common this time. Connections can be in feelings rather than words.</p>'}
+        </div>`;
     }
 
     // ---- Details: ratings as dots, kind, the yes/no questions, lucidity, notes ----
@@ -1069,6 +1148,21 @@ export default {
       else if (act === 'share') share();
       else if (act === 'edit') ctx.navigate(`#record/edit/${encodeURIComponent(id)}`);
       else if (act === 'tab') selectTab(target.dataset.tab || 'story');
+      else if (act === 'type') {
+        setDreamType(id, target.dataset.type);
+        const now = dreamType(read());
+        for (const b of root.querySelectorAll('[data-act="type"]')) b.setAttribute('aria-checked', String(b.dataset.type === now));
+        root.querySelector('.dream-hero')?.classList.toggle('dream-hero-nightmare', now === 'nightmare');
+      }
+      else if (act === 'day-edit') { editingDay = true; paintPanels(); root.querySelector('[data-day-input]')?.focus(); }
+      else if (act === 'day-cancel') { editingDay = false; paintPanels(); }
+      else if (act === 'day-save') {
+        const d = read();
+        if (d) setDayNote(dayBefore(d), root.querySelector('[data-day-input]')?.value || '');
+        editingDay = false;
+        paintPanels();
+        ctx.toast('Saved');
+      }
       else if (act === 'quality') {
         const v = Number(target.dataset.value);
         saveSleep({ quality: qualityOf(read() || withDefaults({})) === v ? null : v }); // tap again to clear

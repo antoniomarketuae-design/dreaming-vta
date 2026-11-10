@@ -9,6 +9,7 @@ import {
   getProfile, setProfile, listDreams, withDefaults, SYMBOL_CATEGORIES,
 } from '../store.js';
 import { esc, formatDate, icons } from '../ui.js';
+import { LAYOUTS, getLayout, setLayout } from '../layout.js';
 import { levelFor } from '../progress.js';
 import { mountPinPad, sha256hex } from './lock.js';
 import { getAccount, cachedAccount, redeem, remaining } from '../account.js';
@@ -446,7 +447,12 @@ function mainPage(ctx) {
   const stats = getStats();
   const lv = levelFor(stats.total);
   const name = String(profile.name ?? '').trim();
-  const initial = name ? esc([...name][0].toUpperCase()) : icons.moon;
+  // The picture chosen in the new layout's Profile tab (an emoji or a small photo), else the first letter.
+  const avatar = typeof profile.avatar === 'string' ? profile.avatar : '';
+  const initial = /^data:image\/(jpeg|png|webp);base64,/.test(avatar)
+    ? `<img class="prof-avatar-photo" src="${esc(avatar)}" alt="" width="56" height="56">`
+    : avatar && avatar.length <= 16 ? `<span class="prof-avatar-emoji">${esc(avatar)}</span>`
+      : name ? esc([...name][0].toUpperCase()) : icons.moon;
   const toNext = lv.nextMin != null ? lv.nextMin - stats.total : 0;
   const morningOn = getSetting('reminderMorning', false) === true;
   const realityOn = getSetting('realityReminders', false) === true;
@@ -458,7 +464,7 @@ function mainPage(ctx) {
 
     <section class="glass prof-hero" aria-label="Your profile">
       <div class="prof-hero-top">
-        <span class="prof-avatar${name ? '' : ' is-empty'}">${initial}</span>
+        <span class="prof-avatar${name || avatar ? '' : ' is-empty'}">${initial}</span>
         <div class="prof-who" data-who>
           <div class="prof-name-row">
             <h2 class="prof-name${name ? '' : ' is-empty'}">${name ? esc(name) : 'Add your name'}</h2>
@@ -484,6 +490,7 @@ function mainPage(ctx) {
     ${planCard()}
 
     <div class="glass prof-group">
+      ${row({ href: '#profile/layout', icon: icons.widget, hue: 190, label: 'App layout', value: getLayout() === 'new' ? 'New' : 'Current' })}
       ${row({ href: '#profile/redeem', icon: localIcons.ticket, hue: 44, label: 'Redeem a code' })}
     </div>
 
@@ -692,7 +699,23 @@ function aboutPage(ctx) {
   `;
 }
 
+/** Two layouts of the same app (js/layout.js): pick one; the app redraws from Home. */
+function layoutPage() {
+  const cur = getLayout();
+  return `
+    ${subHeader('App layout')}
+    ${intro(icons.widget, 190, 'Two layouts of the same app, with the same dreams, plan and credits. Switch any time to compare them.')}
+    <div class="prof-layouts" role="radiogroup" aria-label="App layout">
+      ${LAYOUTS.map((l) => `
+        <button type="button" class="glass prof-layout" role="radio" aria-checked="${l.id === cur}" data-layout="${l.id}">
+          <span class="prof-layout-name">${esc(l.label)}${l.id === cur ? ` <span class="prof-layout-on">${icons.check}In use</span>` : ''}</span>
+          <span class="prof-layout-tabs">${esc(l.tabs)}</span>
+        </button>`).join('')}
+    </div>`;
+}
+
 const PAGES = {
+  layout: layoutPage,
   notifications: notificationsPage,
   passcode: passcodePage,
   export: exportPage,
@@ -717,6 +740,13 @@ function draw(el, ctx, param) {
   const redraw = () => draw(el, ctx, param);
 
   for (const b of el.querySelectorAll('[data-back]')) b.addEventListener('click', () => ctx.navigate(b.dataset.back));
+  for (const b of el.querySelectorAll('[data-layout]')) {
+    b.addEventListener('click', () => {
+      if (b.dataset.layout === getLayout()) return;
+      setLayout(b.dataset.layout);
+      ctx.toast(b.dataset.layout === 'new' ? 'New layout on' : 'Current layout on');
+    });
+  }
 
   // Main list
   const nameForm = $('[data-name-form]');

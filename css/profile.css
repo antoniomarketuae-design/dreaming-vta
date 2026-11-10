@@ -515,3 +515,29 @@
   .prof-switch, .prof-switch::after, .prof-summary svg { transition: none; }
   .prof-sheet { animation: none; }
 }
+
+/* Settings → App layout */
+.prof-layouts { display: grid; gap: 10px; }
+.prof-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.prof-layout[aria-checked="true"] { border-color: rgba(255, 217, 138, 0.6); box-shadow: 0 0 0 1px rgba(255, 217, 138, 0.3) inset; }
+.prof-layout-name { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; }
+.prof-layout-on { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--moon); }
+.prof-layout-on svg { width: 14px; height: 14px; }
+.prof-layout-tabs { font-size: 13px; color: var(--text-dim); }
+
+/* Picture chosen in the new layout's Profile tab (not tinted by the picture style) */
+.prof-avatar { overflow: hidden; }
+.prof-avatar .prof-avatar-photo { width: 100%; height: 100%; object-fit: cover; filter: none; }
+.prof-avatar-emoji { font-size: 28px; line-height: 1; }
