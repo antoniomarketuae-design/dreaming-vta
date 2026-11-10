@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { buildPrompt, generateImage } from './images.js';
 import { buildVideoPrompt, generateVideo } from './videos.js';
+import { publicVideoOptions, wordCount, maxSeconds, videoCost, estimateMinutes } from './video-options.js';
 
 try { process.loadEnvFile(fileURLToPath(new URL('./.env', import.meta.url))); } catch {}
 
@@ -101,6 +102,9 @@ const SCHEMA = `
     finished_at timestamptz
   );
   create index if not exists videos_created on videos (created_at);
+  alter table videos add column if not exists seconds int;
+  alter table videos add column if not exists quality text;
+  alter table videos add column if not exists credits int;
   -- Redeem codes (testers, gifts): grant Plus for N days.
   create table if not exists codes (
     code_hash  text primary key,
@@ -227,11 +231,11 @@ async function usageOf(deviceId) {
   return { images: u?.images || 0, analyses: u?.analyses || 0, videos: u?.videos || 0 };
 }
 
-async function addUsage(deviceId, field) {
+async function addUsage(deviceId, field, amount = 1) {
   await pool.query(
-    `insert into usage (device_id, period, ${field}) values ($1, $2, 1)
-     on conflict (device_id, period) do update set ${field} = usage.${field} + 1`,
-    [deviceId, period()],
+    `insert into usage (device_id, period, ${field}) values ($1, $2, $3)
+     on conflict (device_id, period) do update set ${field} = usage.${field} + $3`,
+    [deviceId, period(), amount],
   );
 }
 
@@ -258,9 +262,14 @@ async function accountView(d) {
 }
 
 /** Refuses with 402 + a reason the app can show in its paywall. */
-async function checkLimit(d, field) {
+/** need: how much of the allowance this use takes (video credits for videos, 1 otherwise). */
+async function checkLimit(d, field, need = 1) {
   const view = await accountView(d);
-  if (view.remaining[field] > 0) return view;
+  if (view.remaining[field] >= need) return view;
+  if (field === 'videos' && view.remaining.videos > 0) {
+    throw Object.assign(httpError(402, `This video needs ${need} credits and you have ${view.remaining.videos} left this month. Choose a shorter length or Standard quality.`),
+      { limit: { field, plan: view.plan, need, left: view.remaining.videos } });
+  }
   const word = { images: ['AI image', 'image'], analyses: ['interpretations', 'interpretation'], videos: ['AI video', 'video'] }[field];
   const message = view.plan === 'free'
     ? (view.limits[field] ? `You've used your free ${word[0]} for this month.` : 'AI dream videos come with Dreaming Plus.')
@@ -290,9 +299,9 @@ async function runImage(id, prompt, deviceId) {
 }
 
 // Video generation runs in the background too (5–15 minutes); the phone polls GET /videos/:id.
-async function runVideo(id, { prompt, textPrompt, imagePath }, deviceId) {
+async function runVideo(id, { prompt, textPrompt, imagePath, seconds, quality, credits }, deviceId) {
   try {
-    const out = await generateVideo({ id, prompt, textPrompt, imagePath, dir: VIDEO_DIR, cfg: PLANS.videos || {}, env: process.env });
+    const out = await generateVideo({ id, prompt, textPrompt, imagePath, seconds, quality, dir: VIDEO_DIR, cfg: PLANS.videos || {}, env: process.env });
     // image_id stays only when the picture really was the first frame.
     await pool.query(
       `update videos set status = 'done', file = $2, provider = $3, model = $4, units = $5, bytes = $6,
@@ -302,8 +311,8 @@ async function runVideo(id, { prompt, textPrompt, imagePath }, deviceId) {
   } catch (err) {
     console.error('video failed', id, err.message);
     await pool.query(`update videos set status = 'failed', error = $2, finished_at = now() where id = $1`, [id, err.message.slice(0, 500)]);
-    // A failed video does not count against the month's allowance.
-    await pool.query('update usage set videos = greatest(videos - 1, 0) where device_id = $1 and period = $2', [deviceId, period()]);
+    // A failed video does not count against the month's allowance: its credits come back.
+    await pool.query('update usage set videos = greatest(videos - $3, 0) where device_id = $1 and period = $2', [deviceId, period(), credits]);
   }
 }
 
@@ -354,7 +363,7 @@ async function handle(req, res) {
 
   // Plans and prices for the subscriptions page (public).
   if (req.method === 'GET' && url.pathname === '/plans') {
-    return send(200, { plans: PLANS.plans, prices: PLANS.prices, paymentsEnabled: Boolean(process.env.PAYMENTS_ENABLED) });
+    return send(200, { plans: PLANS.plans, prices: PLANS.prices, videos: publicVideoOptions(PLANS.videos), paymentsEnabled: Boolean(process.env.PAYMENTS_ENABLED) });
   }
 
   // A phone registers once and keeps its id + secret token.
@@ -446,15 +455,25 @@ async function handle(req, res) {
     if (req.method === 'POST' && parts.length === 1) {
       const d = await deviceOf(req);
       if (!d) throw httpError(401, 'Unknown device');
-      if (limited(`video:${d.id}`, 3, 600000)) throw httpError(429, 'Please wait a moment before creating another video.');
       if ((await dailyCount('videos')) >= (PLANS.budget?.videosPerDay || 50)) throw httpError(503, 'Video creation is paused for today. Please try again tomorrow.');
-      await checkLimit(d, 'videos');
       const body = await readJson(req, 16 * 1024);
       const dream = cleanDream(body);
       const style = typeof body.style === 'string' ? body.style.slice(0, 30) : 'moonlit';
+      // Length and quality the user picked. A longer dream unlocks longer videos (checked here too, not just in the app).
+      const vcfg = PLANS.videos || {};
+      const words = wordCount(dream.text);
+      const seconds = Number(body.seconds) || Math.min(5, maxSeconds(vcfg, words));
+      if (!(vcfg.durations || [5]).includes(seconds)) throw httpError(400, 'That video length is not available.');
+      if (seconds > maxSeconds(vcfg, words)) throw httpError(400, `A ${seconds}-second video needs a longer dream. Write a little more first.`);
+      const quality = typeof body.quality === 'string' ? body.quality : vcfg.defaultQuality || '720p';
+      const credits = videoCost(vcfg, seconds, quality);
+      if (!credits) throw httpError(400, 'That video quality is not available.');
+      await checkLimit(d, 'videos', credits);
+      // Counted only for videos that really start (a refused choice must not lock the user out).
+      if (limited(`video:${d.id}`, 3, 600000)) throw httpError(429, 'Please wait a moment before creating another video.');
       let imageId = null;
       let imagePath = null;
-      if (typeof body.imageId === 'string' && /^im[\w-]{16,30}$/.test(body.imageId)) {
+      if (body.useImage !== false && typeof body.imageId === 'string' && /^im[\w-]{16,30}$/.test(body.imageId)) {
         const { rows: [im] } = await pool.query('select id, device_id, status, file from images where id = $1', [body.imageId]);
         if (im && im.device_id === d.id && im.status === 'done' && im.file && existsSync(join(IMAGE_DIR, im.file))) {
           imageId = im.id;
@@ -462,13 +481,20 @@ async function handle(req, res) {
         }
       }
       const kind = body.kind === 'nightmare' ? 'nightmare' : 'dream';
-      const textPrompt = buildVideoPrompt({ ...dream, kind, style });
-      const prompt = imagePath ? buildVideoPrompt({ ...dream, kind, style, fromImage: true }) : textPrompt;
+      const textPrompt = buildVideoPrompt({ ...dream, kind, style, seconds });
+      const prompt = imagePath ? buildVideoPrompt({ ...dream, kind, style, seconds, fromImage: true }) : textPrompt;
       const id = `vd${crypto.randomBytes(15).toString('base64url')}`;
-      await pool.query('insert into videos (id, device_id, style, image_id, prompt) values ($1, $2, $3, $4, $5)', [id, d.id, style, imageId, prompt]);
-      await addUsage(d.id, 'videos');
-      runVideo(id, { prompt, textPrompt, imagePath }, d.id); // background
-      return send(202, { id, status: 'pending', fromImage: Boolean(imageId), account: await accountView(d) });
+      await pool.query(
+        'insert into videos (id, device_id, style, image_id, prompt, seconds, quality, credits) values ($1, $2, $3, $4, $5, $6, $7, $8)',
+        [id, d.id, style, imageId, prompt, seconds, quality, credits],
+      );
+      await addUsage(d.id, 'videos', credits);
+      runVideo(id, { prompt, textPrompt, imagePath, seconds, quality, credits }, d.id); // background
+      return send(202, {
+        id, status: 'pending', fromImage: Boolean(imageId), seconds, quality, credits,
+        minutes: Math.round(estimateMinutes(vcfg, seconds, quality, Boolean(imageId)) * 10) / 10,
+        account: await accountView(d),
+      });
     }
     // GET /videos/<id>       → status for the owner (device headers)
     // GET /videos/<id>.mp4   → the video itself, with Range support (the long random id is the access key)
@@ -489,7 +515,8 @@ async function handle(req, res) {
         url: v.status === 'done' ? v.file : null,
         style: v.style,
         imageId: v.image_id,
-        seconds: PLANS.videos?.duration || null,
+        seconds: v.seconds || null,
+        quality: v.quality || null,
         error: v.status === 'failed' ? 'The video could not be created. Your allowance was not used up.' : null,
       });
     }

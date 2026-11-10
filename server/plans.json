@@ -26,7 +26,7 @@
       "limits": {
         "images": 30,
         "analyses": 100,
-        "videos": 5
+        "videos": 60
       },
       "features": [
         "journal",
@@ -92,10 +92,52 @@
     "videosPerDay": 50
   },
   "videos": {
-    "_about": "AI dream videos (Plus). duration in seconds (4-15), resolution 480p|720p, aspect 9:16 = full iPhone screen. poyo seedance-2 measured 2026-11-10: from text 4 s 480p = 80 credits / 158 s, 5 s 720p = 200 credits / 289 s; from a picture 4 s 480p = 80 credits / 395 s (about 2.5x slower). Faster and cheaper: model seedance-2-fast, or 480p.",
-    "duration": 5,
-    "resolution": "720p",
+    "_about": "AI dream videos (Plus). The user picks length and quality; a longer dream unlocks longer videos. \"videos\" in plan limits/usage counts VIDEO CREDITS: 1 credit = 1 second at the cheapest quality. poyo seedance-2 measured 2026-11-10: 480p = 20 poyo credits per second (4 s = 80), 720p = 40 per second (5 s = 200). Time: from text ~0.65 min per second of video at 480p, ~1 min at 720p; starting from a picture is ~2.5x slower.",
     "aspect": "9:16",
+    "durations": [
+      5,
+      8,
+      10,
+      15
+    ],
+    "lengthByWords": [
+      {
+        "words": 0,
+        "max": 5
+      },
+      {
+        "words": 40,
+        "max": 8
+      },
+      {
+        "words": 100,
+        "max": 10
+      },
+      {
+        "words": 180,
+        "max": 15
+      }
+    ],
+    "qualities": [
+      {
+        "id": "480p",
+        "label": "Standard",
+        "note": "Faster",
+        "perSecond": 1
+      },
+      {
+        "id": "720p",
+        "label": "HD",
+        "note": "Sharper",
+        "perSecond": 2
+      }
+    ],
+    "defaultQuality": "720p",
+    "minutesPerSecond": {
+      "480p": 0.65,
+      "720p": 1
+    },
+    "photoFactor": 2.5,
     "providers": [
       {
         "name": "poyo",

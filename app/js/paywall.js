@@ -26,7 +26,7 @@ export const plusPill = (extra = '') => `<span class="pw-pill${extra ? ` ${extra
 
 // Used only until /plans has answered once (mirrors server/plans.json); prices are never guessed.
 // Also fills in a limit an older cached answer lacks (videos came later).
-const FALLBACK_LIMITS = { free: { images: 1, analyses: 3, videos: 0 }, plus: { images: 30, analyses: 100, videos: 5 } };
+const FALLBACK_LIMITS = { free: { images: 1, analyses: 3, videos: 0 }, plus: { images: 30, analyses: 100, videos: 60 } };
 
 /** Last known /plans answer (instant), or null. */
 export const cachedPlans = () => getSetting('plansCache', null);
@@ -85,7 +85,7 @@ export function plusBenefits(limits = planLimits()) {
     { key: 'images', features: ['images'], icon: FEATURE_ICONS.images,
       title: `${limits.plus.images} AI dream images a month`, text: 'A lifelike picture made from each dream you write down.' },
     { key: 'videos', features: ['videos'], icon: FEATURE_ICONS.videos,
-      title: `${limits.plus.videos} AI dream videos a month`, text: 'Watch each dream come to life in a short, lifelike video.' },
+      title: `${limits.plus.videos} video credits a month`, text: 'Watch your dreams come to life in lifelike videos with sound. You choose the length (5 to 15 seconds) and quality.' },
     { key: 'analyses', features: ['analyses'], icon: FEATURE_ICONS.analyses,
       title: `${limits.plus.analyses} dream interpretations a month`, text: 'Read what your dream may be telling you, whenever you like.' },
     { key: 'sounds-all', features: ['sounds-all'], icon: FEATURE_ICONS['sounds-all'],
@@ -133,7 +133,7 @@ function sheetHTML({ feature, reason, info }, plans) {
   if (plus && (reason || videosUsed)) {
     return `
       <div class="pw-icon">${icon}</div>
-      <h2 class="pw-title" id="pw-title">${esc(reason || 'You’ve used this month’s AI videos.')}</h2>
+      <h2 class="pw-title" id="pw-title">${esc(reason || 'You’ve used this month’s video credits.')}</h2>
       <p class="pw-lead">Your Dreaming Plus allowance starts again on ${esc(renewDate())}.</p>
       <div class="pw-actions">
         <button class="btn pw-cta" type="button" data-pw-close>OK</button>

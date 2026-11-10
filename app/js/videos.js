@@ -4,11 +4,13 @@
 //   dream.videoJob = { id, status: 'pending' | 'failed', style, requestedAt, fromImage, error? }   (removed when done)
 //   dream.video    = { id, url, style, seconds, createdAt }
 // Screens listen for window 'dreaming:video' ({ detail: { dreamId } }) to repaint.
+// The user picks length and quality (js/videopicker.js); a longer dream unlocks longer videos. The plan's video
+// allowance is counted in CREDITS: 1 credit = 1 second at Standard quality, HD costs more (numbers from GET /plans).
 // openVideoPlayer(dream) shows the full-screen player (sound toggle, Save to Photos via the share sheet).
 // Touches document/window/storage only inside functions, never at import time.
 import { getDream, updateDream, listDreams, getProfile, getSetting, setSetting } from './store.js';
 import { API_BASE } from './interpret.js';
-import { authHeaders, applyAccount, hasFeature, remaining, openPaywall, handleLimit, getAccount } from './account.js';
+import { authHeaders, applyAccount, hasFeature, remaining, openPaywall, handleLimit, getAccount, getPlans } from './account.js';
 import { hasImage } from './images.js';
 import { esc, icons } from './ui.js';
 
@@ -16,14 +18,73 @@ const TIMEOUT_MS = 20_000;
 const FIRST_MS = 20_000;         // a video takes 5–15 minutes: first check after 20 s,
 const GROW = 1.25;               // then a little slower each time,
 const MAX_MS = 20_000;           // at most every 20 s.
-const GIVE_UP_MS = 30 * 60_000;  // Still "pending" on the server 30 min after sending → treat as failed.
+const GIVE_UP_MIN = 30;          // Still "pending" this long after sending (or 3× the usual time) → treat as failed.
 const STOP_MS = 60 * 60_000;     // Offline that long → stop checking (resumes when the dream is opened again).
 const FILE_RE = /^vd[\w-]{16,30}\.mp4$/;
 const NET_ERROR = "Couldn't reach Dreaming's server. Check your connection and try again.";
 const SERVER_ERROR = 'Something went wrong on the server. Please try again later.';
 
-/** How long a video usually takes, for progress text. */
+/** How long a video usually takes, for progress text (uses the job's own estimate when there is one). */
 export const VIDEO_WAIT_TEXT = 'Usually 5–15 minutes. You can leave this screen; it keeps going.';
+export function videoWaitText(dream) {
+  const min = dream?.videoJob?.minutes;
+  return Number.isFinite(min) ? `Usually ${minutesRange(min)}. You can leave this screen; it keeps going.` : VIDEO_WAIT_TEXT;
+}
+
+// ---- Length, quality and credits ----
+
+// Mirrors server/plans.json "videos" until GET /plans has answered once.
+const DEFAULT_OPTIONS = {
+  durations: [5, 8, 10, 15],
+  lengthByWords: [{ words: 0, max: 5 }, { words: 40, max: 8 }, { words: 100, max: 10 }, { words: 180, max: 15 }],
+  qualities: [
+    { id: '480p', label: 'Standard', note: 'Faster', perSecond: 1 },
+    { id: '720p', label: 'HD', note: 'Sharper', perSecond: 2 },
+  ],
+  defaultQuality: '720p',
+  minutesPerSecond: { '480p': 0.65, '720p': 1 },
+  photoFactor: 2.5,
+};
+
+/** Video options from the last GET /plans (refreshed in the background), else the built-in copy. */
+export function videoOptions() {
+  getPlans().catch(() => {});
+  const o = getSetting('plansCache', null)?.videos;
+  return o?.durations?.length && o?.qualities?.length ? { ...DEFAULT_OPTIONS, ...o } : DEFAULT_OPTIONS;
+}
+
+/** Words in the dream's text. */
+export const wordCount = (dream) => (String(dream?.text || '').trim().match(/\S+/g) || []).length;
+
+/** Longest video (seconds) this dream may have: longer dreams unlock longer videos. */
+export function maxSeconds(opts, words) {
+  let max = opts.durations[0];
+  for (const step of opts.lengthByWords) if (words >= step.words) max = step.max;
+  return max;
+}
+
+/** Words needed for a length (0 when any dream may have it). */
+export function wordsFor(opts, seconds) {
+  return opts.lengthByWords.find((s) => s.max >= seconds)?.words ?? 0;
+}
+
+/** Credits a video takes. */
+export function videoCost(opts, seconds, quality) {
+  const q = opts.qualities.find((x) => x.id === quality) || opts.qualities[0];
+  return Math.ceil(seconds * q.perSecond);
+}
+
+/** Usual time in minutes to make a video. */
+export function estimateMinutes(opts, seconds, quality, fromImage) {
+  return seconds * (opts.minutesPerSecond[quality] ?? 1) * (fromImage ? opts.photoFactor : 1);
+}
+
+/** "about 4–7 minutes" style range around an estimate. */
+export function minutesRange(min) {
+  const lo = Math.max(1, Math.floor(min * 0.7));
+  const hi = Math.max(lo + 1, Math.ceil(min * 1.3));
+  return `${lo}–${hi} minutes`;
+}
 
 export class VideoError extends Error {
   constructor(message, status = 0, body = null) {
@@ -45,16 +106,16 @@ export const isVideoSending = (dreamId) => sending.has(dreamId);
 /** True while a video is being asked for or made. */
 export const isFilming = (dream) => Boolean(dream) && (isVideoSending(dream.id) || isVideoPending(dream));
 
-/** May a video be created now? Videos are a Plus feature with a monthly cap (the server enforces it). */
+/** May a video be created now? Videos are a Plus feature with monthly video credits (the server enforces it). */
 export const videosAllowed = () => (remaining('videos') ?? (hasFeature('videos') ? 1 : 0)) > 0;
 /** Known not to be allowed (the paywall opens without asking the server). */
 export const videosBlocked = () => !hasFeature('videos') || remaining('videos') === 0;
 
-/** Small label for "Create video" buttons: 'PLUS', '4 left', or '' when unknown. */
+/** Small label for "Create video" buttons: 'PLUS', '44 credits', or '' when unknown. */
 export function videoBadge() {
   if (!hasFeature('videos')) return 'PLUS';
   const left = remaining('videos');
-  return left == null ? '' : `${left} left`;
+  return left == null ? '' : `${left} ${left === 1 ? 'credit' : 'credits'}`;
 }
 
 /** Elapsed time of a pending video as "1:23" (for the progress line). */
@@ -128,10 +189,11 @@ async function call(path, { method = 'GET', body, retry = true } = {}) {
 
 /**
  * Asks the server to make a video of this dream. `dream` must be saved; its text, title, tags and kind are used
- * as given. Its AI image (if any) is offered as the first frame. Resolves to the updated dream.
- * Throws VideoError (status 402 = not on Plus / monthly limit; body is the server's answer).
+ * as given. choice = { seconds, quality, useImage } from the picker; with useImage its AI image (if any) is the
+ * first frame. Resolves to the updated dream.
+ * Throws VideoError (status 402 = not on Plus / not enough credits; body is the server's answer).
  */
-export async function requestVideo(dream) {
+export async function requestVideo(dream, { seconds, quality, useImage = true } = {}) {
   if (!dream?.id || !getDream(dream.id)) throw new VideoError('Save this dream first.');
   const text = String(dream.text ?? '').trim() || String(dream.title ?? '').trim();
   if (text.length < 3) throw new VideoError('Write a little more about this dream first.', 400);
@@ -145,13 +207,25 @@ export async function requestVideo(dream) {
       tags: Array.isArray(dream.tags) ? dream.tags.filter((t) => typeof t === 'string').slice(0, 10) : [],
       kind: dream.kind === 'nightmare' ? 'nightmare' : 'dream',
       style,
-      imageId: hasImage(saved) ? saved.image.id : undefined,
+      seconds,
+      quality,
+      useImage,
+      imageId: useImage && hasImage(saved) ? saved.image.id : undefined,
     },
   });
   if (data.account) applyAccount(data.account);
   if (!data.id || typeof data.id !== 'string') throw new VideoError(SERVER_ERROR);
   return updateDream(dream.id, {
-    videoJob: { id: data.id, status: 'pending', style, fromImage: Boolean(data.fromImage), requestedAt: new Date().toISOString() },
+    videoJob: {
+      id: data.id,
+      status: 'pending',
+      style,
+      fromImage: Boolean(data.fromImage),
+      seconds: Number.isFinite(data.seconds) ? data.seconds : seconds,
+      quality: typeof data.quality === 'string' ? data.quality : quality,
+      minutes: Number.isFinite(data.minutes) ? data.minutes : undefined,
+      requestedAt: new Date().toISOString(),
+    },
   });
 }
 
@@ -160,7 +234,7 @@ export async function requestVideo(dream) {
  * sends the request, starts checking for the result and reports problems through `toast`.
  * Resolves to the updated dream, or null when nothing was started.
  */
-export async function createVideo(dream, { toast } = {}) {
+export async function createVideo(dream, { toast, seconds, quality, useImage } = {}) {
   if (!dream?.id || sending.has(dream.id) || isVideoPending(getDream(dream.id))) return null;
   if (videosBlocked()) {
     openPaywall({ feature: 'videos' });
@@ -170,9 +244,13 @@ export async function createVideo(dream, { toast } = {}) {
   emit(dream.id);
   let out = null;
   try {
-    out = await requestVideo(dream);
+    out = await requestVideo(dream, { seconds, quality, useImage });
   } catch (err) {
-    if (err?.status === 402) {
+    if (err?.status === 402 && err.body?.limit?.left > 0) {
+      // Some credits left, just not enough for this choice: say so instead of the paywall.
+      getAccount({ refresh: true }).catch(() => {});
+      toast?.(err.message);
+    } else if (err?.status === 402) {
       getAccount({ refresh: true }).catch(() => {});
       handleLimit(err.body, 'videos');
     } else {
@@ -225,7 +303,8 @@ async function checkOnce(dreamId) {
     return { dream, changed: true, finished: true };
   }
   const failed = data.status === 'failed' || data.status === 'done';
-  const tooLong = !failed && age(cur) > GIVE_UP_MS;
+  const giveUpMs = Math.max(GIVE_UP_MIN, Math.min(150, (cur.minutes || 10) * 3)) * 60_000;
+  const tooLong = !failed && age(cur) > giveUpMs;
   if (failed || tooLong) {
     const error = tooLong ? 'This took too long. Please try again.'
       : String(typeof data.error === 'string' && data.error ? data.error : "The video didn't work this time.").slice(0, 300);
