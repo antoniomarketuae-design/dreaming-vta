@@ -219,7 +219,7 @@ export default {
 
       root.innerHTML = `
         <div class="dream-hero${nightmare ? ' dream-hero-nightmare' : ''}" style="--glow:${hue}">
-          ${src ? `<img class="dream-hero-img" src="${esc(src)}" alt="${hasImage(dream) ? 'An AI painting of this dream' : 'A picture painted from this dream'}" width="420" height="420">` : ''}
+          ${src ? `<img class="dream-hero-img" src="${esc(src)}" alt="${hasImage(dream) ? 'An AI image of this dream' : 'A picture painted from this dream'}" width="420" height="420">` : ''}
           <div class="dream-hero-paint" data-hero-paint></div>
           <div class="dream-hero-bar">
             <button type="button" class="icon-btn" data-act="back" aria-label="Back">${icons.back}</button>
@@ -274,7 +274,7 @@ export default {
         img.src = src;
         delete img.dataset.fallback;
       }
-      if (img) img.alt = hasImage(dream) ? 'An AI painting of this dream' : 'A picture painted from this dream';
+      if (img) img.alt = hasImage(dream) ? 'An AI image of this dream' : 'A picture painted from this dream';
 
       const slot = hero.querySelector('[data-hero-paint]');
       if (slot) slot.innerHTML = heroToolsHTML(dream);
@@ -286,7 +286,7 @@ export default {
           <div class="dream-hero-shimmer" aria-hidden="true"></div>
           <div class="dream-hero-status" role="status">
             <span class="dream-hero-status-icon" aria-hidden="true">${icons.moon}</span>
-            <p class="dream-hero-status-title">Painting your dream…</p>
+            <p class="dream-hero-status-title">Creating your dream image…</p>
             <p class="dream-hero-status-note">This can take up to a minute. You can leave this screen.</p>
           </div>`;
       }
@@ -294,7 +294,7 @@ export default {
         return `
           <div class="dream-hero-tools">
             <div class="dream-hero-fail" role="alert">
-              <p>${esc(dream.imageJob.error || "The painting didn't work this time.")}</p>
+              <p>${esc(dream.imageJob.error || "The image didn't work this time.")}</p>
               <div class="dream-hero-fail-btns">
                 <button type="button" class="dream-hero-btn" data-act="image">${icons.shuffle}<span>Try again</span></button>
                 <button type="button" class="dream-hero-x" data-act="image-dismiss" aria-label="Dismiss">${icons.close}</button>
@@ -321,8 +321,8 @@ export default {
       if (hasImage(dream) && !painting) {
         return `
           <figure class="dream-interp-pic">
-            <img src="${esc(dream.image.url)}" alt="An AI painting of this dream">
-            <figcaption class="dream-interp-pic-cap">${icons.sparkle}<span>AI painting</span></figcaption>
+            <img src="${esc(dream.image.url)}" alt="An AI image of this dream">
+            <figcaption class="dream-interp-pic-cap">${icons.sparkle}<span>AI image</span></figcaption>
           </figure>`;
       }
       if (painting) {
@@ -331,14 +331,14 @@ export default {
           <figure class="dream-interp-pic dream-interp-pic-wait" role="status">
             ${under ? `<img src="${esc(under)}" alt="">` : ''}
             <span class="dream-interp-pic-shimmer" aria-hidden="true"></span>
-            <figcaption class="dream-interp-pic-wait-cap">Painting your dream…</figcaption>
+            <figcaption class="dream-interp-pic-wait-cap">Creating your dream image…</figcaption>
           </figure>`;
       }
       if (isImageFailed(dream)) {
         return `
           <div class="dream-interp-imgrow">
             <span class="dream-interp-imgrow-ico" aria-hidden="true">${icons.image}</span>
-            <span class="dream-interp-imgrow-text">${esc(dream.imageJob.error || "The painting didn't work this time.")}</span>
+            <span class="dream-interp-imgrow-text">${esc(dream.imageJob.error || "The image didn't work this time.")}</span>
             <button type="button" class="dream-interp-imgbtn" data-act="image">Try again</button>
           </div>`;
       }
@@ -346,7 +346,7 @@ export default {
         return `
           <button type="button" class="dream-interp-imgrow dream-interp-upsell" data-act="image-plus">
             <span class="dream-interp-imgrow-ico" aria-hidden="true">${icons.image}</span>
-            <span class="dream-interp-imgrow-text">Add an AI painting of this dream</span>
+            <span class="dream-interp-imgrow-text">Add an AI image of this dream</span>
             <span class="dream-interp-plus">PLUS</span>
           </button>`;
       }
@@ -354,7 +354,7 @@ export default {
       return `
         <div class="dream-interp-imgrow">
           <span class="dream-interp-imgrow-ico" aria-hidden="true">${icons.image}</span>
-          <span class="dream-interp-imgrow-text">Add an AI painting of this dream${badge ? ` <span class="dream-interp-left">${esc(badge)}</span>` : ''}</span>
+          <span class="dream-interp-imgrow-text">Add an AI image of this dream${badge ? ` <span class="dream-interp-left">${esc(badge)}</span>` : ''}</span>
           <button type="button" class="dream-interp-imgbtn" data-act="image">Create</button>
         </div>`;
     }
@@ -385,13 +385,13 @@ export default {
         <div class="dream-sheet-scrim" data-act="sheet-close"></div>
         <div class="glass dream-sheet-card" role="dialog" aria-modal="true" aria-labelledby="dream-sheet-title">
           <div class="dream-sheet-icon" aria-hidden="true">${icons.image}</div>
-          <h2 class="dream-sheet-title" id="dream-sheet-title">Paint this dream?</h2>
+          <h2 class="dream-sheet-title" id="dream-sheet-title">Create an image of this dream?</h2>
           <ul class="dream-sheet-points">
-            <li>${icons.share}<span>This dream's text, title and tags are sent to Dreaming's server, which has an AI image service paint it.</span></li>
+            <li>${icons.share}<span>This dream's text, title and tags are sent to Dreaming's server, where an AI image service turns it into a lifelike picture.</span></li>
             <li>${icons.lock}<span>The rest of your journal stays on this iPhone. The picture is kept on Dreaming's server behind a private link.</span></li>
-            <li>${icons.sparkle}<span>${esc(imageCostLine())} If painting fails, it isn't counted.</span></li>
+            <li>${icons.sparkle}<span>${esc(imageCostLine())} If it fails, it isn't counted.</span></li>
           </ul>
-          <button type="button" class="btn" data-act="image-consent-yes">${icons.check}<span>Agree and paint</span></button>
+          <button type="button" class="btn" data-act="image-consent-yes">${icons.check}<span>Agree and create</span></button>
           <button type="button" class="btn btn-ghost" data-act="sheet-close">Not now</button>
         </div>`;
       root.append(sheet);
@@ -616,7 +616,7 @@ export default {
           <h2 class="dream-sheet-title" id="dream-sheet-title">Interpret this dream?</h2>
           <ul class="dream-sheet-points">
             <li>${icons.share}<span>This dream's text, with its title, date and tags, is sent to Dreaming's server to be interpreted.</span></li>
-            <li>${icons.image}<span>When your plan includes AI images, the same text is also used to paint a picture of the dream.</span></li>
+            <li>${icons.image}<span>When your plan includes AI images, the same text is also used to create a picture of the dream.</span></li>
             <li>${icons.lock}<span>The rest of your journal stays on this iPhone.</span></li>
             <li>${icons.settings}<span>It's a beta. You can turn it off any time in Settings → Labs.</span></li>
           </ul>

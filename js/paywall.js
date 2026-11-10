@@ -81,7 +81,7 @@ const n = (count, one, many) => `${count} ${count === 1 ? one : many}`;
 export function plusBenefits(limits = planLimits()) {
   return [
     { key: 'images', features: ['images'], icon: FEATURE_ICONS.images,
-      title: `${limits.plus.images} AI dream images a month`, text: 'A painting made from each dream you write down.' },
+      title: `${limits.plus.images} AI dream images a month`, text: 'A lifelike picture made from each dream you write down.' },
     { key: 'analyses', features: ['analyses'], icon: FEATURE_ICONS.analyses,
       title: `${limits.plus.analyses} dream interpretations a month`, text: 'Read what your dream may be telling you, whenever you like.' },
     { key: 'sounds-all', features: ['sounds-all'], icon: FEATURE_ICONS['sounds-all'],
@@ -89,7 +89,7 @@ export function plusBenefits(limits = planLimits()) {
     { key: 'insights', features: ['nightmares', 'correlations', 'symbols-map'], icon: FEATURE_ICONS['symbols-map'],
       title: 'Deeper analyses', text: 'Nightmares, correlations and the map of your symbols.' },
     { key: 'image-styles', features: ['image-styles'], icon: FEATURE_ICONS['image-styles'],
-      title: 'Your choice of art style', text: 'Pick how your AI dream images are painted.' },
+      title: 'Your choice of art style', text: 'Pick the light and colour of your AI dream images.' },
   ];
 }
 

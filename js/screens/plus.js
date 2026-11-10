@@ -183,7 +183,7 @@ function pageHTML(afterOnboarding, first) {
       <h1 class="plus-title">Dreaming <em>Plus</em></h1>
       <p class="plus-lead">${plus
         ? 'Thank you for supporting Dreaming. Here is what your plan includes.'
-        : 'More from every dream: paintings, interpretations, every sleep sound and deeper analyses.'}</p>
+        : 'More from every dream: AI images, interpretations, every sleep sound and deeper analyses.'}</p>
     </div>`;
 
   const body = plus

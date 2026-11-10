@@ -1,7 +1,12 @@
 {
-  "version": 8,
+  "version": 9,
   "updated": "2026-11-10",
   "notes": [
+    {
+      "version": 9,
+      "date": "2026-11-10",
+      "text": "AI dream images are now lifelike photos instead of paintings."
+    },
     {
       "version": 8,
       "date": "2026-11-10",
