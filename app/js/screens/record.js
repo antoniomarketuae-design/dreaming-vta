@@ -1,10 +1,17 @@
 // Record a dream in two steps: a quiet composer (type or speak), then an editor with
 // Story · Details · Symbols · Lucidity tabs and Save. Also edits an existing dream.
 // Routes: #record (type) · #record/voice (speak) · #record/edit/<id> (editor on a saved dream).
+// Details → Picture: the free painted picture ("New picture") plus an AI image (js/images.js): "Create AI image" on a
+// saved dream, or "Create an AI image when I save" for a new one (requested right after createDream).
 import { createDream, updateDream, getDream, withDefaults, collection, getSetting, setSetting, SYMBOL_CATEGORIES } from '../store.js';
 import { TAGS, detectTags, suggestTitle } from '../analyze.js';
 import { esc, icons } from '../ui.js';
 import { dreamArtPreview } from '../dreamart.js';
+import { getAccount, openPaywall } from '../account.js';
+import {
+  createImage, pollImage, hasImage, isImageFailed, isPainting, imagesAllowed, imagesBlocked, imageBadge,
+  hasImageConsent, giveImageConsent,
+} from '../images.js';
 
 // The body text stays a plain string under the old key; everything else sits next to it as JSON.
 const DRAFT_KEY = 'dreaming.draft';
@@ -54,7 +61,7 @@ const ic = {
 const HELP = {
   voice: 'Speak and your words are added to the end of the text. Only the text is kept, never a recording.',
   rating: 'How did this dream feel overall? 1 is very unpleasant, 5 is wonderful.',
-  picture: "Dreaming paints this picture on your phone from your dream's themes. Nothing is uploaded. Try a new one until you like it.",
+  picture: "The painted picture is made on your phone from your dream's themes; nothing is uploaded. Try a new one until you like it. An AI image is painted on Dreaming's server from the dream's text and is shown instead of it.",
   length: 'How long the dream seemed, from a short flash to a whole story.',
   inDream: 'Were you yourself in the dream, or watching it like a film?',
   emotions: 'Pick the feelings you had in the dream, or add your own.',
@@ -229,7 +236,11 @@ function loadDraft() {
     meta = JSON.parse(sessionStorage.getItem(DRAFT_META_KEY) || 'null');
   } catch {}
   const d = normalize({ ...(meta?.d || {}), text });
-  const flags = { lucidTouched: Boolean(meta?.lucidTouched), dateTouched: Boolean(meta?.dateTouched) };
+  const flags = {
+    lucidTouched: Boolean(meta?.lucidTouched),
+    dateTouched: Boolean(meta?.dateTouched),
+    aiOnSave: typeof meta?.aiOnSave === 'boolean' ? meta.aiOnSave : null, // null: follows whether images are allowed
+  };
   if (!flags.dateTouched) d.date = defaultDate();
   return { d, flags };
 }
@@ -643,6 +654,7 @@ function mount(el, ctx, param) {
     panel.innerHTML = build();
     for (const t of panel.querySelectorAll('textarea')) autosize(t);
     updateMic();
+    if (st.tab === 'details') getAccount().catch(() => {}); // fresh plan + counts for the AI image row
   }
 
   // Card: icon tile, title, optional "?" that opens a short explanation.
@@ -717,14 +729,96 @@ function mount(el, ctx, param) {
 
   function artBody() {
     const src = artSrc();
+    const ai = editId && hasImage(getDream(editId));
     return `
       <div class="rec-art">
         <div class="rec-art-img">${src ? `<img src="${src}" alt="Picture painted from this dream" width="120" height="120">` : ''}</div>
         <div class="rec-art-side">
-          <p>Painted on your phone from your dream's themes.</p>
+          <p>${ai ? "Painted on your phone. Used when there's no AI image." : "Painted on your phone from your dream's themes."}</p>
           <button type="button" class="rec-reroll" data-act="reroll">${icons.shuffle}<span>New picture</span></button>
         </div>
+      </div>
+      <div class="rec-ai">${aiBody()}</div>
+      <p class="rec-ai-note faint">AI images: this dream's text is sent to Dreaming's server to be painted. The rest of your journal stays on this iPhone.</p>`;
+  }
+
+  // --- AI image (same rules and limits as the dream page) ---
+
+  /** New dream: is "Create an AI image when I save" on? Untouched, it follows whether images are allowed. */
+  const aiOnSave = () => !imagesBlocked() && (st.meta.aiOnSave ?? imagesAllowed());
+  // The dream text is only sent on save if the user saw this switch (and its note) or agreed to AI images before.
+  let aiShown = false;
+
+  function aiBadge() {
+    const b = imagesBlocked() ? 'PLUS' : imageBadge();
+    return b ? `<span class="rec-ai-badge${b === 'PLUS' ? ' rec-ai-badge-plus' : ''}">${esc(b)}</span>` : '';
+  }
+
+  function aiBody() {
+    if (!editId) {
+      if (imagesBlocked()) {
+        return `
+          <div class="rec-ai-row">
+            <span class="rec-ai-thumb rec-ai-thumb-empty" aria-hidden="true">${icons.sparkle}</span>
+            <p class="rec-ai-text">Have this dream painted by AI.</p>
+            <button type="button" class="rec-ai-btn" data-act="ai-plus">${icons.sparkle}<span>AI image</span>${aiBadge()}</button>
+          </div>`;
+      }
+      const on = aiOnSave();
+      aiShown = true;
+      return `
+        <button type="button" class="rec-ai-row rec-ai-switchrow" data-act="ai-toggle" role="switch" aria-checked="${on}">
+          <span class="rec-ai-thumb rec-ai-thumb-empty" aria-hidden="true">${icons.sparkle}</span>
+          <span class="rec-ai-text">Create an AI image when I save ${aiBadge()}</span>
+          <span class="rec-switch" aria-hidden="true"><i></i></span>
+        </button>`;
+    }
+    const dream = getDream(editId);
+    if (!dream) return '';
+    if (isPainting(dream)) {
+      const under = hasImage(dream) ? dream.image.url : artSrc();
+      return `
+        <div class="rec-ai-row" role="status">
+          <span class="rec-ai-thumb rec-ai-thumb-wait">${under ? `<img src="${esc(under)}" alt="">` : ''}<i aria-hidden="true"></i></span>
+          <p class="rec-ai-text">Painting your dream…<span class="rec-ai-sub faint">Up to a minute. You can keep editing or leave.</span></p>
+        </div>`;
+    }
+    const has = hasImage(dream);
+    const failed = isImageFailed(dream);
+    const thumb = has
+      ? `<span class="rec-ai-thumb"><img src="${esc(dream.image.url)}" alt="AI painting of this dream"></span>`
+      : `<span class="rec-ai-thumb rec-ai-thumb-empty" aria-hidden="true">${icons.sparkle}</span>`;
+    const text = failed ? esc(dream.imageJob.error || "The painting didn't work this time.")
+      : has ? 'Your AI image is shown for this dream across the app.'
+        : 'Have this dream painted by AI.';
+    const label = failed ? 'Try again' : has ? 'New image' : 'Create AI image';
+    const act = imagesBlocked() ? 'ai-plus' : 'ai-create';
+    return `
+      <div class="rec-ai-row">
+        ${thumb}
+        <p class="rec-ai-text">${text}</p>
+        <button type="button" class="rec-ai-btn" data-act="${act}">${icons.sparkle}<span>${label}</span>${aiBadge()}</button>
       </div>`;
+  }
+
+  function refreshAi() {
+    const box = root.querySelector('.rec-ai');
+    if (box) box.innerHTML = aiBody();
+  }
+
+  /** Saved dream: paint it now, from the text as it is in the editor. */
+  function createAiNow() {
+    const saved = getDream(editId);
+    if (!saved || isPainting(saved)) return;
+    if (imagesBlocked()) { openPaywall({ feature: 'images' }); return; }
+    giveImageConsent(); // the note under the button says what is sent
+    createImage({
+      ...saved,
+      text: st.d.text.trim() || saved.text,
+      title: st.d.title.trim() || saved.title,
+      tags: tagsForSave(),
+      kind: st.d.kind === 'nightmare' ? 'nightmare' : 'dream',
+    }, { toast: ctx.toast }); // repaints through the 'dreaming:image' event
   }
 
   function refreshArt() {
@@ -907,11 +1001,17 @@ function mount(el, ctx, param) {
       return;
     }
 
+    const wantAi = aiOnSave() && (aiShown || hasImageConsent());
     const d = createDream({ ...fields, text, title: title || undefined, sleep: sleepTimes });
     // createDream picks its own seed; keep the one from the preview so the saved picture matches.
-    updateDream(d.id, { seed: st.d.seed });
+    const saved = updateDream(d.id, { seed: st.d.seed });
     finished = true;
     clearDraft();
+    // "Create an AI image when I save": start it now; it keeps going (and is saved) after we leave this screen.
+    if (wantAi && saved) {
+      giveImageConsent();
+      createImage(saved, { toast: ctx.toast, auto: true });
+    }
     location.replace(`#celebrate/${d.id}`);
   }
 
@@ -1045,6 +1145,17 @@ function mount(el, ctx, param) {
         refreshArt();
         persist();
         break;
+      case 'ai-toggle':
+        st.meta.aiOnSave = !aiOnSave();
+        refreshAi();
+        persist();
+        break;
+      case 'ai-plus':
+        openPaywall({ feature: 'images' });
+        break;
+      case 'ai-create':
+        createAiNow();
+        break;
       case 'emo': {
         const v = btn.dataset.val;
         st.d.emotions = hasItem(st.d.emotions, v)
@@ -1076,10 +1187,28 @@ function mount(el, ctx, param) {
     }
   });
 
+  // AI image updates (painting finished / failed) and plan changes refresh the Picture card.
+  const onImageEvent = (e) => { if (editId && e?.detail?.dreamId === editId) refreshAi(); };
+  const onAccountEvent = () => refreshAi();
+  window.addEventListener('dreaming:image', onImageEvent);
+  window.addEventListener('dreaming:account', onAccountEvent);
+  if (editId) pollImage(editId); // resume a picture still being painted
+
+  // An AI image that can't load (offline): show the painted picture instead.
+  root.addEventListener('error', (e) => {
+    const img = e.target;
+    if (img?.tagName !== 'IMG' || img.dataset.fallback || !String(img.getAttribute('src') || '').startsWith('https://')) return;
+    img.dataset.fallback = '1';
+    const alt = artSrc();
+    if (alt) img.src = alt;
+  }, true);
+
   if (st.step === 'compose') renderCompose();
   else renderEditor();
 
   return () => {
+    window.removeEventListener('dreaming:image', onImageEvent);
+    window.removeEventListener('dreaming:account', onAccountEvent);
     if (rec) {
       const r = rec;
       detach();

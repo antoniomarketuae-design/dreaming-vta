@@ -337,3 +337,40 @@
   .luc-sound[aria-pressed="true"] .luc-sound-art > svg { animation: none; }
   .luc-chevron { transition: none; }
 }
+
+/* ---- Dreaming Plus: locked sounds, free-track note, inline Plus card ---- */
+
+.luc-sound.is-locked .luc-sound-art > svg { opacity: 0.45; }
+.luc-sound.is-locked .luc-sound-art { filter: saturate(0.7); }
+.luc-sound.is-locked .luc-sound-state { background: rgba(18, 13, 46, 0.55); color: var(--moon); }
+.luc-sound.is-locked .luc-sound-name { color: var(--text-dim); }
+.luc-sound-pill { position: absolute; top: 10px; left: 10px; }
+
+.luc-beat.is-locked .luc-beat-icon { opacity: 0.5; }
+.luc-beat.is-locked .luc-beat-name { color: var(--text-dim); }
+.luc-beat.is-locked .luc-beat-state { color: var(--moon); }
+.luc-beat-pill { margin-left: auto; margin-right: 8px; }
+
+.luc-plus-note { display: flex; align-items: center; gap: 8px; margin: 10px 4px 0; color: var(--text-faint); font-size: 13px; line-height: 1.35; }
+
+.luc-plus {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 32px;
+  padding: 18px;
+  color: inherit;
+  text-decoration: none;
+  border-color: rgba(255, 217, 138, 0.28);
+  background:
+    radial-gradient(110% 120% at 100% 0%, rgba(255, 217, 138, 0.14), rgba(255, 217, 138, 0) 55%),
+    radial-gradient(120% 140% at 0% 100%, rgba(155, 123, 255, 0.24), rgba(155, 123, 255, 0) 60%),
+    var(--glass);
+}
+.luc-plus:active { opacity: 0.85; }
+.luc-plus-top { display: flex; align-items: center; gap: 8px; }
+.luc-plus-kicker { color: var(--moon); font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; }
+.luc-plus-title { color: var(--text); font-size: 20px; font-weight: 400; line-height: 1.25; }
+.luc-plus-text { color: var(--text-dim); font-size: 14px; line-height: 1.45; }
+.luc-plus-btn { margin-top: 8px; min-height: 46px; border-radius: 999px; }
+.luc-plus-price { color: var(--text-faint); font-size: 12.5px; text-align: center; }

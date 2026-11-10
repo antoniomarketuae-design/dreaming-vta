@@ -2,10 +2,17 @@
 // symbols-map. Also the two collection lists behind the Progress "Collection" cards: #module/symbols, #module/emotions.
 // Everything is computed on the phone from the user's own dreams. Nothing is invented: when there is too little
 // data for a finding, the screen says so instead of guessing.
+// Dreaming Plus: nightmares, correlations and symbols-map also need their Plus feature; without it the page shows
+// what the analysis does and a button that opens the paywall (direct links included).
 import { listDreams, withDefaults, getStats, SYMBOL_CATEGORIES, markSeen, localDay } from '../store.js';
 import { MODULES, unlockState } from '../progress.js';
 import { TAGS } from '../analyze.js';
 import { esc, icons, relativeDay, formatDate } from '../ui.js';
+import { hasFeature, openPaywall, getAccount } from '../account.js';
+import { plusPill } from '../paywall.js';
+
+const PLUS_MODULES = ['nightmares', 'correlations', 'symbols-map'];
+let offAccount = null;
 
 const ic = (body) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
 
@@ -722,6 +729,18 @@ function lockedHTML(mod, count) {
   </section>`;
 }
 
+function plusLockedHTML(mod, count) {
+  const info = MODULE_INFO[mod.id];
+  return `<section class="mod-card glass mod-lock mod-plus">
+    <div class="mod-lock-icon">${info.icon}<span class="mod-lock-badge">${icons.lock}</span></div>
+    <p class="mod-plus-kicker">${plusPill()}<span>Dreaming Plus</span></p>
+    <h2 class="mod-lock-title">Part of Dreaming Plus</h2>
+    <p class="mod-lock-about">${esc(info.about)}</p>
+    ${mod.unlocked ? '' : `<p class="mod-lead mod-center mod-plus-also">It also needs ${plural(mod.unlockAt, 'dream')} in your journal. You have ${count}.</p>`}
+    <button class="btn" type="button" data-plus-open="${esc(mod.id)}">${icons.sparkle}<span>See Dreaming Plus</span></button>
+  </section>`;
+}
+
 // ---- Screen ----
 
 const TITLES = { symbols: 'Symbols', emotions: 'Emotions' };
@@ -748,6 +767,9 @@ export default {
     } else if (!mod) {
       title = 'Not found';
       body = card('', `<p class="mod-lead mod-center">This page does not exist.</p><a class="btn btn-ghost" href="#insights">Back to Progress</a>`);
+    } else if (PLUS_MODULES.includes(id) && !hasFeature(id)) {
+      title = mod.name;
+      body = plusLockedHTML(mod, listDreams().length);
     } else if (!mod.unlocked || !dreams.length) {
       title = mod.name;
       body = lockedHTML(mod, listDreams().length);
@@ -769,6 +791,18 @@ export default {
 
     const root = el.querySelector('.mod');
     root.querySelector('[data-back]').addEventListener('click', () => ctx.back());
+    root.querySelector('[data-plus-open]')?.addEventListener('click', (e) => openPaywall({ feature: e.currentTarget.dataset.plusOpen }));
+
+    // A Plus module re-draws when the plan changes (code redeemed or Plus ended).
+    offAccount?.();
+    offAccount = null;
+    if (PLUS_MODULES.includes(id)) {
+      const wasOpen = hasFeature(id);
+      const onAccount = () => { if (hasFeature(id) !== wasOpen) this.render(el, ctx, param); };
+      window.addEventListener('dreaming:account', onAccount);
+      offAccount = () => window.removeEventListener('dreaming:account', onAccount);
+      getAccount().catch(() => {});
+    }
 
     // Tap a symbol or emotion: list the dreams that contain it, right below it.
     root.addEventListener('click', (e) => {
@@ -785,5 +819,10 @@ export default {
       panel.innerHTML = `<p class="mod-detail-title">${esc(capFirst(item.label))} · ${plural(item.dreams.length, 'dream')}</p>${dreamLinks(item.dreams)}`;
       panel.hidden = false;
     });
+  },
+
+  destroy() {
+    offAccount?.();
+    offAccount = null;
   },
 };

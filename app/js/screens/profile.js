@@ -1,7 +1,8 @@
 // Settings tab (#profile). Main list mirrors the reference app's order, adapted honestly:
-// profile card · Dreaming Plus · Notifications / Passcode / Export · Account · Labs · Personalisation ·
-// sample dreams / delete all · About. Rows with a chevron open sub-pages at #profile/<page>:
-//   notifications · passcode · export · print (readable journal, print-ready) · account · personalise · about
+// profile card · plan card (Free / Plus until, usage this month, See plans) · Redeem a code ·
+// Notifications / Passcode / Export · Account · Labs · Personalisation · sample dreams / delete all · About.
+// Rows with a chevron open sub-pages at #profile/<page>:
+//   notifications · passcode · export · print (readable journal, print-ready) · account · personalise · about · redeem
 // Touches document/window/storage only inside render and event handlers, never at import time.
 import {
   getStats, getSetting, setSetting, exportData, importData, addSampleDreams, clearAll, localDay,
@@ -10,6 +11,8 @@ import {
 import { esc, formatDate, icons } from '../ui.js';
 import { levelFor } from '../progress.js';
 import { mountPinPad, sha256hex } from './lock.js';
+import { getAccount, cachedAccount, redeem, remaining } from '../account.js';
+import { plusPill, planLimits, formatUntil, renewDate, allowanceLine } from '../paywall.js';
 
 // Icons ui.js doesn't have (kept local; same stroke style).
 const ic = (body) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
@@ -19,6 +22,7 @@ const localIcons = {
   flask: ic('<path d="M9.5 3h5M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/>'),
   printer: ic('<path d="M7 9V3h10v6"/><rect x="3.5" y="9" width="17" height="8" rx="2"/><path d="M7 14h10v7H7z"/>'),
   text: ic('<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>'),
+  ticket: ic('<path d="M3.5 8.5V6.5a1.5 1.5 0 0 1 1.5-1.5h14a1.5 1.5 0 0 1 1.5 1.5v2a2.5 2.5 0 0 0 0 5v2a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5v-2a2.5 2.5 0 0 0 0-5z"/><path d="M14.5 5v14" stroke-dasharray="2 2.2"/>'),
 };
 
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -359,6 +363,69 @@ function openPinSheet(el, ctx, mode, done) {
   cleanups.push(close);
 }
 
+// ---- Plan card (Free / Dreaming Plus) ----
+
+function usageLine(label, used, limit) {
+  const pct = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+  return `
+    <div class="prof-plan-use">
+      <span class="prof-plan-use-label">${esc(label)}</span>
+      <span class="prof-plan-use-num"><b>${used}</b> / ${limit}</span>
+      <span class="prof-plan-bar" role="progressbar" aria-label="${esc(label)} used this month" aria-valuemin="0" aria-valuemax="${limit}" aria-valuenow="${used}"><i style="width:${pct}%"></i></span>
+    </div>`;
+}
+
+function planCard() {
+  const acc = cachedAccount();
+  const plus = acc?.plan === 'plus';
+  const until = plus ? formatUntil(acc.plusUntil) : '';
+  const limits = planLimits();
+  const lim = acc?.limits || (plus ? limits.plus : limits.free);
+  const used = acc?.used || null;
+  const left = allowanceLine('images', remaining('images'));
+  return `
+    <section class="glass prof-plan${plus ? ' is-plus' : ''}" data-plan-card aria-label="Your plan">
+      <div class="prof-plan-head">
+        <span class="prof-plan-icon">${icons.sparkle}</span>
+        <span class="prof-plan-who">
+          <span class="prof-plan-kicker">Your plan</span>
+          <span class="prof-plan-title">${plus ? `Dreaming Plus ${plusPill()}` : 'Free'}</span>
+          <span class="prof-plan-sub">${plus ? (until ? `Until ${esc(until)}` : 'Active') : esc(left || 'Dreaming Plus adds more images, interpretations, sounds and analyses.')}</span>
+        </span>
+      </div>
+      ${used
+        ? `<div class="prof-plan-usage">
+            <p class="prof-plan-usage-title">This month</p>
+            ${usageLine('AI images', used.images || 0, lim.images ?? 0)}
+            ${usageLine('Interpretations', used.analyses || 0, lim.analyses ?? 0)}
+            <p class="prof-plan-note">Counts start again on ${esc(renewDate(acc.period))}.</p>
+          </div>`
+        : '<p class="prof-plan-note prof-plan-offline">Your monthly usage shows once Dreaming is online.</p>'}
+      <a class="btn ${plus ? 'btn-ghost' : ''} prof-plan-btn" href="#plus">${plus ? 'View my plan' : 'See plans'}</a>
+    </section>`;
+}
+
+function redeemPage() {
+  const acc = cachedAccount();
+  const plus = acc?.plan === 'plus';
+  const until = plus ? formatUntil(acc.plusUntil) : '';
+  return `
+    ${subHeader('Redeem a code')}
+    <section class="glass prof-card">
+      ${intro(localIcons.ticket, 44, 'Have a Dreaming Plus code? Enter it to switch on Plus for this iPhone. No account or payment details needed.')}
+      ${plus ? `<p class="prof-sent prof-redeem-active">${icons.check}<span>Dreaming Plus is active${until ? ` until ${esc(until)}` : ''}. A new code adds its time on top.</span></p>` : ''}
+      <form class="prof-redeem" data-redeem-form>
+        <label class="prof-redeem-label" for="prof-redeem-code">Your code</label>
+        <input class="field prof-redeem-input" id="prof-redeem-code" name="code" maxlength="40" autocomplete="off"
+          autocapitalize="characters" spellcheck="false" enterkeyhint="go" placeholder="e.g. DREAM-1234">
+        <button class="btn" type="submit" data-redeem-btn>Redeem</button>
+        <p class="prof-redeem-msg" data-redeem-msg role="status" hidden></p>
+      </form>
+    </section>
+    <p class="prof-group-note">Plus belongs to this iPhone’s anonymous Dreaming ID. Your dreams stay on this phone either way.</p>
+  `;
+}
+
 // ---- Pages ----
 
 function mainPage(ctx) {
@@ -401,15 +468,11 @@ function mainPage(ctx) {
       </div>
     </section>
 
-    <a class="glass prof-plus" href="#plus">
-      <span class="prof-plus-icon">${icons.sparkle}</span>
-      <span class="prof-plus-body">
-        <span class="prof-plus-kicker">Dreaming Plus</span>
-        <span class="prof-plus-title">Coming later</span>
-        <span class="prof-plus-text">Every feature in Dreaming is free right now. Nothing to buy.</span>
-      </span>
-      <span class="prof-chev">${icons.chevronRight}</span>
-    </a>
+    ${planCard()}
+
+    <div class="glass prof-group">
+      ${row({ href: '#profile/redeem', icon: localIcons.ticket, hue: 44, label: 'Redeem a code' })}
+    </div>
 
     <div class="glass prof-group">
       ${row({ href: '#profile/notifications', icon: icons.bell, hue: 265, label: 'Notifications', value: remindersOn ? 'On' : 'Off' })}
@@ -609,7 +672,7 @@ function aboutPage(ctx) {
     <h2 class="section-title">Privacy</h2>
     <section class="glass prof-card prof-text-card">
       <p class="muted">Your dreams, goals and answers are stored only in this app on this iPhone. Dreaming has no account, no ads and no trackers.</p>
-      <p class="muted">Only two things ever go online: checking for app updates, which sends nothing about you, and dream interpretation, which sends a single dream’s text, and only if you switched it on in Labs and tapped ‘Analyze’.</p>
+      <p class="muted">Only a few things ever go online: checking for app updates, which sends nothing about you; checking your plan and monthly allowance, which sends only this iPhone’s anonymous Dreaming ID; and dream interpretation or AI images, which send a single dream’s text, and only when you ask for them.</p>
     </section>
 
     <p class="prof-footer">Made with care for curious dreamers.</p>
@@ -624,8 +687,9 @@ const PAGES = {
   account: accountPage,
   personalise: personalisePage,
   about: aboutPage,
+  redeem: redeemPage,
 };
-const ALIASES = { reminders: 'notifications', reminder: 'notifications', lock: 'passcode', import: 'export', personalization: 'personalise' };
+const ALIASES = { reminders: 'notifications', reminder: 'notifications', lock: 'passcode', import: 'export', personalization: 'personalise', code: 'redeem' };
 
 // ---- Wiring ----
 
@@ -754,6 +818,51 @@ function draw(el, ctx, param) {
 
   // About
   $('[data-check]')?.addEventListener('click', () => ctx.checkForUpdate('manual'));
+
+  // Redeem a code
+  const redeemForm = $('[data-redeem-form]');
+  if (redeemForm) {
+    const input = redeemForm.querySelector('input');
+    const btn = redeemForm.querySelector('[data-redeem-btn]');
+    const msg = redeemForm.querySelector('[data-redeem-msg]');
+    const say = (text, ok) => {
+      msg.hidden = false;
+      msg.className = `prof-redeem-msg${ok ? ' is-ok' : ' is-error'}`;
+      msg.innerHTML = ok ? `${icons.check}<span>${esc(text)}</span>` : `<span>${esc(text)}</span>`;
+    };
+    redeemForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const code = input.value.trim();
+      if (!code) { say('Type your code first.', false); input.focus(); return; }
+      btn.disabled = true;
+      btn.textContent = 'Checking…';
+      try {
+        const view = await redeem(code);
+        const until = formatUntil(view?.plusUntil);
+        input.value = '';
+        say(`Dreaming Plus is active${until ? ` until ${until}` : ''}.`, true);
+        ctx.toast('Dreaming Plus is active');
+      } catch (err) {
+        const offline = err instanceof TypeError || /fetch|network|load failed/i.test(String(err?.message || ''));
+        say(offline ? 'Could not reach Dreaming. Check your connection and try again.' : (err?.message || 'That code did not work.'), false);
+      }
+      btn.disabled = false;
+      btn.textContent = 'Redeem';
+    });
+    if (param === 'redeem' || param === 'code') requestAnimationFrame(() => input.focus({ preventScroll: true }));
+  }
+}
+
+// The plan card follows the account (redeemed code, new month, plan ended) without redrawing the whole page.
+let offAccount = null;
+function watchAccount(el) {
+  offAccount?.();
+  const onAccount = () => {
+    const card = el.querySelector('[data-plan-card]');
+    if (card) card.outerHTML = planCard();
+  };
+  window.addEventListener('dreaming:account', onAccount);
+  offAccount = () => window.removeEventListener('dreaming:account', onAccount);
 }
 
 export default {
@@ -767,9 +876,14 @@ export default {
 
   render(el, ctx, param) {
     draw(el, ctx, param);
+    watchAccount(el);
+    // Fresh plan state; a new answer arrives as a 'dreaming:account' event and repaints the card.
+    getAccount().catch(() => {});
   },
 
   destroy() {
     runCleanups();
+    offAccount?.();
+    offAccount = null;
   },
 };

@@ -2,14 +2,35 @@
 // and an "Analyze" button that asks for the interpretation (beta). Sleep times are edited right here;
 // everything else is edited in the editor (#record/edit/<id>).
 // Routes: #dream/<id> · #dream/<id>/analyze (opens and starts Analyze) · #dream/<id>/edit (old link → editor).
+// AI images (js/images.js): "Create AI image" / "New image" on the picture, and Analyze also asks for one when the
+// plan allows it; the interpretation card opens with that picture.
 import { getDream, updateDream, deleteDream, withDefaults, SYMBOL_CATEGORIES, setSetting } from '../store.js';
 import { TAGS } from '../analyze.js';
 import { esc, formatDate, relativeDay, icons } from '../ui.js';
 import { dreamArtURL } from '../dreamart.js';
 import { isEnabled, isPending, isStale, requestInterpretation, sendFeedback, startPolling } from '../interpret.js';
+import { hasFeature, remaining, openPaywall, handleLimit, getAccount } from '../account.js';
+import {
+  createImage, pollImage, resumePendingImages, dismissImageError, hasImage, isImageFailed, isPainting,
+  imagesAllowed, imagesBlocked, imageBadge, hasImageConsent, giveImageConsent,
+} from '../images.js';
 
+/** The dream's picture: its AI image when it has one, else the generated painting. */
 function artSrc(dream) {
   try { return dreamArtURL(dream, 420) || ''; } catch { return ''; }
+}
+
+/** Always the generated painting (fallback when an AI image can't load, e.g. offline). */
+function paintedSrc(dream) {
+  try { return dreamArtURL({ ...dream, image: null }, 420) || ''; } catch { return ''; }
+}
+
+/** "Uses your free AI image for this month." etc. for the image consent sheet. */
+function imageCostLine() {
+  const left = remaining('images');
+  if (!hasFeature('images') && left === 1) return 'Uses your free AI image for this month.';
+  if (left != null && left > 0) return `Uses 1 of the ${left} AI images you have left this month.`;
+  return "Uses one of this month's AI images.";
 }
 
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
@@ -146,7 +167,17 @@ export default {
     let savedTimer = null;
 
     cleanup?.();
-    cleanup = () => { stopPolling(); clearTimeout(savedTimer); };
+    // Image and account changes can arrive while this page is open (or after leaving and coming back).
+    const onImageEvent = (e) => { if (e?.detail?.dreamId === id && root.isConnected) paintImage(); };
+    const onAccountEvent = () => { if (root.isConnected) { paintBar(); paintImage(); } };
+    window.addEventListener('dreaming:image', onImageEvent);
+    window.addEventListener('dreaming:account', onAccountEvent);
+    cleanup = () => {
+      stopPolling();
+      clearTimeout(savedTimer);
+      window.removeEventListener('dreaming:image', onImageEvent);
+      window.removeEventListener('dreaming:account', onAccountEvent);
+    };
 
     const root = document.createElement('div');
     root.className = 'dream';
@@ -188,7 +219,8 @@ export default {
 
       root.innerHTML = `
         <div class="dream-hero${nightmare ? ' dream-hero-nightmare' : ''}" style="--glow:${hue}">
-          ${src ? `<img class="dream-hero-img" src="${src}" alt="A picture painted from this dream" width="420" height="420">` : ''}
+          ${src ? `<img class="dream-hero-img" src="${esc(src)}" alt="${hasImage(dream) ? 'An AI painting of this dream' : 'A picture painted from this dream'}" width="420" height="420">` : ''}
+          <div class="dream-hero-paint" data-hero-paint></div>
           <div class="dream-hero-bar">
             <button type="button" class="icon-btn" data-act="back" aria-label="Back">${icons.back}</button>
             <span class="dream-hero-gap"></span>
@@ -213,7 +245,157 @@ export default {
         <div class="dream-bar" data-bar></div>`;
 
       paintPanels(dream);
+      paintHero(dream);
       paintInterp();
+    }
+
+    // ---- AI image: tools on the picture, shimmer while painting, failure + retry ----
+
+    function paintImage() {
+      paintHero();
+      const box = root.querySelector('[data-interp-pic]');
+      if (box) box.innerHTML = interpPicHTML(read());
+    }
+
+    function paintHero(dream = read()) {
+      const hero = root.querySelector('.dream-hero');
+      if (!dream || !hero) return;
+      // Swap in the AI image when it arrives (or a newer one).
+      const src = artSrc(dream);
+      let img = hero.querySelector('.dream-hero-img');
+      if (src && !img) {
+        img = document.createElement('img');
+        img.className = 'dream-hero-img';
+        img.width = 420;
+        img.height = 420;
+        hero.prepend(img);
+      }
+      if (img && src && img.getAttribute('src') !== src && !(img.dataset.fallback && img.dataset.failed === src)) {
+        img.src = src;
+        delete img.dataset.fallback;
+      }
+      if (img) img.alt = hasImage(dream) ? 'An AI painting of this dream' : 'A picture painted from this dream';
+
+      const slot = hero.querySelector('[data-hero-paint]');
+      if (slot) slot.innerHTML = heroToolsHTML(dream);
+    }
+
+    function heroToolsHTML(dream) {
+      if (isPainting(dream)) {
+        return `
+          <div class="dream-hero-shimmer" aria-hidden="true"></div>
+          <div class="dream-hero-status" role="status">
+            <span class="dream-hero-status-icon" aria-hidden="true">${icons.moon}</span>
+            <p class="dream-hero-status-title">Painting your dream…</p>
+            <p class="dream-hero-status-note">This can take up to a minute. You can leave this screen.</p>
+          </div>`;
+      }
+      if (isImageFailed(dream)) {
+        return `
+          <div class="dream-hero-tools">
+            <div class="dream-hero-fail" role="alert">
+              <p>${esc(dream.imageJob.error || "The painting didn't work this time.")}</p>
+              <div class="dream-hero-fail-btns">
+                <button type="button" class="dream-hero-btn" data-act="image">${icons.shuffle}<span>Try again</span></button>
+                <button type="button" class="dream-hero-x" data-act="image-dismiss" aria-label="Dismiss">${icons.close}</button>
+              </div>
+            </div>
+          </div>`;
+      }
+      const has = hasImage(dream);
+      const badge = imagesBlocked() ? 'PLUS' : imageBadge();
+      return `
+        <div class="dream-hero-tools">
+          ${has ? `<span class="dream-hero-mark">${icons.sparkle}<span>AI image</span></span>` : ''}
+          <button type="button" class="dream-hero-btn" data-act="image">
+            ${has ? icons.shuffle : icons.sparkle}<span>${has ? 'New image' : 'Create AI image'}</span>
+            ${badge ? `<span class="dream-hero-badge${badge === 'PLUS' ? ' dream-hero-badge-plus' : ''}">${esc(badge)}</span>` : ''}
+          </button>
+        </div>`;
+    }
+
+    /** Top of the interpretation card: the AI image, a shimmer while it's painted, or an offer to make one. */
+    function interpPicHTML(dream) {
+      if (!dream) return '';
+      const painting = isPainting(dream);
+      if (hasImage(dream) && !painting) {
+        return `
+          <figure class="dream-interp-pic">
+            <img src="${esc(dream.image.url)}" alt="An AI painting of this dream">
+            <figcaption class="dream-interp-pic-cap">${icons.sparkle}<span>AI painting</span></figcaption>
+          </figure>`;
+      }
+      if (painting) {
+        const under = artSrc(dream);
+        return `
+          <figure class="dream-interp-pic dream-interp-pic-wait" role="status">
+            ${under ? `<img src="${esc(under)}" alt="">` : ''}
+            <span class="dream-interp-pic-shimmer" aria-hidden="true"></span>
+            <figcaption class="dream-interp-pic-wait-cap">Painting your dream…</figcaption>
+          </figure>`;
+      }
+      if (isImageFailed(dream)) {
+        return `
+          <div class="dream-interp-imgrow">
+            <span class="dream-interp-imgrow-ico" aria-hidden="true">${icons.image}</span>
+            <span class="dream-interp-imgrow-text">${esc(dream.imageJob.error || "The painting didn't work this time.")}</span>
+            <button type="button" class="dream-interp-imgbtn" data-act="image">Try again</button>
+          </div>`;
+      }
+      if (imagesBlocked()) {
+        return `
+          <button type="button" class="dream-interp-imgrow dream-interp-upsell" data-act="image-plus">
+            <span class="dream-interp-imgrow-ico" aria-hidden="true">${icons.image}</span>
+            <span class="dream-interp-imgrow-text">Add an AI painting of this dream</span>
+            <span class="dream-interp-plus">PLUS</span>
+          </button>`;
+      }
+      const badge = imageBadge();
+      return `
+        <div class="dream-interp-imgrow">
+          <span class="dream-interp-imgrow-ico" aria-hidden="true">${icons.image}</span>
+          <span class="dream-interp-imgrow-text">Add an AI painting of this dream${badge ? ` <span class="dream-interp-left">${esc(badge)}</span>` : ''}</span>
+          <button type="button" class="dream-interp-imgbtn" data-act="image">Create</button>
+        </div>`;
+    }
+
+    /** "Create AI image" / "New image" / "Try again". */
+    function onImage() {
+      const dream = getDream(id);
+      if (!dream || isPainting(dream)) return;
+      if (imagesBlocked()) { openPaywall({ feature: 'images' }); return; }
+      if (!hasImageConsent()) { openImageConsent(); return; }
+      createImage(dream, { toast: ctx.toast }); // repaints through the 'dreaming:image' event
+    }
+
+    /** After Analyze: also paint the dream when the plan allows it and the user agreed to images. */
+    function autoImage() {
+      const dream = getDream(id);
+      if (!dream || hasImage(dream) || isPainting(dream)) return;
+      if (!imagesAllowed() || !hasImageConsent()) { paintImage(); return; } // the card offers it instead
+      createImage(dream, { toast: ctx.toast, auto: true });
+    }
+
+    function openImageConsent() {
+      closeConsent();
+      const sheet = document.createElement('div');
+      sheet.className = 'dream-sheet';
+      sheet.dataset.sheet = '';
+      sheet.innerHTML = `
+        <div class="dream-sheet-scrim" data-act="sheet-close"></div>
+        <div class="glass dream-sheet-card" role="dialog" aria-modal="true" aria-labelledby="dream-sheet-title">
+          <div class="dream-sheet-icon" aria-hidden="true">${icons.image}</div>
+          <h2 class="dream-sheet-title" id="dream-sheet-title">Paint this dream?</h2>
+          <ul class="dream-sheet-points">
+            <li>${icons.share}<span>This dream's text, title and tags are sent to Dreaming's server, which has an AI image service paint it.</span></li>
+            <li>${icons.lock}<span>The rest of your journal stays on this iPhone. The picture is kept on Dreaming's server behind a private link.</span></li>
+            <li>${icons.sparkle}<span>${esc(imageCostLine())} If painting fails, it isn't counted.</span></li>
+          </ul>
+          <button type="button" class="btn" data-act="image-consent-yes">${icons.check}<span>Agree and paint</span></button>
+          <button type="button" class="btn btn-ghost" data-act="sheet-close">Not now</button>
+        </div>`;
+      root.append(sheet);
+      sheet.querySelector('[data-act="image-consent-yes"]')?.focus();
     }
 
     function paintPanels(dream = read()) {
@@ -434,6 +616,7 @@ export default {
           <h2 class="dream-sheet-title" id="dream-sheet-title">Interpret this dream?</h2>
           <ul class="dream-sheet-points">
             <li>${icons.share}<span>This dream's text, with its title, date and tags, is sent to Dreaming's server to be interpreted.</span></li>
+            <li>${icons.image}<span>When your plan includes AI images, the same text is also used to paint a picture of the dream.</span></li>
             <li>${icons.lock}<span>The rest of your journal stays on this iPhone.</span></li>
             <li>${icons.settings}<span>It's a beta. You can turn it off any time in Settings → Labs.</span></li>
           </ul>
@@ -469,9 +652,17 @@ export default {
       else if (isPending({ interpretation: interp })) { icon = icons.moon; label = 'Interpreting…'; }
       else if (status === 'done' && interp?.result) label = 'Read the interpretation';
       else if (status) label = 'Analyze again';
+      // Interpretations left this month, shown quietly next to "Analyze" (free plan, or Plus when running low).
+      let left = '';
+      const n = remaining('analyses');
+      if (!asking && (label === 'Analyze' || label === 'Analyze again') && n != null) {
+        if (!hasFeature('analyses')) left = n > 0 ? `${n} left` : 'PLUS';
+        else if (n <= 10) left = `${n} left`;
+      }
       bar.innerHTML = `
         <button type="button" class="dream-analyze" data-act="analyze" ${asking ? 'disabled' : ''}>
           <span class="dream-analyze-icon" aria-hidden="true">${icon}</span><span>${label}</span>
+          ${left ? `<span class="dream-analyze-left">${esc(left)}</span>` : ''}
         </button>`;
     }
 
@@ -492,6 +683,7 @@ export default {
         const sent = timeOf(interp.requestedAt);
         slot.innerHTML = `
           <section class="glass dream-interp-card dream-interp-wait">
+            <div data-interp-pic>${interpPicHTML(dream)}</div>
             <div class="dream-interp-moon" aria-hidden="true">${icons.moon}</div>
             <p class="dream-interp-wait-title">Interpreting your dream…</p>
             <div class="dream-interp-shimmer" aria-hidden="true"><span></span><span></span><span></span></div>
@@ -527,6 +719,7 @@ export default {
       const essence = str(r.essence);
       parts.push(`
         <section class="glass dream-interp-card">
+          <div data-interp-pic>${interpPicHTML(dream)}</div>
           <p class="dream-interp-kicker"><span aria-hidden="true">✨</span> What it may mean <span class="dream-interp-beta">beta</span></p>
           ${essence ? `<p class="dream-interp-essence">${esc(essence)}</p>` : ''}
           ${stale}
@@ -620,6 +813,11 @@ export default {
       if (asking) return;
       const dream = getDream(id);
       if (!dream) return;
+      // Free interpretations used up: the paywall straight away, without asking the server.
+      if (!hasFeature('analyses') && remaining('analyses') === 0) {
+        openPaywall({ feature: 'analyses' });
+        return;
+      }
       asking = true;
       paintInterp();
       let ok = false;
@@ -629,12 +827,14 @@ export default {
         perspKey = 'psychology';
         ok = true;
       } catch (err) {
-        ctx.toast?.(err?.message || "Couldn't send the dream. Please try again.");
+        if (err?.status === 402) handleLimit(err.body, 'analyses');
+        else ctx.toast?.(err?.message || "Couldn't send the dream. Please try again.");
       } finally {
         asking = false;
       }
       if (!root.isConnected) return;
       paintInterp();
+      if (ok) autoImage(); // Analyze makes the picture too (when allowed)
       if (ok && scroll) scrollToInterp();
     }
 
@@ -672,8 +872,17 @@ export default {
       else if (act === 'sheet-close') closeConsent();
       else if (act === 'consent-yes') {
         setSetting('interpretBeta', true);
+        giveImageConsent(); // the sheet also explained the picture
         closeConsent();
         analyzeNow();
+      }
+      else if (act === 'image') onImage();
+      else if (act === 'image-plus') openPaywall({ feature: 'images' });
+      else if (act === 'image-dismiss') dismissImageError(id);
+      else if (act === 'image-consent-yes') {
+        giveImageConsent();
+        closeConsent();
+        onImage();
       }
       else if (act === 'interpret') askForInterpretation();
       else if (act === 'rate') rate(Number(target.dataset.rating) === -1 ? -1 : 1);
@@ -709,6 +918,17 @@ export default {
       if (e.key === 'Escape' && root.querySelector('[data-sheet]')) closeConsent();
     });
 
+    // An AI image that can't load (offline, removed): show the generated painting instead.
+    root.addEventListener('error', (e) => {
+      const img = e.target;
+      if (img?.tagName !== 'IMG' || img.dataset.fallback || !String(img.getAttribute('src') || '').startsWith('https://')) return;
+      const dream = read();
+      const alt = dream ? paintedSrc(dream) : '';
+      img.dataset.fallback = '1';
+      img.dataset.failed = img.getAttribute('src');
+      if (alt) img.src = alt;
+    }, true);
+
     root.addEventListener('submit', (e) => {
       const form = e.target.closest?.('form[data-note]');
       if (!form) return;
@@ -719,6 +939,10 @@ export default {
     });
 
     show();
+    // Keep checking a picture that was still being painted when the user left (or closed the app).
+    pollImage(id);
+    resumePendingImages();
+    getAccount().catch(() => {}); // fresh plan + counts for the badges (repaints via 'dreaming:account')
 
     // #dream/<id>/analyze (Home's "Analyze this dream"): open the page, then start the Analyze flow straight away.
     // The address drops "/analyze" so coming Back here doesn't start it again.

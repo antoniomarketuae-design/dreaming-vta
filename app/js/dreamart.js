@@ -9,8 +9,13 @@ const cache = new Map();
 let cnv = null;
 let cctx = null;
 
-/** Data-URL (JPEG) of the dream's painting, square, cssPx wide (rendered at up to 2x for Retina). */
+/**
+ * The dream's picture: its AI image when it has one (js/images.js), otherwise a data-URL (JPEG) of the
+ * generated painting, square, cssPx wide (rendered at up to 2x for Retina).
+ */
 export function dreamArtURL(dream, cssPx = 300) {
+  const ai = dream?.image?.url;
+  if (typeof ai === 'string' && ai.startsWith('https://')) return ai;
   if (!dream || typeof document === 'undefined') return '';
   const dpr = typeof window !== 'undefined' ? Math.min(window.devicePixelRatio || 1, 2) : 1;
   const size = Math.max(16, Math.round(cssPx * dpr));
