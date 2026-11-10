@@ -8,7 +8,7 @@ const FREE_FEATURES = ['journal', 'voice', 'techniques', 'articles', 'reminders'
 
 /** Paywall copy per paid feature (our own wording). */
 export const FEATURE_INFO = {
-  images: { title: 'AI dream images', benefit: 'Turn every dream into a painting made just for it.' },
+  images: { title: 'AI dream images', benefit: 'Turn every dream into a lifelike picture made just for it.' },
   analyses: { title: 'Dream interpretations', benefit: 'Understand what your dreams are telling you, as often as you like.' },
   'sounds-all': { title: 'All sleep sounds', benefit: 'Every soundscape and binaural beat for falling asleep and lucid practice.' },
   nightmares: { title: 'Nightmare analysis', benefit: 'See what your nightmares have in common and what helps.' },

@@ -63,6 +63,8 @@
     }
   },
   "images": {
+    "look": "photo",
+    "_look": "photo = photorealistic (default), painting = painted illustration",
     "providers": [
       {
         "name": "poyo",

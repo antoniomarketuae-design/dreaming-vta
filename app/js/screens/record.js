@@ -61,7 +61,7 @@ const ic = {
 const HELP = {
   voice: 'Speak and your words are added to the end of the text. Only the text is kept, never a recording.',
   rating: 'How did this dream feel overall? 1 is very unpleasant, 5 is wonderful.',
-  picture: "The painted picture is made on your phone from your dream's themes; nothing is uploaded. Try a new one until you like it. An AI image is painted on Dreaming's server from the dream's text and is shown instead of it.",
+  picture: "The painted picture is made on your phone from your dream's themes; nothing is uploaded. Try a new one until you like it. An AI image is created on Dreaming's server from the dream's text and is shown instead of it.",
   length: 'How long the dream seemed, from a short flash to a whole story.',
   inDream: 'Were you yourself in the dream, or watching it like a film?',
   emotions: 'Pick the feelings you had in the dream, or add your own.',
@@ -739,7 +739,7 @@ function mount(el, ctx, param) {
         </div>
       </div>
       <div class="rec-ai">${aiBody()}</div>
-      <p class="rec-ai-note faint">AI images: this dream's text is sent to Dreaming's server to be painted. The rest of your journal stays on this iPhone.</p>`;
+      <p class="rec-ai-note faint">AI images: this dream's text is sent to Dreaming's server to create the image. The rest of your journal stays on this iPhone.</p>`;
   }
 
   // --- AI image (same rules and limits as the dream page) ---
@@ -760,7 +760,7 @@ function mount(el, ctx, param) {
         return `
           <div class="rec-ai-row">
             <span class="rec-ai-thumb rec-ai-thumb-empty" aria-hidden="true">${icons.sparkle}</span>
-            <p class="rec-ai-text">Have this dream painted by AI.</p>
+            <p class="rec-ai-text">Turn this dream into a lifelike AI image.</p>
             <button type="button" class="rec-ai-btn" data-act="ai-plus">${icons.sparkle}<span>AI image</span>${aiBadge()}</button>
           </div>`;
       }
@@ -780,17 +780,17 @@ function mount(el, ctx, param) {
       return `
         <div class="rec-ai-row" role="status">
           <span class="rec-ai-thumb rec-ai-thumb-wait">${under ? `<img src="${esc(under)}" alt="">` : ''}<i aria-hidden="true"></i></span>
-          <p class="rec-ai-text">Painting your dream…<span class="rec-ai-sub faint">Up to a minute. You can keep editing or leave.</span></p>
+          <p class="rec-ai-text">Creating your dream image…<span class="rec-ai-sub faint">Up to a minute. You can keep editing or leave.</span></p>
         </div>`;
     }
     const has = hasImage(dream);
     const failed = isImageFailed(dream);
     const thumb = has
-      ? `<span class="rec-ai-thumb"><img src="${esc(dream.image.url)}" alt="AI painting of this dream"></span>`
+      ? `<span class="rec-ai-thumb"><img src="${esc(dream.image.url)}" alt="AI image of this dream"></span>`
       : `<span class="rec-ai-thumb rec-ai-thumb-empty" aria-hidden="true">${icons.sparkle}</span>`;
-    const text = failed ? esc(dream.imageJob.error || "The painting didn't work this time.")
+    const text = failed ? esc(dream.imageJob.error || "The image didn't work this time.")
       : has ? 'Your AI image is shown for this dream across the app.'
-        : 'Have this dream painted by AI.';
+        : 'Turn this dream into a lifelike AI image.';
     const label = failed ? 'Try again' : has ? 'New image' : 'Create AI image';
     const act = imagesBlocked() ? 'ai-plus' : 'ai-create';
     return `

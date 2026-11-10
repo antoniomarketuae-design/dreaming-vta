@@ -219,7 +219,7 @@ async function checkOnce(dreamId) {
   const tooLong = !failed && age(cur) > GIVE_UP_MS;
   if (failed || tooLong) {
     const error = tooLong ? 'This took too long. Please try again.'
-      : String(typeof data.error === 'string' && data.error ? data.error : "The painting didn't work this time.").slice(0, 300);
+      : String(typeof data.error === 'string' && data.error ? data.error : "The image didn't work this time.").slice(0, 300);
     const dream = updateDream(dreamId, { imageJob: { ...cur, status: 'failed', error } });
     return { dream, changed: true, finished: true };
   }

@@ -5,30 +5,56 @@ import { join } from 'node:path';
 
 const POYO_BASE = 'https://api.poyo.ai/api/generate';
 
-/** Our own picture styles (ids match the app's onboarding ART_STYLES). */
+/**
+ * The look of the picture styles chosen in onboarding (ids match the app's ART_STYLES).
+ * In "photo" mode they are lighting / colour grading; in "painting" mode, palettes.
+ */
 const STYLE_PROMPTS = {
-  moonlit: 'soft violet night palette, moonlight glow, gentle stars',
-  'rose-dusk': 'pink and rose dusk light, warm soft haze',
-  ember: 'warm amber and ember tones, firelit glow',
-  aurora: 'green and teal aurora light, northern-sky glow',
-  'deep-tide': 'cool deep-blue ocean tones, calm luminous water light',
-  'silver-mist': 'black and white, silver mist, fine film grain',
+  photo: {
+    moonlit: 'night scene lit by bright moonlight, cool blue-violet colour grading, stars visible',
+    'rose-dusk': 'golden-hour to dusk light, soft pink and rose sky, warm haze',
+    ember: 'warm amber firelight and candle glow, deep shadows',
+    aurora: 'night sky with green and teal aurora borealis lighting the scene',
+    'deep-tide': 'cool deep-blue tones, soft underwater-like light',
+    'silver-mist': 'black and white photograph, soft mist, fine film grain',
+  },
+  painting: {
+    moonlit: 'soft violet night palette, moonlight glow, gentle stars',
+    'rose-dusk': 'pink and rose dusk light, warm soft haze',
+    ember: 'warm amber and ember tones, firelit glow',
+    aurora: 'green and teal aurora light, northern-sky glow',
+    'deep-tide': 'cool deep-blue ocean tones, calm luminous water light',
+    'silver-mist': 'black and white, silver mist, fine film grain',
+  },
 };
 
-/** Builds the image prompt from the dream. Never names real people; nightmares are softened. */
-export function buildPrompt({ title, text, tags = [], kind, style }) {
-  const scene = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 420);
-  const mood = tags.length ? `Mood and themes: ${tags.slice(0, 5).join(', ')}.` : '';
+/**
+ * Builds the image prompt from the dream. look = 'photo' (photorealistic, the default) or 'painting'.
+ * Never names real people; nightmares are softened.
+ */
+export function buildPrompt({ title, text, tags = [], kind, style, look = 'photo' }) {
+  const scene = String(text || '').replace(/\s+/g, ' ').trim().slice(0, 450);
+  const mood = tags.length ? `Mood: ${tags.slice(0, 5).join(', ')}.` : '';
   const soft = kind === 'nightmare'
-    ? 'Unsettling but not graphic: atmosphere and shadow, no gore, no blood, no injuries.'
+    ? 'Tense and eerie but not graphic: atmosphere, shadow and suspense; no gore, no blood, no injuries.'
     : '';
+  const styles = STYLE_PROMPTS[look] || STYLE_PROMPTS.photo;
+  const light = styles[style] || styles.moonlit;
+  if (look === 'painting') {
+    return [
+      `A dreamlike painted illustration of a dream titled "${String(title || 'a dream').slice(0, 80)}".`,
+      `Scene: ${scene}`, mood, soft,
+      `Style: ${light}, painterly, surreal, cinematic composition.`,
+      'No text, no letters, no watermark, no logos. People appear as anonymous figures, never as real or famous individuals.',
+    ].filter(Boolean).join(' ');
+  }
   return [
-    `A dreamlike painted illustration of a dream titled "${String(title || 'a dream').slice(0, 80)}".`,
-    `Scene: ${scene}`,
-    mood,
-    soft,
-    `Style: ${STYLE_PROMPTS[style] || STYLE_PROMPTS.moonlit}, painterly, surreal, cinematic composition.`,
-    'No text, no letters, no watermark, no logos. People appear as anonymous figures, never as real or famous individuals.',
+    `A photorealistic cinematic photograph of this scene from a dream: ${scene}`,
+    mood, soft,
+    `Lighting and colour: ${light}.`,
+    'Shot on a full-frame camera with a 35mm lens, natural realistic lighting, true-to-life textures and materials, shallow depth of field, high detail, slightly dreamlike atmosphere but fully realistic, as if it really happened.',
+    'Not a painting, not an illustration, not a cartoon, not 3D render, not anime.',
+    'No text, no letters, no watermark, no logos. Any people are ordinary, anonymous adults who do not resemble any real or famous person.',
   ].filter(Boolean).join(' ');
 }
 

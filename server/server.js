@@ -333,7 +333,7 @@ async function handle(req, res) {
       const body = await readJson(req, 16 * 1024);
       const dream = cleanDream(body);
       const style = typeof body.style === 'string' ? body.style.slice(0, 30) : 'moonlit';
-      const prompt = buildPrompt({ ...dream, kind: body.kind === 'nightmare' ? 'nightmare' : 'dream', style });
+      const prompt = buildPrompt({ ...dream, kind: body.kind === 'nightmare' ? 'nightmare' : 'dream', style, look: PLANS.images?.look || 'photo' });
       const id = `im${crypto.randomBytes(15).toString('base64url')}`;
       await pool.query('insert into images (id, device_id, style, prompt) values ($1, $2, $3, $4)', [id, d.id, style, prompt]);
       await addUsage(d.id, 'images');
