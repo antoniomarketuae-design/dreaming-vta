@@ -1,0 +1,40 @@
+/* Article reader (#article/<id>). Every selector starts with .art */
+
+.art-kicker { flex: 1; margin: 0; color: var(--text-faint); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.art-hero {
+  display: grid;
+  place-items: center;
+  height: 150px;
+  margin: 2px 0 18px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  background: radial-gradient(120% 110% at 25% 10%, hsla(var(--h), 70%, 62%, 0.5), hsla(var(--h), 60%, 26%, 0.3) 62%, rgba(18, 13, 46, 0.55));
+}
+.art-hero-icon { display: grid; place-items: center; color: hsla(var(--h), 90%, 90%, 0.92); filter: drop-shadow(0 0 14px hsla(var(--h), 80%, 70%, 0.6)); }
+.art-hero-icon svg { width: 56px; height: 56px; }
+
+.art-title { margin: 0 4px; font-size: 27px; font-weight: 300; line-height: 1.2; letter-spacing: -0.01em; }
+.art-meta { margin: 6px 4px 0; color: var(--text-faint); font-size: 13.5px; }
+.art-lead { margin: 14px 4px 0; color: var(--text-dim); font-size: 17px; line-height: 1.45; }
+
+.art-body { margin: 8px 4px 0; font-size: 16.5px; line-height: 1.6; }
+.art-body > p { margin: 14px 0 0; }
+.art-h { margin: 26px 0 0; color: var(--moon); font-size: 14px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.art-list { margin: 10px 0 0; padding: 0; list-style: none; }
+.art-list li { position: relative; margin: 0 0 10px; padding-left: 22px; }
+.art-list li::before { content: ""; position: absolute; top: 0.68em; left: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--moon); box-shadow: 0 0 8px rgba(255, 217, 138, 0.55); }
+.art-note { display: flex; align-items: flex-start; gap: 10px; margin: 22px 0 0; padding: 14px 16px; color: var(--text); font-size: 15.5px; line-height: 1.45; border-color: rgba(255, 217, 138, 0.22); }
+.art-note svg { flex: none; width: 18px; height: 18px; margin-top: 2px; color: var(--moon); }
+
+.art-more { margin-top: 34px; }
+.art-more-title { margin: 0 4px 10px; color: var(--text-faint); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.art-link { display: flex; align-items: center; gap: 12px; min-height: 62px; margin-top: 10px; padding: 10px 14px; color: inherit; text-decoration: none; }
+.art-link:active { opacity: 0.8; }
+.art-link > svg { flex: none; width: 18px; height: 18px; color: var(--text-faint); }
+.art-link-icon { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: hsla(var(--h), 70%, 60%, 0.22); color: hsla(var(--h), 95%, 88%, 0.95); }
+.art-link-icon svg { width: 22px; height: 22px; }
+.art-link-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.art-link-text b { font-weight: 500; }
+.art-link-text span { color: var(--text-faint); font-size: 13px; }
+.art-missing { margin: 40px 0 20px; text-align: center; }

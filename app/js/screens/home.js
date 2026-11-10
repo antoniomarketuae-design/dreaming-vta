@@ -1,16 +1,29 @@
-// Home: a calm morning page over the night sky. Greeting, last dream, one big "record" button.
-import { listDreams, getStats, getSetting, setSetting } from '../store.js';
+// Home: the daily landing page over the night sky.
+// Greeting · "Logged today" · last dream + Analyze · big record button (+ voice) · "Get started" checklist ·
+// Explore (a random past dream and a random symbol, both unlocked by progress) · recent dreams strip.
+import {
+  listDreams, withDefaults, loggedToday, getProfile, getSetting, listGoals, SYMBOL_CATEGORIES,
+} from '../store.js';
+import { exploreState } from '../progress.js';
 import { TAGS } from '../analyze.js';
-import { esc, greeting, formatLongDate, relativeDay, icons } from '../ui.js';
+import { esc, greeting, formatDate, formatLongDate, relativeDay, icons } from '../ui.js';
 import { dreamArtURL } from '../dreamart.js';
 
-/** The dream's picture, or '' if it can't be drawn (then a soft gradient stands in). */
-function art(dream, px) {
-  try { return dreamArtURL(dream, px) || ''; } catch { return ''; }
-}
+// What the Explore cards currently show. Kept in memory only (a fresh pick per app launch, shuffle re-rolls).
+const picked = { dream: null, symbol: null };
 
+const CATEGORY_LABEL = {
+  people: 'Person', objects: 'Object', characters: 'Character', places: 'Place', themes: 'Theme', actions: 'Action',
+};
+
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+// ---------- pictures ----------
+
+/** The dream's generated picture, or a soft gradient if it can't be drawn. */
 function picture(dream, px, cls) {
-  const url = art(dream, px);
+  let url = '';
+  try { url = dreamArtURL(dream, px) || ''; } catch { url = ''; }
   if (url) return `<img class="${cls}" src="${esc(url)}" alt="" decoding="async">`;
   const hue = (Number(dream.seed) || 0) % 360;
   return `<div class="${cls} home-art-fallback" style="--h:${hue}"></div>`;
@@ -30,68 +43,13 @@ function chips(dream, max = 2) {
     .join('');
 }
 
-function statsLine() {
-  const { total, streak } = getStats();
-  if (!total) return '';
-  const parts = [`${total} ${total === 1 ? 'dream' : 'dreams'} recorded`];
-  if (streak) parts.push(`${streak}-night streak`);
-  return `<p class="home-stats">${parts.join(' · ')}</p>`;
+function when(dream) {
+  const rel = relativeDay(dream.date);
+  const abs = formatDate(dream.date);
+  return rel && rel !== abs ? `${rel} · ${abs}` : abs;
 }
 
-function hero(dream) {
-  if (!dream) {
-    return `
-      <section class="glass home-hero home-empty" aria-label="Your last dream">
-        ${EMPTY_ART}
-        <p class="home-empty-text">Your first dream will appear here</p>
-      </section>`;
-  }
-  return `
-    <a class="glass home-hero" href="#dream/${esc(dream.id)}" aria-label="Last dream: ${esc(dream.title)}">
-      ${picture(dream, 340, 'home-hero-art')}
-      <div class="home-hero-body">
-        <h2 class="home-hero-title">${esc(dream.title)} ${starMark(dream)}</h2>
-        <div class="home-hero-meta">
-          <span class="home-hero-when">${esc(relativeDay(dream.date))}</span>
-          ${chips(dream)}
-        </div>
-      </div>
-    </a>`;
-}
-
-function recent(dreams) {
-  if (!dreams.length) return '';
-  const thumbs = dreams.map((d) => `
-    <a class="home-thumb" href="#dream/${esc(d.id)}" aria-label="${esc(d.title)}, ${esc(relativeDay(d.date))}">
-      ${picture(d, 72, 'home-thumb-art')}
-      ${d.lucid || d.recurring ? `<span class="home-thumb-star">${starMark(d)}</span>` : ''}
-    </a>`).join('');
-  return `
-    <section class="home-recent">
-      <div class="home-recent-head">
-        <h2 class="section-title">Recent</h2>
-        <a class="home-see-all" href="#journal">See all</a>
-      </div>
-      <div class="home-strip">${thumbs}</div>
-    </section>`;
-}
-
-function reminderCard() {
-  if (getSetting('reminderAsked', false)) return '';
-  return `
-    <section class="glass home-reminder" aria-label="Morning reminder">
-      <div class="home-reminder-row">
-        <span class="home-reminder-icon">${icons.bell}</span>
-        <p class="home-reminder-text">Dreams fade within minutes of waking. Want a gentle morning reminder?</p>
-      </div>
-      <div class="home-reminder-actions">
-        <button type="button" class="btn btn-ghost home-reminder-btn" data-reminder="later">Not now</button>
-        <button type="button" class="btn home-reminder-btn" data-reminder="set">Set reminder</button>
-      </div>
-    </section>`;
-}
-
-// Crescent moon, a few stars and a soft cloud, in the app's moon-gold / violet / ember palette.
+// Crescent moon, a few stars and a soft cloud: the empty-journal illustration.
 const EMPTY_ART = `
   <svg class="home-empty-art" viewBox="0 0 240 150" aria-hidden="true">
     <defs>
@@ -130,44 +88,258 @@ const EMPTY_ART = `
       d="M62 128c-11 0-18-7-18-15s7-14 16-14c3-11 13-18 25-18 11 0 20 6 24 15 3-2 7-3 11-3 11 0 19 8 19 18 0 1 0 2-.2 3 7 1 12 7 12 14z" transform="translate(22 0)"/>
   </svg>`;
 
+// ---------- 1. greeting ----------
+
+function header(now, name, today) {
+  const hello = name
+    ? `${esc(greeting(now))}, <span class="home-name">${esc(name)}</span>`
+    : esc(greeting(now));
+  return `
+    <header class="home-top">
+      <h1 class="home-greeting">${hello}</h1>
+      <p class="home-date">${esc(formatLongDate(now))}</p>
+      ${today ? `<p class="home-today">${icons.check}<span>Logged today</span></p>` : ''}
+    </header>`;
+}
+
+// ---------- 2. last dream + Analyze, or the first-dream invitation ----------
+
+function lead(dreams, today) {
+  const last = dreams[0];
+  if (!last) {
+    return `
+      <section class="home-intro" aria-label="Welcome">
+        ${EMPTY_ART}
+        <p class="home-headline">Write down any dream you remember, from last night or from years ago.</p>
+      </section>`;
+  }
+  return `
+    ${today ? '' : '<p class="home-headline home-headline-small">Anything left from last night? Even a fragment is worth keeping.</p>'}
+    <a class="glass home-hero" href="#dream/${esc(last.id)}" aria-label="Your last dream: ${esc(last.title || 'Untitled dream')}">
+      ${picture(last, 340, 'home-hero-art')}
+      <div class="home-hero-body">
+        <h2 class="home-hero-title">${esc(last.title || 'Untitled dream')} ${starMark(last)}</h2>
+        <div class="home-hero-meta">
+          <span class="home-hero-when">${esc(when(last))}</span>
+          ${chips(last)}
+        </div>
+      </div>
+    </a>
+    <a class="btn btn-ghost home-analyze" href="#dream/${esc(last.id)}/analyze">${icons.sparkle}<span>Analyze this dream</span></a>`;
+}
+
+// ---------- 3. the record action ----------
+
+function action(hasDreams) {
+  return `
+    <div class="home-action">
+      <a class="btn home-record" href="#record">${icons.plus}<span>${hasDreams ? 'Add another dream' : 'Add a dream'}</span></a>
+      <a class="home-voice" href="#record/voice" aria-label="Record a dream by voice">${icons.mic}</a>
+    </div>`;
+}
+
+// ---------- 4. "Get started" checklist ----------
+
+function steps(dreams) {
+  return [
+    { done: dreams.length > 0, href: '#record', icon: icons.edit, label: 'Write down your first dream' },
+    { done: Boolean(getSetting('reminderMorning', false)), href: '#profile/notifications', icon: icons.bell, label: 'Turn on a morning reminder' },
+    { done: Boolean(getSetting('realityReminders', false)), href: '#technique/reality-checks', icon: icons.lucidity, label: 'Set up reality-check reminders' },
+    { done: listGoals().length > 0, href: '#goals', icon: icons.target, label: 'Choose a dream goal' },
+  ];
+}
+
+function checklist(dreams) {
+  const list = steps(dreams);
+  const done = list.filter((s) => s.done).length;
+  if (done === list.length) return '';
+  const rows = list.map((s) => `
+    <li>
+      <a class="home-step${s.done ? ' is-done' : ''}" href="${s.href}">
+        <span class="home-step-icon">${s.done ? icons.check : s.icon}</span>
+        <span class="home-step-label">${esc(s.label)}${s.done ? '<span class="home-sr"> (done)</span>' : ''}</span>
+        <span class="home-step-go">${icons.chevronRight}</span>
+      </a>
+    </li>`).join('');
+  return `
+    <section class="home-section home-start" aria-labelledby="home-start-title">
+      <div class="home-head">
+        <h2 class="home-h2" id="home-start-title">Get started</h2>
+        <span class="home-count" aria-label="${done} of ${list.length} done">${done}/${list.length}</span>
+      </div>
+      <div class="home-bar" role="progressbar" aria-label="Get started progress"
+        aria-valuemin="0" aria-valuemax="${list.length}" aria-valuenow="${done}">
+        <span style="width:${Math.round((done / list.length) * 100)}%"></span>
+      </div>
+      <ul class="glass home-steps">${rows}</ul>
+    </section>`;
+}
+
+// ---------- 5. Explore ----------
+
+/** Every distinct symbol: { key, cat, name, count (dreams that contain it) }. */
+function symbolIndex(dreams) {
+  const map = new Map();
+  for (const d of dreams) {
+    for (const cat of SYMBOL_CATEGORIES) {
+      for (const raw of d.symbols[cat] || []) {
+        const name = String(raw ?? '').trim();
+        if (!name) continue;
+        const key = `${cat}:${name.toLowerCase()}`;
+        if (!map.has(key)) map.set(key, { key, cat, name, ids: new Set() });
+        map.get(key).ids.add(d.id);
+      }
+    }
+  }
+  return [...map.values()].map(({ ids, ...s }) => ({ ...s, count: ids.size }));
+}
+
+/** A random item, avoiding `avoid` when there is any other choice. */
+function pickFrom(items, avoid) {
+  const pool = items.length > 1 ? items.filter((x) => x !== avoid) : items;
+  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+}
+
+/** Past dreams for the Explore card: everything but the newest one (already shown at the top), when possible. */
+const pastDreams = (dreams) => (dreams.length > 1 ? dreams.slice(1) : dreams);
+
+function chooseDream(dreams, reroll = false) {
+  const pool = pastDreams(dreams);
+  const ids = pool.map((d) => d.id);
+  if (reroll || !ids.includes(picked.dream)) picked.dream = pickFrom(ids, picked.dream);
+  return pool.find((d) => d.id === picked.dream) || null;
+}
+
+function chooseSymbol(symbols, reroll = false) {
+  const keys = symbols.map((s) => s.key);
+  if (reroll || !keys.includes(picked.symbol)) picked.symbol = pickFrom(keys, picked.symbol);
+  return symbols.find((s) => s.key === picked.symbol) || null;
+}
+
+function lockedCard(kind, text) {
+  return `
+    <div class="home-card home-card-${kind} is-locked" data-card="${kind}">
+      <span class="home-card-tag">${kind === 'dream' ? 'Dream' : 'Symbol'}</span>
+      <span class="home-lock home-lock-${kind === 'dream' ? 'circle' : 'diamond'}">${icons.lock}</span>
+      <span class="home-card-lockline">${esc(text)}</span>
+    </div>`;
+}
+
+function dreamCard(state, dreams, reroll = false) {
+  if (!state.unlocked) return lockedCard('dream', `Unlocks after ${plural(state.unlockAt, 'dream')}`);
+  const d = chooseDream(dreams, reroll);
+  if (!d) return lockedCard('dream', 'No dreams to show yet');
+  return `
+    <a class="home-card home-card-dream" data-card="dream" href="#dream/${esc(d.id)}"
+      aria-label="A dream from your journal: ${esc(d.title || 'Untitled dream')}, ${esc(relativeDay(d.date))}">
+      ${picture(d, 200, 'home-card-art')}
+      <span class="home-card-shade"></span>
+      <span class="home-card-tag">Dream</span>
+      <span class="home-card-foot">
+        <span class="home-card-title">${esc(d.title || 'Untitled dream')}</span>
+        <span class="home-card-meta">${esc(relativeDay(d.date))}</span>
+      </span>
+    </a>`;
+}
+
+function symbolCard(state, symbols, reroll = false) {
+  if (!state.unlocked) return lockedCard('symbol', `Unlocks after ${plural(state.unlockAt, 'symbol')}`);
+  const s = chooseSymbol(symbols, reroll);
+  if (!s) return lockedCard('symbol', 'No symbols to show yet');
+  return `
+    <div class="home-card home-card-symbol" data-card="symbol">
+      <span class="home-card-tag">Symbol</span>
+      <span class="home-glyph">${icons.sparkle}</span>
+      <span class="home-card-foot">
+        <span class="home-card-title home-symbol-name">${esc(s.name)}</span>
+        <span class="home-card-meta">${esc(CATEGORY_LABEL[s.cat] || s.cat)}</span>
+        <span class="home-card-meta home-card-count">In ${esc(plural(s.count, 'dream'))}</span>
+      </span>
+    </div>`;
+}
+
+function explore(state, dreams, symbols) {
+  const anyLocked = !state.dream.unlocked || !state.symbol.unlocked;
+  return `
+    <section class="home-section home-explore" aria-labelledby="home-explore-title">
+      <h2 class="home-h2" id="home-explore-title">Explore</h2>
+      <p class="home-sub">A dream and a symbol drawn at random from your own journal.</p>
+      <div class="home-cards">
+        ${dreamCard(state.dream, dreams)}
+        ${symbolCard(state.symbol, symbols)}
+      </div>
+      ${anyLocked ? '<p class="home-caption">More of your journal opens up here as it grows.</p>' : ''}
+      <div class="home-shuffles">
+        <button type="button" class="btn btn-ghost home-shuffle" data-shuffle="dream" ${state.dream.unlocked ? '' : 'disabled'}>
+          ${icons.shuffle}<span>Random dream</span>
+        </button>
+        <button type="button" class="btn btn-ghost home-shuffle" data-shuffle="symbol" ${state.symbol.unlocked ? '' : 'disabled'}>
+          ${icons.shuffle}<span>Random symbol</span>
+        </button>
+      </div>
+    </section>`;
+}
+
+// ---------- 6. recent dreams strip ----------
+
+function recent(dreams) {
+  const list = dreams.slice(1, 9);
+  if (!list.length) return '';
+  const thumbs = list.map((d) => `
+    <a class="home-thumb" href="#dream/${esc(d.id)}" aria-label="${esc(d.title || 'Untitled dream')}, ${esc(relativeDay(d.date))}">
+      ${picture(d, 96, 'home-thumb-art')}
+      ${d.lucid || d.recurring ? `<span class="home-thumb-star">${starMark(d)}</span>` : ''}
+    </a>`).join('');
+  return `
+    <section class="home-section home-recent" aria-labelledby="home-recent-title">
+      <div class="home-head">
+        <h2 class="home-h2" id="home-recent-title">Recent dreams</h2>
+        <a class="home-see-all" href="#journal">See all</a>
+      </div>
+      <div class="home-strip">${thumbs}</div>
+    </section>`;
+}
+
 export default {
   id: 'home',
   label: 'Home',
   icon: icons.home,
 
-  render(el, ctx) {
-    const dreams = listDreams();
+  render(el) {
+    const dreams = listDreams().map(withDefaults);
+    const name = String(getProfile()?.name ?? '').trim();
     const now = new Date();
+    const today = loggedToday();
+    const symbols = symbolIndex(dreams);
+    const state = exploreState(dreams.length);
 
     el.innerHTML = `
       <div class="home">
-        <header class="home-top">
-          <p class="home-greeting">${esc(greeting(now))}</p>
-          <p class="home-date">${esc(formatLongDate(now))}</p>
-          ${statsLine()}
-        </header>
-
-        ${hero(dreams[0])}
-
-        <div class="home-action">
-          <a class="btn home-record" href="#record">${icons.mic}<span>Record last night's dream</span></a>
-          <a class="home-type" href="#record/type">or type it</a>
-        </div>
-
-        ${recent(dreams.slice(1, 8))}
-        ${reminderCard()}
+        ${header(now, name, today)}
+        ${lead(dreams, today)}
+        ${action(dreams.length > 0)}
+        ${checklist(dreams)}
+        ${explore(state, dreams, symbols)}
+        ${recent(dreams)}
       </div>`;
 
-    const card = el.querySelector('.home-reminder');
-    if (card) {
-      card.querySelector('[data-reminder="set"]').addEventListener('click', () => {
-        setSetting('reminderAsked', true);
-        ctx.navigate('#profile');
-      });
-      card.querySelector('[data-reminder="later"]').addEventListener('click', () => {
-        setSetting('reminderAsked', true);
-        card.remove();
-      });
-    }
+    // Listeners live on our own root (the screen element is shared with other screens).
+    const root = el.querySelector('.home');
+    root.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-shuffle]');
+      if (!btn || btn.disabled) return;
+      const kind = btn.dataset.shuffle;
+      const card = root.querySelector(`[data-card="${kind}"]`);
+      if (!card) return;
+      const fresh = listDreams().map(withDefaults);
+      const html = kind === 'dream'
+        ? dreamCard(exploreState(fresh.length).dream, fresh, true)
+        : symbolCard(exploreState(fresh.length).symbol, symbolIndex(fresh), true);
+      const tpl = document.createElement('template');
+      tpl.innerHTML = html.trim();
+      const next = tpl.content.firstElementChild;
+      next.classList.add('is-new');
+      card.replaceWith(next);
+    });
   },
 };

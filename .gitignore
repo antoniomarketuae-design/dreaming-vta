@@ -6,3 +6,6 @@ Thumbs.db
 # Interpretation: source books, the knowledge base (product IP), interpreter rules and testers' dreams.
 # Kept on this PC only; the GitHub repo is public.
 Interpretation/
+
+# Competitor screen recordings and extracted frames: reference only, never public
+video/
