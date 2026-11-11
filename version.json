@@ -1,7 +1,12 @@
 {
-  "version": 16,
+  "version": 17,
   "updated": "2026-11-11",
   "notes": [
+    {
+      "version": 17,
+      "date": "2026-11-11",
+      "text": "New layout Journal: the switcher is back to List, Calendar and Gallery. The six new views (Sky, Spiral, Year, Moons, Stories, River) are now under 'Test 6 new journal views' while we choose."
+    },
     {
       "version": 16,
       "date": "2026-11-11",
