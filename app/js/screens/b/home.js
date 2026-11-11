@@ -1,21 +1,18 @@
 // New layout: Home tab, following the owner's structure.
-// Greeting + date · big record button (+ voice) · the 3 newest dreams with their symbols (Load more adds 5 in place) ·
+// Greeting + date · big record button (+ voice) · the dream wheel (the month as a zodiac-like circle, js/screens/b/wheel.js) ·
 // "What you dream about" (recurring symbols of the last 30 days; tap one for its meaning) · "Your day" (today's day
 // journal, which opens the Calendar's day sheet). Repaints itself when dreams or day notes change.
 import { listDreams, getDream, localDay, getProfile, getDayNote, onChange } from '../../store.js';
-import { symbolsOf, recurringSymbols, NO_MEANING, dreamDay, dreamType, DREAM_TYPES } from '../../symbols.js';
-import { esc, greeting, formatLongDate, relativeDay, icons } from '../../ui.js';
-import { dreamArtURL } from '../../dreamart.js';
-import { hasVideo } from '../../videos.js';
+import { recurringSymbols, NO_MEANING, dreamDay } from '../../symbols.js';
+import { esc, greeting, formatLongDate, icons } from '../../ui.js';
 import { openDaySheet, SUN } from './calendar.js';
+import { wheelHTML, defaultDay, shiftMonth, isCurrentMonth, dreamsByDay } from './wheel.js';
 
-const FIRST = 3;     // dreams shown at first
-const STEP = 5;      // ...and how many more each "Load more" adds
 const TOP_SYMBOLS = 5;
 const SNIPPET = 120; // characters of today's note shown on the card
 
 // Screen state. Reset each time Home opens; kept while it repaints for data changes.
-let shown = FIRST;
+let wheel = null;    // { month: 'YYYY-MM', selected: day number, index: which of that day's dreams is in the middle }
 let expanded = null; // key of the symbol whose meaning is open
 let cleanup = null;
 
@@ -23,18 +20,6 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const titleOf = (d) => String(d?.title || '').trim() || 'Untitled dream';
 const dreamHref = (d) => `#dream/${encodeURIComponent(d.id)}`;
 const norm = (s) => String(s || '').toLowerCase().trim();
-
-// ---------- pictures ----------
-
-/** The dream's picture (AI image or generated painting), or a soft gradient if it can't be drawn. */
-function thumb(d, px) {
-  let url = '';
-  try { url = dreamArtURL(d, px) || ''; } catch {}
-  if (url) return `<img class="bh-thumb-img" src="${esc(url)}" alt="" width="${px}" height="${px}" decoding="async">`;
-  return `<span class="bh-thumb-img bh-thumb-fallback" style="--h:${(Number(d.seed) || 0) % 360}"></span>`;
-}
-
-const videoMark = (d) => (hasVideo(d) ? `<span class="video-mark" aria-hidden="true">${icons.play}</span>` : '');
 
 // Crescent moon, a few stars and a soft cloud: the empty-journal picture.
 const EMPTY_ART = `
@@ -93,56 +78,9 @@ const actionHTML = () => `
     <a class="bh-voice" href="#record/voice" aria-label="Record a dream by voice">${icons.mic}</a>
   </div>`;
 
-// ---------- 3. recent dreams + Load more ----------
+// ---------- 3. the dream wheel (wheel.js) ----------
 
-function firstLine(text) {
-  return String(text || '').split('\n').map((s) => s.trim()).find(Boolean) || '';
-}
-
-function rowHTML(d) {
-  const type = dreamType(d);
-  const typeLabel = type === 'general' ? '' : (DREAM_TYPES.find((t) => t.id === type)?.label || '');
-  const syms = symbolsOf(d).slice(0, 3);
-  const extra = syms.length
-    ? `<span class="bh-chips">${syms.map((s) => `<span class="chip bh-chip">${esc(s.name)}</span>`).join('')}</span>`
-    : (firstLine(d.text) ? `<span class="bh-row-text">${esc(firstLine(d.text))}</span>` : '');
-  return `
-    <li>
-      <a class="glass bh-row${type === 'nightmare' ? ' bh-row-night' : ''}" href="${dreamHref(d)}">
-        <span class="bh-thumb">${thumb(d, 60)}${videoMark(d)}</span>
-        <span class="bh-row-body">
-          <span class="bh-row-title">${esc(titleOf(d))}</span>
-          <span class="bh-row-meta">
-            <span>${esc(relativeDay(dreamDay(d)))}</span>
-            ${typeLabel ? `<span class="bh-type bh-type-${type}">${esc(typeLabel)}</span>` : ''}
-          </span>
-          ${extra}
-        </span>
-        <span class="bh-row-go" aria-hidden="true">${icons.chevronRight}</span>
-      </a>
-    </li>`;
-}
-
-function moreHTML(total) {
-  const left = total - shown;
-  if (left <= 0) return '';
-  return `
-    <button type="button" class="btn btn-ghost bh-more" data-more>
-      <span>Load more</span><span class="bh-more-n">${left} left</span>
-    </button>`;
-}
-
-function recentHTML(dreams) {
-  return `
-    <section class="bh-section" aria-labelledby="bh-recent-title">
-      <div class="bh-head">
-        <h2 class="bh-h2" id="bh-recent-title">Recent dreams</h2>
-        ${dreams.length > FIRST ? '<a class="bh-see-all" href="#journal">See all</a>' : ''}
-      </div>
-      <ul class="bh-list">${dreams.slice(0, shown).map(rowHTML).join('')}</ul>
-      ${moreHTML(dreams.length)}
-    </section>`;
-}
+const freshWheel = (month = localDay().slice(0, 7)) => ({ month, selected: defaultDay(month), index: 0 });
 
 const emptyHTML = () => `
   <section class="glass bh-empty" aria-labelledby="bh-empty-title">
@@ -275,7 +213,7 @@ function screenHTML() {
   return `
     ${headerHTML(new Date())}
     ${actionHTML()}
-    ${dreams.length ? recentHTML(dreams) : emptyHTML()}
+    ${dreams.length ? wheelHTML(wheel) : emptyHTML()}
     ${symbolsHTML(dreams)}
     ${dayHTML()}`;
 }
@@ -287,7 +225,7 @@ export default {
 
   render(el, ctx) {
     cleanup?.();
-    shown = FIRST;
+    wheel = freshWheel();
     expanded = null;
 
     el.innerHTML = '<div class="bh"></div>';
@@ -306,25 +244,6 @@ export default {
       });
     };
 
-    // "Load more": adds the next rows in place and keeps the focus on the button (or the first new row).
-    const loadMore = (btn) => {
-      const dreams = listDreams();
-      const list = root.querySelector('.bh-list');
-      if (!list) return;
-      const from = shown;
-      shown = Math.min(dreams.length, shown + STEP);
-      list.insertAdjacentHTML('beforeend', dreams.slice(from, shown).map(rowHTML).join(''));
-      for (const li of [...list.children].slice(from)) li.classList.add('bh-new');
-      const html = moreHTML(dreams.length).trim();
-      if (html) {
-        btn.outerHTML = html;
-        root.querySelector('[data-more]')?.focus({ preventScroll: true });
-      } else {
-        btn.remove();
-        list.children[from]?.querySelector('a')?.focus({ preventScroll: true });
-      }
-    };
-
     // One symbol open at a time.
     const toggleSymbol = (btn) => {
       const key = btn.dataset.sym;
@@ -339,9 +258,31 @@ export default {
     };
 
     // Listeners live on our own root (the screen element is shared with other screens).
+    // The wheel redraws on its own; the rest of Home stays as it is.
+    const paintWheel = (focus) => {
+      const section = root.querySelector('[data-wheel]');
+      if (!section) return;
+      section.outerHTML = wheelHTML(wheel);
+      if (focus) root.querySelector(focus)?.focus({ preventScroll: true });
+    };
+
     root.addEventListener('click', (e) => {
       let b;
-      if ((b = e.target.closest('[data-more]'))) loadMore(b);
+      if ((b = e.target.closest('[data-wheel-day]'))) {
+        wheel = { ...wheel, selected: Number(b.dataset.wheelDay), index: 0 };
+        paintWheel(`[data-wheel-day="${wheel.selected}"]`);
+      } else if ((b = e.target.closest('[data-wheel-more]'))) {
+        const count = (dreamsByDay(wheel.month).get(wheel.selected) || []).length;
+        wheel = { ...wheel, index: count ? (wheel.index + 1) % count : 0 };
+        paintWheel('[data-wheel-more]');
+      } else if (e.target.closest('[data-wheel-prev]')) {
+        wheel = freshWheel(shiftMonth(wheel.month, -1));
+        paintWheel('[data-wheel-prev]');
+      } else if (e.target.closest('[data-wheel-next]')) {
+        if (isCurrentMonth(wheel.month)) return;
+        wheel = freshWheel(shiftMonth(wheel.month, 1));
+        paintWheel(isCurrentMonth(wheel.month) ? '[data-wheel-prev]' : '[data-wheel-next]');
+      }
       else if ((b = e.target.closest('[data-sym]'))) toggleSymbol(b);
       else if (e.target.closest('[data-day-open]')) openDaySheet(localDay(), ctx, { focusNote: true });
     });

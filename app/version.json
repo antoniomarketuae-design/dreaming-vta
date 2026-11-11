@@ -1,7 +1,12 @@
 {
-  "version": 14,
+  "version": 15,
   "updated": "2026-11-11",
   "notes": [
+    {
+      "version": 15,
+      "date": "2026-11-11",
+      "text": "New layout: the dreams on Home are now a dream wheel. The month is a circle like a zodiac, labelled 1st, 2nd, 3rd…; days with dreams light up with their picture, and the middle shows the chosen day's dream."
+    },
     {
       "version": 14,
       "date": "2026-11-11",
