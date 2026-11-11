@@ -1,7 +1,7 @@
 // New layout: Insights tab. What keeps coming back in the dreams and what it may mean:
-//   1. recurring symbols over the past 30 / 15 / 10 days (tap one for its meaning, in a bottom sheet),
-//   2. your dream sky, all time (sky.js): every dream a star, dreams that share a symbol joined into constellations;
-//      a constellation's "Read more" opens the same symbol sheet, with the meaning in full,
+//   1. your dream sky, all time (sky.js), on top: every dream a star, dreams that share a symbol joined into
+//      constellations; a constellation's "Read more" opens the symbol sheet, with the meaning in full,
+//   2. recurring symbols over the past 30 / 15 / 10 days (tap one for its meaning, in a bottom sheet),
 //   3. the dream types recorded (general / lucid / nightmare / prophetic, all time),
 //   4. the Symbols map analysis (#module/symbols-map, a Dreaming Plus feature),
 //   5. up to 5 questions to reflect on, from the last 10 dreams,
@@ -700,8 +700,8 @@ export default {
           <h1 class="screen-title">Insights</h1>
           <p class="bi-lead">What keeps coming back in your dreams, and what it may mean for you.</p>
         </header>
-        ${Object.keys(SECTIONS).map((k) => `<div class="bi-sec" data-sec="${k}"></div>${
-          k === 'symbols' ? '<div class="bi-sec" data-sky hidden></div>' : ''}`).join('')}
+        <div class="bi-sec" data-sky hidden></div>
+        ${Object.keys(SECTIONS).map((k) => `<div class="bi-sec" data-sec="${k}"></div>`).join('')}
       </div>`;
     const root = el.querySelector('.bi');
     const navigate = (hash) => { if (ctx?.navigate) ctx.navigate(hash); else location.hash = hash; };
