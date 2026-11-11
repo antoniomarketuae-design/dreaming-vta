@@ -11,6 +11,7 @@ import { hasVideo } from '../videos.js';
 import { hasImage } from '../images.js';
 import { symbolsOf } from '../symbols.js';
 import { isNewLayout } from '../layout.js';
+import { EXTRA_VIEWS } from './b/views/index.js';
 
 const VIEW_KEY = 'dreaming.journal.view';
 const NOTE_KEY = 'journalNoteHiddenAt'; // dream count when the "only on this iPhone" note was tucked away
@@ -34,12 +35,12 @@ const cap = (s) => { const t = String(s ?? '').trim(); return t ? t[0].toUpperCa
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const arr = (v) => (Array.isArray(v) ? v : []);
 
-// 'gallery' exists only in the new layout; a saved 'gallery' opens the list in the current one.
+// 'gallery' and the extra views (b/views) exist only in the new layout; a saved one opens the list in the current one.
 function getView() {
   let v = '';
   try { v = sessionStorage.getItem(VIEW_KEY) || ''; } catch {}
   if (v === 'calendar') return 'calendar';
-  if (v === 'gallery' && newLayout) return 'gallery';
+  if (newLayout && (v === 'gallery' || EXTRA_VIEWS.some((x) => x.id === v))) return v;
   return 'list';
 }
 function setView(v) {
@@ -463,7 +464,7 @@ export default {
   label: 'Journal',
   icon: icons.journal,
 
-  render(el) {
+  render(el, ctx) {
     teardown?.();
     teardown = null;
     thumbJob += 1;
@@ -483,6 +484,7 @@ export default {
       cal = { y: now.getFullYear(), m: now.getMonth(), selected: entries.some((e) => e.day === today) ? today : null };
     }
     let view = getView();
+    let extra = null; // the extra view (b/views) drawn in the body, if any
     let showAllSymbols = false;
     let current = [];
 
@@ -501,10 +503,11 @@ export default {
         </div>
         <div class="jr-active" hidden></div>
         <div class="jr-body"></div>
-        <div class="jr-seg${newLayout ? ' jr-seg-3' : ''}" role="group" aria-label="View">
+        <div class="jr-seg${newLayout ? ' jr-seg-many' : ''}" role="group" aria-label="View">
           <button type="button" data-view="list" aria-pressed="${view === 'list'}">${icons.list}<span>List</span></button>
           <button type="button" data-view="calendar" aria-pressed="${view === 'calendar'}">${icons.calendar}<span>Calendar</span></button>
-          ${newLayout ? `<button type="button" data-view="gallery" aria-pressed="${view === 'gallery'}">${icons.image}<span>Gallery</span></button>` : ''}
+          ${newLayout ? `<button type="button" data-view="gallery" aria-pressed="${view === 'gallery'}">${icons.image}<span>Gallery</span></button>
+          ${EXTRA_VIEWS.map((x) => `<button type="button" data-view="${x.id}" aria-pressed="${view === x.id}">${x.icon}<span>${esc(x.label)}</span></button>`).join('')}` : ''}
         </div>
         <div class="jr-sheet" role="dialog" aria-modal="true" aria-labelledby="jr-sheet-title" hidden></div>
       </div>`;
@@ -539,6 +542,23 @@ export default {
 
     const paintBody = () => {
       const filtering = isFiltering();
+      try { extra?.destroy?.(); } catch {}
+      extra = null;
+      root.dataset.view = view;
+      const xv = EXTRA_VIEWS.find((x) => x.id === view);
+      if (xv) {
+        body.innerHTML = '<div class="jr-xview"></div>';
+        extra = xv;
+        try {
+          xv.render(body.firstElementChild, {
+            dreams: current.map((e) => e.d), all: entries.map((e) => e.d), filtering, navigate: (h) => ctx?.navigate(h),
+          });
+        } catch (err) {
+          console.error(err);
+          body.innerHTML = '<p class="muted" style="padding:24px 4px">This view could not be drawn.</p>';
+        }
+        return;
+      }
       if (view === 'list') {
         body.innerHTML = (filtering ? '' : noteHTML(entries.length) + nextHTML(entries.length)) + listHTML(current, filtering);
       } else if (view === 'gallery') {
@@ -633,6 +653,7 @@ export default {
         view = b.dataset.view;
         setView(view);
         for (const v of root.querySelectorAll('[data-view]')) v.setAttribute('aria-pressed', String(v.dataset.view === view));
+        b.scrollIntoView?.({ block: 'nearest', inline: 'center', behavior: 'smooth' });
         paintBody();
       } else if ((b = hit('[data-quick]'))) {
         const id = b.dataset.quick;
@@ -708,7 +729,11 @@ export default {
     // The title bar stays pinned; it gains a frosted backing once the list scrolls under it.
     const onScroll = () => head.classList.toggle('jr-stuck', window.scrollY > 6);
     window.addEventListener('scroll', onScroll, { passive: true });
-    teardown = () => window.removeEventListener('scroll', onScroll);
+    teardown = () => {
+      window.removeEventListener('scroll', onScroll);
+      try { extra?.destroy?.(); } catch {}
+      extra = null;
+    };
     onScroll();
 
     refresh();
