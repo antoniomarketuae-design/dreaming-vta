@@ -460,6 +460,19 @@ button.jr-cell:active { background: rgba(255, 255, 255, 0.08); }
 .jr-seg-3 { max-width: calc(100% - 24px); }
 .jr-seg-3 button { padding: 0 14px; white-space: nowrap; }
 
+/* New layout: List · Calendar · Gallery and the extra views (b/views), scrolling sideways */
+.jr-seg-many {
+  width: max-content;
+  max-width: calc(100% - 24px);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.jr-seg-many::-webkit-scrollbar { display: none; }
+.jr-seg-many button { flex: none; padding: 0 13px; white-space: nowrap; }
+/* Extra views get the whole body; room at the bottom for the switcher */
+.jr-xview { padding-bottom: calc(var(--tabbar-h) + 84px); }
+
 /* ---- Filter sheet ---- */
 
 .jr-sheet { position: fixed; inset: 0; z-index: 25; display: flex; flex-direction: column; justify-content: flex-end; }

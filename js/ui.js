@@ -91,4 +91,7 @@ export const icons = {
   volumeOn: ic('<path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="M15.5 9a4 4 0 0 1 0 6"/><path d="M18 6.5a7.5 7.5 0 0 1 0 11"/>'),
   volumeOff: ic('<path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/>'),
   download: ic('<path d="M12 4v11"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M5 19.5h14"/>'),
+  spiral: ic('<path d="M12 12a1.5 1.5 0 1 1 1.5 1.5A3.5 3.5 0 1 1 10 9a5.5 5.5 0 1 1 6 8.2 7.6 7.6 0 1 1 2.5-11.7"/>'),
+  zodiac: ic('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v5M12 16v5M3 12h5M16 12h5M5.6 5.6l3.6 3.6M14.8 14.8l3.6 3.6M18.4 5.6l-3.6 3.6M9.2 14.8l-3.6 3.6"/>'),
+  cards: ic('<rect x="6.5" y="3.5" width="11" height="15" rx="2"/><path d="M4 7.5v11a2 2 0 0 0 2 2h9"/>'),
 };

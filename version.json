@@ -1,7 +1,12 @@
 {
-  "version": 15,
+  "version": 16,
   "updated": "2026-11-11",
   "notes": [
+    {
+      "version": 16,
+      "date": "2026-11-11",
+      "text": "New layout Journal: six new ways to see your dreams, next to List, Calendar and Gallery. Sky (dreams as stars, shared symbols form constellations), Spiral (today in the centre, older dreams spiralling out), Year (12 months like a zodiac, then the month wheel), Moons (each night with its real moon phase), Stories (swipe big dream pictures) and River (a ribbon coloured by how each dream felt)."
+    },
     {
       "version": 15,
       "date": "2026-11-11",
