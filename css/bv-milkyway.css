@@ -1,0 +1,254 @@
+/* Journal view (new layout): the Milky Way (js/screens/b/views/milkyway.js). Classes start with bv-mw- */
+/* A band of starlight from the newest dream into the past; each dream a bright star whose glow shows how it felt. */
+
+.bv-mw { position: relative; }
+
+/* ---- Mood legend and caption ---- */
+
+.bv-mw-legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 0; }
+.bv-mw-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 12px 0 9px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  background: rgba(14, 10, 38, 0.55);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+.bv-mw-chip b { color: var(--text-faint); font-size: 12px; font-weight: 700; }
+.bv-mw-chip[aria-pressed="true"] { border-color: var(--c); background: rgba(255, 255, 255, 0.08); box-shadow: 0 0 16px -5px var(--c), inset 0 0 12px -8px var(--c); }
+.bv-mw-chip[aria-pressed="true"] b { color: var(--c); }
+/* Each mood as a little star: a white-hot point in its own glow */
+.bv-mw-dot {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle closest-side, #fffaf0 0, #fffaf0 16%, var(--c) 38%, transparent 100%);
+}
+
+.bv-mw-cap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 34px;
+  margin: 4px 2px 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.bv-mw-cap-text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bv-mw-clear {
+  flex: none;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 217, 138, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 217, 138, 0.08);
+  color: var(--moon);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ---- The Milky Way ---- */
+
+.bv-mw-flow { position: relative; overflow: hidden; }
+.bv-mw-svg { position: absolute; top: 0; left: 0; display: block; width: 100%; pointer-events: none; }
+/* The haze is wider than the view: fade the sides and the two ends so it melts into the sky instead of stopping at a
+   straight edge. */
+.bv-mw-svg {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%),
+    linear-gradient(to bottom, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%),
+    linear-gradient(to bottom, transparent 0, #000 36px, #000 calc(100% - 36px), transparent 100%);
+  mask-composite: intersect;
+}
+
+/* The band (.bv-mw-band), from the outside in: a wide violet haze (.bv-mw-haze), milky glow (.bv-mw-glow) and soft
+   star clouds (.bv-mw-clouds), a narrow bright core (.bv-mw-core), then dark knots and the dust lane (.bv-mw-knots,
+   .bv-mw-lane). Each line layer is a stack of faint strokes reusing one centre-line; their widths, colours and
+   opacities are set in the SVG itself, so the edges stay soft without a blur filter. */
+
+/* Star dust: tiny round dots, cool white or warm cream */
+.bv-mw-dust path { fill: none; stroke: #f1ecff; stroke-linecap: round; }
+.bv-mw-dust path.is-warm { stroke: #ffe8c6; }
+
+/* The dreams (.bv-mw-star): a coloured halo (.bv-mw-halo), a sparkle on the notable ones (.bv-mw-spike), a small
+   bright point (.bv-mw-point, its tint set in the SVG). Lucid sparkles are gold, nightmare ones coral. */
+.bv-mw-star { transition: opacity 0.2s; }
+.bv-mw-halo { opacity: 0.9; }
+.bv-mw-spike { fill: #fff6ea; opacity: 0.5; }
+.bv-mw-star.is-lucid .bv-mw-spike { fill: var(--moon); opacity: 0.75; }
+.bv-mw-star.is-night .bv-mw-spike { fill: #ffd2c8; }
+
+/* Rings around the stars of a picked-out mood, like the marks on a star chart */
+.bv-mw-sel circle { fill: none; stroke: var(--moon); stroke-width: 1; stroke-opacity: 0.7; stroke-dasharray: 2.4 2.6; }
+
+/* A few twinkling stars above the sky (the dot, and a faint cross on the bigger ones) */
+.bv-mw-twinkles { position: absolute; inset: 0; pointer-events: none; }
+.bv-mw-twk {
+  position: absolute;
+  width: 2.6px;
+  height: 2.6px;
+  margin: -1.3px 0 0 -1.3px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 4px 1px rgba(214, 204, 255, 0.75);
+  opacity: 0.85;
+}
+.bv-mw-twk.is-big { width: 3.2px; height: 3.2px; margin: -1.6px 0 0 -1.6px; }
+.bv-mw-twk.is-big::before, .bv-mw-twk.is-big::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 13px;
+  height: 1px;
+  margin: -0.5px 0 0 -6.5px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0));
+}
+.bv-mw-twk.is-big::after { transform: rotate(90deg); }
+
+/* Month names across the sky, small and spaced out in gold like labels on a star chart */
+.bv-mw-month {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  margin-top: -12px;
+  pointer-events: none;
+}
+.bv-mw-month::before, .bv-mw-month::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: repeating-linear-gradient(90deg, rgba(255, 217, 138, 0.42) 0 3px, rgba(255, 217, 138, 0) 3px 7px);
+}
+.bv-mw-month::before {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000);
+  mask-image: linear-gradient(90deg, transparent, #000);
+}
+.bv-mw-month::after {
+  -webkit-mask-image: linear-gradient(90deg, #000, transparent);
+  mask-image: linear-gradient(90deg, #000, transparent);
+}
+.bv-mw-month span {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: radial-gradient(closest-side, rgba(12, 8, 32, 0.92), rgba(12, 8, 32, 0.7) 62%, rgba(12, 8, 32, 0));
+  color: rgba(255, 217, 138, 0.9);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  line-height: 16px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 0 10px rgba(255, 217, 138, 0.35);
+}
+/* little diamond stars either side of the name */
+.bv-mw-month span::before, .bv-mw-month span::after {
+  content: "";
+  flex: none;
+  width: 3px;
+  height: 3px;
+  background: currentColor;
+  transform: rotate(45deg);
+  opacity: 0.75;
+}
+
+/* One row per dream: the title and day beside its star; the whole row (star included) opens the dream. */
+.bv-mw-item {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 46px;
+  margin: 0;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 14px;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.bv-mw-item.is-right { padding-left: var(--pad); }
+.bv-mw-item.is-left { padding-right: var(--pad); text-align: right; }
+.bv-mw-title, .bv-mw-when {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 8px rgba(10, 6, 30, 0.95), 0 0 3px rgba(10, 6, 30, 0.9);
+}
+.bv-mw-title { color: var(--text); font-size: 14.5px; font-weight: 600; line-height: 1.3; }
+.bv-mw-when { margin-top: 1px; color: var(--text-dim); font-size: 12px; line-height: 1.3; }
+.bv-mw-item:active .bv-mw-title { color: #fff; }
+.bv-mw-item:focus-visible { outline: 2px solid rgba(255, 217, 138, 0.7); outline-offset: -2px; }
+
+.bv-mw-source {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 12px;
+  font-style: italic;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* A mood picked out: the band dims, the other stars and titles step back, the picked ones shine in full. */
+.bv-mw.is-focus .bv-mw-band { opacity: 0.55; }
+.bv-mw.is-focus .bv-mw-star:not(.is-hl) { opacity: 0.14; }
+.bv-mw.is-focus .bv-mw-item:not(.is-hl) { opacity: 0.32; }
+.bv-mw-star.is-hl { opacity: 1; }
+.bv-mw-star.is-hl .bv-mw-halo { opacity: 1; }
+.bv-mw-star.is-hl .bv-mw-spike { opacity: 0.8; }
+.bv-mw-item.is-hl .bv-mw-title { color: #fff; }
+
+/* ---- Nothing to show ---- */
+
+.bv-mw-empty { padding: 40px 16px 24px; text-align: center; }
+.bv-mw-empty-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(236, 228, 255, 0.14), rgba(120, 98, 220, 0.1) 60%, rgba(120, 98, 220, 0.04));
+  color: #e6dcff;
+}
+.bv-mw-empty-icon svg { width: 26px; height: 26px; filter: drop-shadow(0 0 8px rgba(214, 200, 255, 0.55)); }
+.bv-mw-empty-title { margin: 0 0 6px; color: var(--text); font-size: 18px; font-weight: 400; }
+.bv-mw-empty-hint { margin: 0 auto; max-width: 300px; color: var(--text-dim); font-size: 14.5px; line-height: 1.45; }
+
+/* ---- Motion, only for people who allow it ---- */
+
+@keyframes bv-mw-twinkle { from { opacity: 0.95; } to { opacity: 0.15; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .bv-mw-twk { animation: bv-mw-twinkle 4s ease-in-out infinite alternate; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bv-mw-star, .bv-mw-item, .bv-mw-chip { transition: none; }
+}

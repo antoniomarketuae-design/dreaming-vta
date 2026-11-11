@@ -1,24 +1,34 @@
-// New layout: Calendar tab. A Monday-first month: days with dreams glow (with a count when there are several), days
-// with a day-journal note get a warm mark, today has a moon-gold ring. Under it, the month's totals.
-// Tapping a day opens its sheet: that day's dreams and its day journal ("what happened this day"), which the dream
-// page shows next to the dreams of the following morning. openDaySheet() is shared with Home's "Your day" card.
+// New layout: Calendar tab. Two looks, switched at the top (remembered in settings.calendarStyle):
+//   Circle (default): the dream wheel (wheel.js), the month as a zodiac-like circle. Tap a day to put its dream in the
+//     middle; under the circle, that day's card ("what happened this day") opens the day sheet.
+//   Grid: a Monday-first month. Days with dreams glow (with a count when there are several), days with a day-journal
+//     note get a warm mark, today has a moon-gold ring. Tapping a day opens its sheet.
+// Under both, the month's totals. Swipe the month sideways to turn the page.
+// The day sheet holds that day's dreams and its day journal, which the dream page shows next to the dreams of the
+// following morning. openDaySheet() is shared with Home's "Your day" card.
 // Saving a note fires 'dreaming:daynote' on window (store.js does not notify for settings), so screens can repaint.
-import { listDreams, listDayNotes, getDayNote, setDayNote, localDay, onChange } from '../../store.js';
+import { listDreams, listDayNotes, getDayNote, setDayNote, localDay, onChange, getSetting, setSetting } from '../../store.js';
 import { symbolsOf, dreamDay } from '../../symbols.js';
 import { esc, icons, formatDate, relativeDay } from '../../ui.js';
 import { dreamArtURL } from '../../dreamart.js';
 import { hasVideo } from '../../videos.js';
+import { wheelHTML, defaultDay, dreamsByDay } from './wheel.js';
 
 /** A small sun: the day journal's mark (the moon belongs to dreams). Home uses it too. */
 export const SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>';
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const SWIPE = 56; // px of sideways swipe on the month that turns the page
+const SNIPPET = 140; // characters of a day note shown on the day card
+const STYLE_KEY = 'calendarStyle'; // 'wheel' | 'grid'
 
 // Month on screen, kept between visits (null: this month).
 let view = null; // { y, m (0-11) }
+let pick = null; // the circle's chosen day in that month: { selected: day number, index: which of its dreams }
 let cleanup = null;
 let sheet = null; // the open day sheet: { day, close }
+
+const getStyle = () => (getSetting(STYLE_KEY, 'wheel') === 'grid' ? 'grid' : 'wheel');
 
 const pad = (n) => String(n).padStart(2, '0');
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -262,10 +272,88 @@ function cellHTML(iso, n, noted, today) {
     </button>`;
 }
 
+const styleHTML = (style) => `
+    <div class="bc-style" role="group" aria-label="Calendar look">
+      <button type="button" data-style="wheel" aria-pressed="${style === 'wheel'}">${icons.zodiac}<span>Circle</span></button>
+      <button type="button" data-style="grid" aria-pressed="${style === 'grid'}">${icons.calendar}<span>Grid</span></button>
+    </div>`;
+
+/** First ~140 characters of a note, cut at a word. */
+function snippet(text) {
+  const flat = String(text || '').replace(/\s+/g, ' ').trim();
+  if (flat.length <= SNIPPET) return flat;
+  const cut = flat.slice(0, SNIPPET);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > SNIPPET * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,.;:–-]+$/, '')}…`;
+}
+
+/** The circle's chosen day, under it: the day's name and its day-journal note (tap to open the day sheet). */
+function dayCardHTML(iso, dreams) {
+  const today = localDay();
+  const note = getDayNote(iso);
+  const rel = relativeDay(iso);
+  const sub = [rel && rel !== formatDate(iso) ? rel : '', dreams ? plural(dreams, 'dream') : 'No dreams'].filter(Boolean).join(' · ');
+  const isToday = iso === today;
+  return `
+    <section class="glass bc-daycard" aria-labelledby="bc-daycard-title">
+      <div class="bc-daycard-head">
+        <span class="bc-daycard-icon" aria-hidden="true">${SUN}</span>
+        <div class="bc-daycard-titles">
+          <h2 class="bc-daycard-title" id="bc-daycard-title">${esc(longDay(iso))}</h2>
+          <p class="bc-daycard-sub">${esc(sub)}</p>
+        </div>
+      </div>
+      ${note
+        ? `<button type="button" class="bc-daycard-note" data-day="${iso}" aria-label="${esc(`Open this day’s note: ${snippet(note)}`)}">${esc(snippet(note))}</button>`
+        : `<p class="bc-daycard-prompt">${isToday ? 'What happened today?' : 'What happened this day?'} A few lines about events, people and feelings help you see what your dreams pick up.</p>`}
+      <button type="button" class="btn btn-ghost bc-daycard-btn" data-day="${iso}">${icons.edit}<span>${note ? 'Open this day' : `Write about ${isToday ? 'today' : 'this day'}`}</span></button>
+    </section>`;
+}
+
+function wheelBodyHTML() {
+  const { y, m } = view;
+  const month = `${y}-${pad(m + 1)}`;
+  const { notes } = monthData(y, m);
+  const days = new Set([...notes].map((iso) => Number(iso.slice(8, 10))));
+  const iso = `${month}-${pad(pick.selected)}`;
+  const count = (dreamsByDay(month).get(pick.selected) || []).length;
+  return `
+    ${isCurrent(view) ? '' : '<div class="bc-now-row"><button type="button" class="bc-back-now" data-cal="now">Back to this month</button></div>'}
+    ${wheelHTML({ month, selected: pick.selected, index: pick.index }, { notes: days })}
+    ${dayCardHTML(iso, count)}`;
+}
+
+function totalsHTML() {
+  const { y, m } = view;
+  const { byDay, notes, dreams } = monthData(y, m);
+  const current = isCurrent(view);
+  const month = monthOnly(y, m);
+  const hint = dreams || notes.size
+    ? 'Tap a day to see its dreams and write about what happened.'
+    : `Nothing in ${month} yet. Tap a day to write about it.`;
+  return `
+    <h2 class="section-title">${current ? 'This month' : esc(monthName(y, m))}</h2>
+    <dl class="bc-totals">
+      <div class="glass bc-total"><dt>Dreams recorded</dt><dd>${dreams}</dd></div>
+      <div class="glass bc-total"><dt>Days with dreams</dt><dd>${byDay.size}</dd></div>
+      <div class="glass bc-total bc-total-notes"><dt>Day notes</dt><dd>${notes.size}</dd></div>
+    </dl>
+    <p class="bc-hint">${esc(hint)}</p>`;
+}
+
 function screenHTML(anim) {
+  const style = getStyle();
+  return `
+    <h1 class="screen-title bc-title">Calendar</h1>
+    ${styleHTML(style)}
+    ${style === 'wheel' ? wheelBodyHTML() : gridHTML(anim)}
+    ${totalsHTML()}`;
+}
+
+function gridHTML(anim) {
   const { y, m } = view;
   const today = localDay();
-  const { prefix, byDay, notes, dreams } = monthData(y, m);
+  const { prefix, byDay, notes } = monthData(y, m);
   const lead = (new Date(y, m, 1).getDay() + 6) % 7; // Monday first
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const current = isCurrent(view);
@@ -278,13 +366,8 @@ function screenHTML(anim) {
   }
 
   const week = weekdayInitials();
-  const month = monthOnly(y, m);
-  const hint = dreams || notes.size
-    ? 'Tap a day to see its dreams and write about what happened.'
-    : `Nothing in ${month} yet. Tap a day to write about it.`;
 
   return `
-    <h1 class="screen-title bc-title">Calendar</h1>
     <div class="glass bc-cal">
       <div class="bc-head">
         <button type="button" class="icon-btn bc-nav" data-cal="prev" aria-label="Previous month">${icons.back}</button>
@@ -301,15 +384,7 @@ function screenHTML(anim) {
         <span><i class="bc-key bc-key-note"></i>Day note</span>
         <span><i class="bc-key bc-key-today"></i>Today</span>
       </div>
-    </div>
-
-    <h2 class="section-title">${current ? 'This month' : esc(monthName(y, m))}</h2>
-    <dl class="bc-totals">
-      <div class="glass bc-total"><dt>Dreams recorded</dt><dd>${dreams}</dd></div>
-      <div class="glass bc-total"><dt>Days with dreams</dt><dd>${byDay.size}</dd></div>
-      <div class="glass bc-total bc-total-notes"><dt>Day notes</dt><dd>${notes.size}</dd></div>
-    </dl>
-    <p class="bc-hint">${esc(hint)}</p>`;
+    </div>`;
 }
 
 export default {
@@ -320,6 +395,9 @@ export default {
   render(el, ctx) {
     cleanup?.();
     if (!view || isFuture(view)) view = thisMonth();
+    const monthKey = () => `${view.y}-${pad(view.m + 1)}`;
+    const freshPick = () => { pick = { selected: defaultDay(monthKey()), index: 0 }; };
+    freshPick();
 
     el.innerHTML = '<div class="bc"></div>';
     const root = el.firstElementChild;
@@ -343,14 +421,42 @@ export default {
       if (isFuture(next) || (next.y === view.y && next.m === view.m)) return;
       const later = next.y * 12 + next.m > view.y * 12 + view.m;
       view = next;
+      freshPick();
       paint(later ? 'next' : 'prev');
       if (focusSel) {
         const target = root.querySelector(focusSel);
-        (target && !target.disabled ? target : root.querySelector('[data-cal="prev"]'))?.focus({ preventScroll: true });
+        (target && !target.disabled ? target : root.querySelector('[data-cal="prev"], [data-wheel-prev]'))?.focus({ preventScroll: true });
       }
     };
 
     root.addEventListener('click', (e) => {
+      let b;
+      // Circle / Grid
+      if ((b = e.target.closest('[data-style]'))) {
+        if (b.dataset.style !== getStyle()) {
+          setSetting(STYLE_KEY, b.dataset.style);
+          paint();
+          root.querySelector(`[data-style="${b.dataset.style}"]`)?.focus({ preventScroll: true });
+        }
+        return;
+      }
+      // The circle: choose a day, the next dream of that day, or turn the month.
+      if ((b = e.target.closest('[data-wheel-day]'))) {
+        pick = { selected: Number(b.dataset.wheelDay), index: 0 };
+        paint();
+        root.querySelector(`[data-wheel-day="${pick.selected}"]`)?.focus({ preventScroll: true });
+        return;
+      }
+      if (e.target.closest('[data-wheel-more]')) {
+        const count = (dreamsByDay(monthKey()).get(pick.selected) || []).length;
+        pick = { ...pick, index: count ? (pick.index + 1) % count : 0 };
+        paint();
+        root.querySelector('[data-wheel-more]')?.focus({ preventScroll: true });
+        return;
+      }
+      if (e.target.closest('[data-wheel-prev]')) { go(-1, '[data-wheel-prev]'); return; }
+      if ((b = e.target.closest('[data-wheel-next]'))) { if (!b.disabled) go(1, '[data-wheel-next]'); return; }
+
       const nav = e.target.closest('[data-cal]');
       if (nav) {
         if (nav.disabled) return;
@@ -367,7 +473,7 @@ export default {
     let start = null;
     root.addEventListener('touchstart', (e) => {
       const t = e.touches[0];
-      start = e.touches.length === 1 && e.target.closest('.bc-cal') ? { x: t.clientX, y: t.clientY } : null;
+      start = e.touches.length === 1 && e.target.closest('.bc-cal, .bw') ? { x: t.clientX, y: t.clientY } : null;
     }, { passive: true });
     root.addEventListener('touchend', (e) => {
       if (!start) return;
