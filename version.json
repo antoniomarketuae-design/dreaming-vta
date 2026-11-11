@@ -1,7 +1,12 @@
 {
-  "version": 20,
+  "version": 21,
   "updated": "2026-11-11",
   "notes": [
+    {
+      "version": 21,
+      "date": "2026-11-11",
+      "text": "New layout: the tab bar is now Home, Journal, Insights, Calendar, Profile (Profile moved to the far right)."
+    },
     {
       "version": 20,
       "date": "2026-11-11",
