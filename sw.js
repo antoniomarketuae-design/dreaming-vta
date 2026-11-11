@@ -34,6 +34,7 @@ const SHELL = [
   'js/screens/b/insights.js',
   'js/screens/b/me.js',
   'js/screens/b/calendar.js',
+  'js/screens/b/wheel.js',
   'css/b-home.css',
   'css/b-insights.css',
   'css/b-me.css',
