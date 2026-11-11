@@ -9,3 +9,6 @@ Interpretation/
 
 # Competitor screen recordings and extracted frames: reference only, never public
 video/
+
+# Handoff notes between sessions/accounts: local only (names servers and paths; the repo is public)
+HANDOFF*.md

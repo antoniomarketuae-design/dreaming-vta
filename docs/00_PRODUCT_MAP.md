@@ -38,6 +38,10 @@ updates itself the next time it is opened.
 | In-app Builder chat (Claude API) | 💭 later | — | User chose "start simple, add builder later". Needs a small backend + Anthropic API key (pay per use). |
 | Native wrapper (App Store / TestFlight) | 💭 maybe | — | Capacitor can wrap the same code later if ever needed. |
 
+## Handoff
+
+A new session or account starts with **`HANDOFF.md`** in the project folder (local only, gitignored): current state, how to deploy, decisions pending, next steps.
+
 ## How to run
 
 - Local preview: `node tools/serve.js` → http://localhost:8787
