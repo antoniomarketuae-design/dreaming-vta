@@ -331,3 +331,235 @@ body.bc-sheet-open { overflow: hidden; }
   .bc-total { padding: 10px; }
   .bc-total dd { font-size: 22px; }
 }
+
+/* ---- Dream wheel: the month as a zodiac-like circle (js/screens/b/wheel.js) ---- */
+.bw { --size: min(calc(100vw - 32px), 380px); }
+.bw-head { display: flex; align-items: center; gap: 8px; }
+.bw-head-text { flex: 1; min-width: 0; text-align: center; }
+.bw-h2 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 300;
+  color: var(--text);
+  text-shadow: 0 2px 14px rgba(8, 4, 30, 0.6);
+}
+.bw-sub { margin: 2px 0 0; font-size: 13px; color: var(--text-dim); }
+.bw-nav { flex: none; }
+.bw-nav-next svg { transform: scaleX(-1); }
+.bw-nav:disabled { opacity: 0.3; }
+
+.bw-wheel { position: relative; width: var(--size); height: var(--size); margin: 14px auto 4px; }
+.bw-rings { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bw-ring-outer { fill: rgba(22, 15, 56, 0.42); stroke: rgba(255, 217, 138, 0.38); stroke-width: 0.6; }
+.bw-ring-mid { fill: none; stroke: rgba(255, 255, 255, 0.12); stroke-width: 0.5; }
+.bw-ring-inner { fill: none; stroke: rgba(255, 217, 138, 0.22); stroke-width: 0.5; stroke-dasharray: 1.4 2.4; }
+.bw-core { stroke: rgba(255, 217, 138, 0.32); stroke-width: 0.6; }
+.bw-ticks line { stroke: rgba(255, 255, 255, 0.1); stroke-width: 0.5; }
+.bw-stars circle { fill: #f0eaff; opacity: 0.6; }
+
+/* Each day and its label sit on a circle: rotate to the day's angle, move out, turn upright again. */
+.bw-day, .bw-label { position: absolute; left: 50%; top: 50%; }
+.bw-day {
+  --r: calc(var(--size) * 0.36);
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  transform: translate(-50%, -50%) rotate(var(--a)) translateY(calc(var(--r) * -1)) rotate(calc(var(--a) * -1));
+}
+.bw-dot {
+  display: block;
+  width: 7px;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.24);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.bw-day.is-dream .bw-dot {
+  width: 22px;
+  height: 22px;
+  background: var(--violet);
+  box-shadow: 0 0 0 1.5px rgba(255, 217, 138, 0.75), 0 0 12px rgba(155, 123, 255, 0.65);
+}
+.bw-day.is-dream.is-night .bw-dot { box-shadow: 0 0 0 1.5px rgba(255, 159, 143, 0.85), 0 0 12px rgba(255, 159, 143, 0.45); }
+.bw-dot-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.bw-day.is-today:not(.is-dream) .bw-dot { width: 11px; height: 11px; background: var(--moon); box-shadow: 0 0 10px rgba(255, 217, 138, 0.7); }
+.bw-day.is-today.is-dream .bw-dot { box-shadow: 0 0 0 2px var(--moon), 0 0 14px rgba(255, 217, 138, 0.7); }
+.bw-day.is-sel .bw-dot { transform: scale(1.3); box-shadow: 0 0 0 2px #fff, 0 0 18px rgba(255, 217, 138, 0.85); }
+.bw-day.is-sel:not(.is-dream) .bw-dot { background: #fff; }
+.bw-day:disabled { opacity: 0.32; }
+.bw-day:not(:disabled):active .bw-dot { transform: scale(0.9); }
+.bw-count {
+  position: absolute;
+  top: -5px;
+  right: -6px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 8px;
+  background: var(--moon);
+  color: #1b1440;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 15px;
+  text-align: center;
+  pointer-events: none;
+}
+.bw-label {
+  --r: calc(var(--size) * 0.453);
+  transform: translate(-50%, -50%) rotate(var(--a)) translateY(calc(var(--r) * -1)) rotate(calc(var(--a) * -1));
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: var(--text-faint);
+  pointer-events: none;
+}
+.bw-label.is-dream { color: var(--moon); }
+.bw-label.is-today { color: #fff; font-weight: 800; }
+
+/* The middle ("moon"): the chosen day's dream. */
+.bw-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: calc(var(--size) * 0.44);
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+.bw-open { display: flex; flex-direction: column; align-items: center; gap: 3px; color: inherit; text-decoration: none; }
+.bw-center-pic { position: relative; display: block; width: 46px; height: 46px; margin-bottom: 2px; }
+.bw-center-img {
+  display: block;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 1.5px rgba(255, 217, 138, 0.7), 0 0 16px rgba(155, 123, 255, 0.55);
+}
+.bw-center-pic .video-mark { right: -6px; bottom: -4px; width: 20px; height: 20px; }
+.bw-center-pic .video-mark svg { width: 10px; height: 10px; }
+.bw-pic-fallback { background: radial-gradient(circle at 35% 30%, #c9b6ff, #3a2a78); }
+.bw-when { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); }
+.bw-type-nightmare { color: var(--ember); }
+.bw-type-lucid, .bw-type-prophetic { color: var(--moon); }
+.bw-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text);
+}
+.bw-syms { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.bw-sym { padding: 1px 7px; border-radius: 999px; background: rgba(255, 217, 138, 0.12); color: var(--moon); font-size: 10px; font-weight: 600; }
+.bw-next, .bw-record {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.bw-next svg, .bw-record svg { width: 12px; height: 12px; }
+.bw-record { color: var(--moon); border-color: rgba(255, 217, 138, 0.4); }
+.bw-none { margin: 0; font-size: 13px; color: var(--text-dim); }
+.bw-center-empty .bw-when { margin: 0; }
+/* A day with a day-journal note: a small ember mark on the dot's shoulder. */
+.bw-note {
+  position: absolute;
+  bottom: -2px;
+  left: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ember);
+  box-shadow: 0 0 0 1.5px #1b1440, 0 0 6px rgba(255, 159, 143, 0.7);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bw-dot { transition: none; }
+}
+
+
+/* ---- Circle / Grid switch ---- */
+
+.bc-style {
+  display: flex;
+  align-self: center;
+  gap: 2px;
+  margin: 0 0 6px;
+  padding: 3px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: rgba(22, 15, 56, 0.5);
+}
+.bc-style button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.bc-style button svg { width: 16px; height: 16px; }
+.bc-style button[aria-pressed="true"] { background: rgba(240, 234, 255, 0.9); color: #24184f; }
+.bc-now-row { display: flex; justify-content: center; margin-top: -2px; }
+
+/* The circle on the Calendar tab: room to swipe the month sideways. */
+.bc .bw { margin-top: 4px; touch-action: pan-y; }
+
+/* ---- The chosen day, under the circle ---- */
+
+.bc-daycard { margin-top: 10px; padding: 14px 14px 12px; }
+.bc-daycard-head { display: flex; align-items: center; gap: 10px; }
+.bc-daycard-icon { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 12px; background: rgba(255, 159, 143, 0.12); color: var(--ember); }
+.bc-daycard-icon svg { width: 20px; height: 20px; }
+.bc-daycard-titles { flex: 1; min-width: 0; }
+.bc-daycard-title { margin: 0; font-size: 16px; font-weight: 600; color: var(--text); }
+.bc-daycard-sub { margin: 1px 0 0; font-size: 13px; color: var(--text-dim); }
+.bc-daycard-note {
+  display: block;
+  width: 100%;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 159, 143, 0.22);
+  border-radius: 14px;
+  background: rgba(255, 159, 143, 0.06);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+.bc-daycard-prompt { margin: 10px 0 0; font-size: 14px; line-height: 1.45; color: var(--text-dim); }
+.bc-daycard-btn { margin-top: 10px; width: 100%; }

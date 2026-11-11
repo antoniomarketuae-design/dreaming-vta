@@ -171,7 +171,14 @@
 .bi-dream-day { flex: none; color: var(--text-faint); font-size: 13px; }
 .bi-dream svg { flex: none; width: 16px; height: 16px; color: var(--text-faint); }
 
-/* ---- 2. Dream types ---- */
+/* ---- 2. Your dream sky (the sky itself, its chips and its card: bv-sky.css) ---- */
+
+.bi-sec[hidden] { display: none; }
+.bi-sky-lead { margin: -4px 2px 12px; color: var(--text-dim); font-size: 14px; line-height: 1.4; }
+/* A little wider than the card's padding: more room for the sky and for the card under a chosen star */
+.bi-sky-host { min-width: 0; margin: 0 -8px; }
+
+/* ---- 3. Dream types ---- */
 
 .bi-types { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
 .bi-type {
@@ -219,7 +226,7 @@
 }
 .bi-types-total b { color: var(--text); font-size: 15px; font-weight: 600; }
 
-/* ---- 3. Symbols map ---- */
+/* ---- 4. Symbols map ---- */
 
 .bi-map {
   position: relative;
@@ -255,7 +262,7 @@
 .bi-map-go svg { width: 20px; height: 20px; }
 .bi-map-plus { border-color: rgba(255, 217, 138, 0.22); }
 
-/* ---- 4. Reflect ---- */
+/* ---- 5. Reflect ---- */
 
 .bi-qs { margin: 0; padding: 0; list-style: none; }
 .bi-q { display: flex; gap: 12px; padding: 14px 0 12px; border-top: 1px solid var(--glass-border); }
@@ -299,7 +306,7 @@
 .bi-dots i { width: 10px; height: 10px; border-radius: 50%; background: rgba(255, 255, 255, 0.12); }
 .bi-dots i.bi-on { background: var(--moon); box-shadow: 0 0 8px rgba(255, 217, 138, 0.6); }
 
-/* ---- 5. Survey card ---- */
+/* ---- 6. Survey card ---- */
 
 .bi-survey { padding: 16px; }
 .bi-survey-top { display: flex; align-items: flex-start; gap: 14px; }

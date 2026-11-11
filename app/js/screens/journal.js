@@ -1,7 +1,8 @@
 // Journal: every dream, with search, a filter sheet, quick chips and a List / Calendar switch.
 // Dreams are read through withDefaults(). They live only on this iPhone, and the screen says so honestly.
-// The new layout (js/layout.js) adds two things, and only there: a Gallery view of the dreams' AI pictures,
-// and each row's small chips show the dream's main symbols instead of its tags. The current layout is unchanged.
+// The new layout (js/layout.js) adds two things, and only there: more views in the switcher (Gallery of the dreams'
+// AI pictures, then Moons, Stories and Milky Way from js/screens/b/views), and each row's small chips show the dream's
+// main symbols instead of its tags. The current layout is unchanged.
 import { listDreams, withDefaults, localDay, SYMBOL_CATEGORIES, getSetting, setSetting } from '../store.js';
 import { TAGS } from '../analyze.js';
 import { nextTechnique } from '../progress.js';
@@ -11,7 +12,7 @@ import { hasVideo } from '../videos.js';
 import { hasImage } from '../images.js';
 import { symbolsOf } from '../symbols.js';
 import { isNewLayout } from '../layout.js';
-import { EXTRA_VIEWS, VIEW_NOTES } from './b/views/index.js';
+import { EXTRA_VIEWS } from './b/views/index.js';
 
 const VIEW_KEY = 'dreaming.journal.view';
 const NOTE_KEY = 'journalNoteHiddenAt'; // dream count when the "only on this iPhone" note was tucked away
@@ -502,12 +503,12 @@ export default {
           <div class="jr-chips" role="group" aria-label="Quick filters"></div>
         </div>
         <div class="jr-active" hidden></div>
-        ${newLayout ? '<div class="jr-lab" data-lab></div>' : ''}
         <div class="jr-body"></div>
-        <div class="jr-seg${newLayout ? ' jr-seg-3' : ''}" role="group" aria-label="View">
-          <button type="button" data-view="list" aria-pressed="${view === 'list'}">${icons.list}<span>List</span></button>
-          <button type="button" data-view="calendar" aria-pressed="${view === 'calendar'}">${icons.calendar}<span>Calendar</span></button>
-          ${newLayout ? `<button type="button" data-view="gallery" aria-pressed="${view === 'gallery'}">${icons.image}<span>Gallery</span></button>` : ''}
+        <div class="jr-seg${newLayout ? ' jr-seg-6' : ''}" role="group" aria-label="View">
+          <button type="button" data-view="list" aria-label="List" aria-pressed="${view === 'list'}">${icons.list}<span>List</span></button>
+          <button type="button" data-view="calendar" aria-label="Calendar" aria-pressed="${view === 'calendar'}">${icons.calendar}<span>Calendar</span></button>
+          ${newLayout ? `<button type="button" data-view="gallery" aria-label="Gallery" aria-pressed="${view === 'gallery'}">${icons.image}<span>Gallery</span></button>
+          ${EXTRA_VIEWS.map((x) => `<button type="button" data-view="${x.id}" aria-label="${esc(x.label)}" aria-pressed="${view === x.id}">${x.icon}<span>${esc(x.label)}</span></button>`).join('')}` : ''}
         </div>
         <div class="jr-sheet" role="dialog" aria-modal="true" aria-labelledby="jr-sheet-title" hidden></div>
       </div>`;
@@ -540,55 +541,14 @@ export default {
         : '';
     };
 
-    // The six test views live behind "Test 6 new journal views" (not in the switcher); while one is open, a bar says so.
-    const paintLab = () => {
-      const lab = root.querySelector('[data-lab]');
-      if (!lab) return;
-      const xv = EXTRA_VIEWS.find((x) => x.id === view);
-      lab.innerHTML = xv
-        ? `<div class="jr-lab-bar"><span class="jr-lab-on">${xv.icon}<span>Testing: <b>${esc(xv.label)}</b> view</span></span>
-            <button type="button" data-open-lab>Change</button><button type="button" data-lab-back>Back to list</button></div>`
-        : `<button type="button" class="jr-lab-btn" data-open-lab>${icons.sparkle}<span>Test 6 new journal views</span>${icons.chevronRight}</button>`;
-    };
-
+    // The new layout's extra views (Moons, Stories, Milky Way) show only their icon until chosen, so all six fit.
     const setViewTo = (next) => {
+      const wasExtra = EXTRA_VIEWS.some((x) => x.id === view);
       view = next;
       setView(view);
       for (const v of root.querySelectorAll('[data-view]')) v.setAttribute('aria-pressed', String(v.dataset.view === view));
-      paintLab();
       paintBody();
-    };
-
-    let labSheet = null;
-    const closeLab = () => { labSheet?.remove(); labSheet = null; };
-    const openLab = () => {
-      closeLab();
-      labSheet = document.createElement('div');
-      labSheet.className = 'jr-labsheet';
-      labSheet.innerHTML = `
-        <div class="jr-labsheet-scrim" data-lab-close></div>
-        <div class="jr-labsheet-card glass" role="dialog" aria-modal="true" aria-labelledby="jr-lab-title">
-          <div class="jr-labsheet-head">
-            <h2 id="jr-lab-title">New journal views</h2>
-            <button type="button" class="icon-btn" data-lab-close aria-label="Close">${icons.close}</button>
-          </div>
-          <p class="jr-labsheet-note">On test while we choose. Try each one; your dreams stay the same.</p>
-          <div class="jr-labsheet-list">
-            ${EXTRA_VIEWS.map((x) => `
-              <button type="button" class="jr-labsheet-item" data-lab-view="${x.id}" aria-pressed="${view === x.id}">
-                <span class="jr-labsheet-icon">${x.icon}</span>
-                <span class="jr-labsheet-text"><b>${esc(x.label)}</b><small>${esc(VIEW_NOTES[x.id] || '')}</small></span>
-                ${view === x.id ? `<span class="jr-labsheet-on">${icons.check}</span>` : icons.chevronRight}
-              </button>`).join('')}
-          </div>
-        </div>`;
-      labSheet.addEventListener('click', (ev) => {
-        const pick = ev.target.closest('[data-lab-view]');
-        if (pick) { closeLab(); setViewTo(pick.dataset.labView); window.scrollTo(0, 0); return; }
-        if (ev.target.closest('[data-lab-close]')) closeLab();
-      });
-      document.body.append(labSheet);
-      labSheet.querySelector('[data-lab-view]')?.focus();
+      if (wasExtra || EXTRA_VIEWS.some((x) => x.id === view)) window.scrollTo(0, 0);
     };
 
     const paintBody = () => {
@@ -694,17 +654,12 @@ export default {
     root.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter' && ev.target === input) input.blur();
       if (ev.key === 'Escape' && !sheet.hidden) closeSheet();
-      if (ev.key === 'Escape' && labSheet) closeLab();
     });
 
     root.addEventListener('click', (ev) => {
       const hit = (sel) => ev.target.closest(sel);
       let b;
-      if (hit('[data-open-lab]')) {
-        openLab();
-      } else if (hit('[data-lab-back]')) {
-        setViewTo('list');
-      } else if ((b = hit('[data-view]'))) {
+      if ((b = hit('[data-view]'))) {
         if (b.dataset.view === view) return;
         setViewTo(b.dataset.view);
       } else if ((b = hit('[data-quick]'))) {
@@ -785,9 +740,7 @@ export default {
       window.removeEventListener('scroll', onScroll);
       try { extra?.destroy?.(); } catch {}
       extra = null;
-      closeLab();
     };
-    paintLab();
     onScroll();
 
     refresh();

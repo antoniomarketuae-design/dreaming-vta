@@ -1,8 +1,7 @@
-/* Journal view (new layout): sky (js/screens/b/views/sky.js). Classes start with bv-sky- */
+/* New layout, Insights tab: "Your dream sky" (js/screens/b/sky.js). Classes start with bv-sky- */
 /* Every dream a star; dreams that share a symbol joined into constellations. Thin gold lines, as on the Home wheel. */
 
 .bv-sky { position: relative; }
-.bv-sky.has-card { padding-bottom: 120px; } /* room to scroll the last stars out from under the card */
 
 /* ---- Constellation chips and caption above the sky ---- */
 
@@ -152,17 +151,19 @@
 }
 .bv-sky-k-night { width: 7px; height: 7px; border-radius: 50%; background: #ffc4b8; box-shadow: 0 0 8px rgba(255, 159, 143, 0.9); }
 
-/* ---- The card above the view switcher: a star's dream, or a constellation ---- */
+/* ---- The card: a star's dream, or a constellation ----
+   Last in the sky and sticky: while the sky is in view it floats just above the tab bar, over the stars; scrolled
+   to the end it rests below the key (so no star stays hidden), and it leaves with the sky, never covering the
+   cards after it. */
 
 .bv-sky-card {
-  position: fixed;
-  left: 50%;
-  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 70px);
-  z-index: 9;
+  position: sticky;
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 12px);
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 12px;
-  width: min(calc(100vw - 24px), 600px);
+  margin-top: 12px;
   min-height: 80px;
   padding: 12px 38px 12px 12px;
   border: 1px solid rgba(255, 217, 138, 0.28);
@@ -171,7 +172,6 @@
   -webkit-backdrop-filter: var(--blur);
   backdrop-filter: var(--blur);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(155, 123, 255, 0.08);
-  transform: translateX(-50%);
 }
 .bv-sky-card[hidden] { display: none; }
 .bv-sky-card-pic { position: relative; flex: none; width: 56px; height: 56px; }
@@ -227,6 +227,8 @@
   line-height: 1.4;
 }
 .bv-sky-sym.is-c { background: rgba(255, 255, 255, 0.08); color: var(--c); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 40%, transparent); cursor: pointer; }
+.bv-sky-sym.is-read { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12); cursor: pointer; }
+.bv-sky-sym.is-c:active, .bv-sky-sym.is-read:active { opacity: 0.7; }
 .bv-sky-open {
   flex: none;
   min-height: 38px;
@@ -266,6 +268,24 @@
   font-size: 12.5px;
   line-height: 1.35;
 }
+.bv-sky-card-meaning.is-link { cursor: pointer; }
+/* "Read more" / "About this symbol": opens the symbol's full meaning (Insights' symbol sheet). */
+.bv-sky-read {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 34px;
+  margin: 0 0 -6px;
+  padding: 0 6px 0 0;
+  border: 0;
+  background: none;
+  color: var(--moon);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bv-sky-read svg { flex: none; width: 14px; height: 14px; }
+.bv-sky-read:active { opacity: 0.7; }
 .bv-sky-thumbs { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
 .bv-sky-thumb { flex: none; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; background: none; cursor: pointer; }
 .bv-sky-thumb-img {
@@ -289,7 +309,7 @@
 /* ---- Motion, only for people who allow it ---- */
 
 @keyframes bv-sky-twinkle { from { opacity: 1; } to { opacity: 0.3; } }
-@keyframes bv-sky-up { from { opacity: 0; transform: translate(-50%, 10px); } }
+@keyframes bv-sky-up { from { opacity: 0; transform: translateY(10px); } }
 
 @media (prefers-reduced-motion: no-preference) {
   .bv-sky-twk { animation: bv-sky-twinkle 5s ease-in-out infinite alternate; }

@@ -1,13 +1,20 @@
-// Journal view (new layout): the constellation sky. Every dream is a star; dreams that share a symbol are joined by
-// thin lines, so the themes that keep coming back form constellations (the six biggest are drawn and named).
-// Newer dreams shine brighter, analyzed ones are a little bigger, nightmares glow peach and lucid dreams sparkle gold.
-// Tap a star for its dream (a card above the view switcher), a constellation's name or chip to pick it out from the
-// rest, empty sky to clear. Deterministic: the same dreams always draw the same sky (positions seeded from dream ids).
+// New layout, Insights tab: "Your dream sky" (mounted by insights.js with all the dreams). Every dream is a star;
+// dreams that share a symbol are joined by thin lines, so the themes that keep coming back form constellations (the
+// six biggest are drawn and named). Newer dreams shine brighter, analyzed ones are a little bigger, nightmares glow
+// peach and lucid dreams sparkle gold. Tap a star for its dream, a constellation's name or chip to pick it out from
+// the rest, empty sky to clear. The chosen dream or constellation shows in a card that sticks to the bottom of the
+// screen while the sky is in view and stays with the sky when you scroll past it.
+// render(el, { dreams, filtering, navigate, onSymbol }):
+//   dreams    newest first;  filtering  true when a search narrows them (only changes the empty message)
+//   navigate  navigate('#dream/<id>');  onSymbol  optional onSymbol(key): when given, the constellation card offers
+//             "Read more" (or "About this symbol") and the dream card's other symbols become tappable, so the
+//             screen can show the symbol's full meaning. Without it the sky works on its own, as before.
+// Deterministic: the same dreams always draw the same sky (positions seeded from dream ids).
 // One SVG, drawn once per render; nothing runs per frame except an optional CSS twinkle.
-import { symbolsOf, dreamDay, dreamType, DREAM_TYPES } from '../../../symbols.js';
-import { dreamArtURL } from '../../../dreamart.js';
-import { hasVideo } from '../../../videos.js';
-import { esc, relativeDay, icons } from '../../../ui.js';
+import { symbolsOf, dreamDay, dreamType, DREAM_TYPES } from '../../symbols.js';
+import { dreamArtURL } from '../../dreamart.js';
+import { hasVideo } from '../../videos.js';
+import { esc, relativeDay, icons } from '../../ui.js';
 
 const MAX_GROUPS = 6;
 // One colour per constellation, all soft so they sit on the night sky (gold first, like the Home wheel).
@@ -398,35 +405,50 @@ function emptyHTML(filtering) {
     </div>`;
 }
 
-function dreamCardHTML(s, groups) {
+// A constellation's symbol picks out the constellation (whose card has "Read more"); with `canRead`, any other
+// symbol opens its meaning straight away.
+function dreamCardHTML(s, groups, canRead) {
   const d = s.d;
   const type = s.type;
   const typeLabel = type === 'general' ? '' : DREAM_TYPES.find((t) => t.id === type)?.label || '';
   const when = relativeDay(dreamDay(d));
   const groupOf = new Map(s.groups.map((j) => [groups[j].key, j]));
   const syms = (s.syms || []).slice(0, 4);
+  const symHTML = (x) => {
+    if (groupOf.has(x.key)) {
+      const j = groupOf.get(x.key);
+      return `<button type="button" class="bv-sky-sym is-c" data-sky-sym="${j}" style="--c:${groups[j].color}"
+        aria-label="${esc(`${x.name}: show the constellation`)}">${esc(x.name)}</button>`;
+    }
+    return canRead
+      ? `<button type="button" class="bv-sky-sym is-read" data-sky-about="${esc(x.key)}"
+        aria-label="${esc(`${x.name}: what it may mean`)}">${esc(x.name)}</button>`
+      : `<span class="bv-sky-sym">${esc(x.name)}</span>`;
+  };
   return `
     <span class="bv-sky-card-pic">${picture(d, 56, 'bv-sky-card-img')}${hasVideo(d) ? `<span class="video-mark" aria-hidden="true">${icons.play}</span>` : ''}</span>
     <div class="bv-sky-card-body">
       <p class="bv-sky-card-when">${esc(when)}${typeLabel ? `${when ? ' · ' : ''}<span class="bv-sky-t-${type}">${esc(typeLabel)}</span>` : ''}${s.done ? `${when || typeLabel ? ' · ' : ''}Analyzed` : ''}</p>
       <p class="bv-sky-card-title">${esc(titleOf(d))}</p>
-      ${syms.length ? `<p class="bv-sky-card-syms">${syms.map((x) => (groupOf.has(x.key)
-        ? `<button type="button" class="bv-sky-sym is-c" data-sky-sym="${groupOf.get(x.key)}" style="--c:${groups[groupOf.get(x.key)].color}">${esc(x.name)}</button>`
-        : `<span class="bv-sky-sym">${esc(x.name)}</span>`)).join('')}</p>` : ''}
+      ${syms.length ? `<p class="bv-sky-card-syms">${syms.map(symHTML).join('')}</p>` : ''}
     </div>
     <button type="button" class="bv-sky-open" data-sky-open="${esc(d.id)}">Open</button>
     <button type="button" class="bv-sky-x" data-sky-close aria-label="Close">${icons.close}</button>`;
 }
 
-function groupCardHTML(g, stars) {
+// The meaning is cut to two lines here; with `canRead`, tapping it or "Read more" opens all of it.
+function groupCardHTML(g, stars, canRead) {
   const members = g.idx.map((i) => stars[i]);
   const shown = members.slice(0, 6);
   const more = members.length - shown.length;
+  const about = canRead ? ` data-sky-about="${esc(g.key)}"` : '';
   return `
     <div class="bv-sky-card-body">
       <p class="bv-sky-card-when"><span class="bv-sky-chip-dot" style="--c:${g.color}" aria-hidden="true"></span>Constellation</p>
       <p class="bv-sky-card-title">${esc(g.name)} · ${plural(g.idx.length, 'dream')}</p>
-      ${g.meaning ? `<p class="bv-sky-card-meaning">${esc(g.meaning)}</p>` : ''}
+      ${g.meaning ? `<p class="bv-sky-card-meaning${canRead ? ' is-link' : ''}"${about}>${esc(g.meaning)}</p>` : ''}
+      ${canRead ? `<button type="button" class="bv-sky-read"${about}
+        aria-label="${esc(`${g.meaning ? 'Read more about' : 'About'} ${g.name}`)}">${g.meaning ? 'Read more' : 'About this symbol'}${icons.chevronRight}</button>` : ''}
       <div class="bv-sky-thumbs">
         ${shown.map((s) => `<button type="button" class="bv-sky-thumb" data-sky-star="${esc(s.d.id)}" aria-label="${esc(titleOf(s.d))}">${picture(s.d, 34, 'bv-sky-thumb-img')}</button>`).join('')}
         ${more > 0 ? `<span class="bv-sky-more">+${more}</span>` : ''}
@@ -475,8 +497,9 @@ function closeCard() {
   state.sel.classList.remove('is-on');
 }
 
-// Scroll a little when the chosen star sits under the card. A star chosen from the card's pictures may be anywhere,
-// so that one is brought to the middle of the open sky when it is out of sight.
+// Scroll a little when the chosen star sits under the card (while the sky is in view, the card sticks just above the
+// tab bar; at the end of the sky it rests below the key, under every star). A star chosen from the card's pictures
+// may be anywhere, so that one is brought to the middle of the open sky when it is out of sight.
 function keepVisible(id, fromCard) {
   if (state.raf) cancelAnimationFrame(state.raf);
   state.raf = requestAnimationFrame(() => {
@@ -501,7 +524,7 @@ function selectStar(id, fromCard = false) {
   state.sel.setAttribute('cy', f1(s.y));
   state.sel.setAttribute('r', f1(Math.max(9, s.r * 2.6)));
   state.sel.classList.add('is-on');
-  showCard(dreamCardHTML(s, state.sky.groups), 'dream');
+  showCard(dreamCardHTML(s, state.sky.groups, Boolean(state.onSymbol)), 'dream');
   keepVisible(id, fromCard);
 }
 
@@ -519,7 +542,7 @@ function setGroup(j) {
     setCaption(`${g.name} · ${plural(g.idx.length, 'dream')}`, true);
     state.sel.classList.remove('is-on');
     state.selId = null;
-    showCard(groupCardHTML(g, sky.stars), 'group');
+    showCard(groupCardHTML(g, sky.stars, Boolean(state.onSymbol)), 'group');
     const chip = state.chipEls[j];
     const row = chip?.parentElement;
     if (row && row.scrollWidth > row.clientWidth) { // sideways only: never move the page
@@ -537,6 +560,10 @@ function clearAll() {
 
 function act(target) {
   let b;
+  if ((b = target.closest('[data-sky-about]'))) { // the card stays as it is, for when the meaning is closed
+    try { state.onSymbol?.(b.dataset.skyAbout); } catch (err) { console.error(err); }
+    return true;
+  }
   if ((b = target.closest('[data-sky-open]'))) {
     const id = b.dataset.skyOpen;
     state.navigate?.(`#dream/${encodeURIComponent(id)}`);
@@ -553,7 +580,7 @@ function act(target) {
   return false;
 }
 
-function render(el, { dreams = [], filtering = false, navigate } = {}) {
+function render(el, { dreams = [], filtering = false, navigate, onSymbol } = {}) {
   teardown();
   const list = (Array.isArray(dreams) ? dreams : []).filter((d) => d && d.id != null);
   if (!list.length) {
@@ -580,6 +607,7 @@ function render(el, { dreams = [], filtering = false, navigate } = {}) {
     root,
     sky,
     navigate,
+    onSymbol: typeof onSymbol === 'function' ? onSymbol : null,
     cap: root.querySelector('.bv-sky-cap'),
     card: root.querySelector('.bv-sky-card'),
     sel: svg.querySelector('.bv-sky-sel'),
@@ -604,9 +632,10 @@ function render(el, { dreams = [], filtering = false, navigate } = {}) {
     if (act(ev.target)) return;
     if (ev.target.closest('.bv-sky-svg')) clearAll(); // empty sky
   });
-  // The SVG stars and names act as buttons for the keyboard too; Escape clears.
+  // The SVG stars and names act as buttons for the keyboard too; Escape clears (unless a sheet on top takes it).
   on(document, 'keydown', (ev) => {
     if (ev.key === 'Escape') {
+      if (document.querySelector('[aria-modal="true"]')) return;
       if (state.hl != null || !state.card.hidden) clearAll();
       return;
     }

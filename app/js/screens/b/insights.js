@@ -1,12 +1,16 @@
 // New layout: Insights tab. What keeps coming back in the dreams and what it may mean:
 //   1. recurring symbols over the past 30 / 15 / 10 days (tap one for its meaning, in a bottom sheet),
-//   2. the dream types recorded (general / lucid / nightmare / prophetic, all time),
-//   3. the Symbols map analysis (#module/symbols-map, a Dreaming Plus feature),
-//   4. up to 5 questions to reflect on, from the last 10 dreams,
-//   5. a short survey that personalises Dreaming (answers saved at once in profile.survey).
+//   2. your dream sky, all time (sky.js): every dream a star, dreams that share a symbol joined into constellations;
+//      a constellation's "Read more" opens the same symbol sheet, with the meaning in full,
+//   3. the dream types recorded (general / lucid / nightmare / prophetic, all time),
+//   4. the Symbols map analysis (#module/symbols-map, a Dreaming Plus feature),
+//   5. up to 5 questions to reflect on, from the last 10 dreams,
+//   6. a short survey that personalises Dreaming (answers saved at once in profile.survey).
 // Meanings come only from the user's own interpretations (symbols.js). Questions are the interpretations' own
 // "reflect" questions first, then gentle ones we word from patterns in the same dreams: open, never predictive or
 // diagnostic. The two sheets (symbol, survey) live on <body> and are removed when the screen goes away.
+// The sky keeps its own state (listeners, the chosen star), so it is not one of the re-painted SECTIONS: it has its
+// own host and is drawn again only when the dreams change (see paintSky).
 import { listDreams, getDream, localDay, getProfile, setProfile, getSetting, setSetting, onChange } from '../../store.js';
 import { recurringSymbols, symbolsOf, NO_MEANING, dreamDay, DREAM_TYPES, dreamType, typeCounts } from '../../symbols.js';
 import { MODULES } from '../../progress.js';
@@ -15,6 +19,7 @@ import { esc, icons, relativeDay } from '../../ui.js';
 import { MODULE_INFO, MOD_ICONS } from '../module.js';
 import { hasFeature, openPaywall, getAccount } from '../../account.js';
 import { plusPill } from '../../paywall.js';
+import sky from './sky.js';
 
 const DAY = 86400000;
 const PERIODS = [30, 15, 10];   // days, the first is the default
@@ -27,7 +32,7 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const dreamTitle = (d) => String(d?.title || '').trim() || 'Untitled dream';
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
 
-let state = null; // { root, cache, symbols, showAll, sheet, offs }
+let state = null; // { root, cache, symbols, showAll, sheet, offs, navigate, skySig }
 
 // ---- Period (remembered in settings) ----
 
@@ -123,7 +128,8 @@ function symbolsHTML() {
     </section>`;
 }
 
-function symbolSheetHTML(s, days) {
+/** `period` names where the count comes from: 'past 30 days', 'all time'. */
+function symbolSheetHTML(s, period) {
   const from = s.meaningFrom ? getDream(s.meaningFrom) : null;
   const as = str(s.title) && str(s.title).toLowerCase() !== s.name.toLowerCase() ? str(s.title) : '';
   const meaning = s.meaning
@@ -139,7 +145,7 @@ function symbolSheetHTML(s, days) {
       </section>`
     : `<section class="bi-meaning bi-meaning-none"><p class="bi-meaning-text">${esc(NO_MEANING)}</p></section>`;
   return `
-    <p class="bi-sheet-kicker">Symbol · past ${days} days</p>
+    <p class="bi-sheet-kicker">Symbol · ${esc(period)}</p>
     <h2 class="bi-sheet-title" id="bi-sheet-title" tabindex="-1">${esc(s.name)}</h2>
     <p class="bi-sheet-lead">In ${plural(s.count, 'dream')}</p>
     ${meaning}
@@ -149,10 +155,55 @@ function symbolSheetHTML(s, days) {
 
 function openSymbol(key) {
   const s = state?.symbols.find((x) => x.key === key);
-  if (s) openSheet('symbol', symbolSheetHTML(s, getDays()));
+  if (s) openSheet('symbol', symbolSheetHTML(s, `past ${getDays()} days`));
 }
 
-// ---- 2. Dream types ----
+// ---- 2. Your dream sky (all time) ----
+
+/** What the sky is drawn from: which dreams, in which order, and when each last changed. */
+const skySignature = (dreams) => dreams
+  .map((d) => `${d.id}:${d.updatedAt || d.createdAt || ''}:${d.interpretation?.status || ''}`).join('|');
+
+/** A constellation's "Read more" (or a symbol in a star's card): the symbol sheet, counted over all the dreams. */
+function openSkySymbol(key) {
+  const s = recurringSymbols({ days: 0 }).find((x) => x.key === key);
+  if (s) openSheet('symbol', symbolSheetHTML(s, 'all time'));
+}
+
+/** Draws the sky into its own host, and again only when the dreams change. No dreams: the card stays hidden. */
+function paintSky() {
+  const host = state.root.querySelector('[data-sky]');
+  if (!host) return;
+  const dreams = listDreams();
+  const sig = skySignature(dreams);
+  if (sig === state.skySig) return;
+  state.skySig = sig;
+  if (!dreams.length) {
+    sky.destroy();
+    host.hidden = true;
+    host.innerHTML = '';
+    return;
+  }
+  if (!host.querySelector('.bi-sky-host')) {
+    host.innerHTML = `
+      <section class="bi-card glass" aria-labelledby="bi-sky-title">
+        <div class="bi-card-head"><h2 class="bi-card-title" id="bi-sky-title">Your dream sky</h2><span class="bi-card-meta">All time</span></div>
+        <p class="bi-sky-lead">Each dream is a star. Dreams that share a symbol join into a constellation.</p>
+        <div class="bi-sky-host"></div>
+      </section>`;
+  }
+  host.hidden = false;
+  const el = host.querySelector('.bi-sky-host');
+  try {
+    sky.render(el, { dreams, filtering: false, navigate: state.navigate, onSymbol: openSkySymbol });
+  } catch (err) {
+    console.error(err);
+    sky.destroy();
+    el.innerHTML = '<p class="bi-hint">Your sky could not be drawn just now.</p>';
+  }
+}
+
+// ---- 3. Dream types ----
 
 const TYPE_LOOK = {
   general: { icon: icons.moon, hint: 'Everyday dreams' },
@@ -184,7 +235,7 @@ function typesHTML() {
     </section>`;
 }
 
-// ---- 3. Symbols map (Dreaming Plus) ----
+// ---- 4. Symbols map (Dreaming Plus) ----
 
 function mapHTML() {
   const info = MODULE_INFO['symbols-map'];
@@ -209,7 +260,7 @@ function mapHTML() {
     </a>`;
 }
 
-// ---- 4. Questions to reflect on ----
+// ---- 5. Questions to reflect on ----
 
 const qKey = (s) => String(s).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
@@ -338,7 +389,7 @@ function reflectHTML() {
     </section>`;
 }
 
-// ---- 5. Survey for personalisation (profile.survey) ----
+// ---- 6. Survey for personalisation (profile.survey) ----
 
 const SURVEY = [
   { id: 'recall', short: 'Remembering dreams', q: 'How often do you remember your dreams?',
@@ -584,10 +635,11 @@ function openSheet(kind, html) {
 
 // ---- Screen ----
 
+// In page order; the sky's own host goes right after the recurring symbols.
 const SECTIONS = { symbols: symbolsHTML, types: typesHTML, map: mapHTML, reflect: reflectHTML, survey: surveyHTML };
 
 // Re-draws only the sections whose HTML changed (a background image finishing touches no section here), and keeps
-// any "From … dreams" lists that were open.
+// any "From … dreams" lists that were open. The sky checks for itself whether the dreams changed.
 function paint() {
   if (!state) return;
   for (const [key, build] of Object.entries(SECTIONS)) {
@@ -601,6 +653,7 @@ function paint() {
     state.cache[key] = html;
     if (open.size) for (const d of host.querySelectorAll('details[data-key]')) if (open.has(d.dataset.key)) d.open = true;
   }
+  try { paintSky(); } catch (err) { console.error(err); }
 }
 
 function onRootClick(e) {
@@ -629,6 +682,7 @@ function teardown() {
   if (!state) return;
   for (const off of state.offs) { try { off(); } catch {} }
   state.sheet?.close(true);
+  if (state.skySig != null) { try { sky.destroy(); } catch {} } // its listeners, its pending scroll
   state = null;
 }
 
@@ -646,10 +700,12 @@ export default {
           <h1 class="screen-title">Insights</h1>
           <p class="bi-lead">What keeps coming back in your dreams, and what it may mean for you.</p>
         </header>
-        ${Object.keys(SECTIONS).map((k) => `<div class="bi-sec" data-sec="${k}"></div>`).join('')}
+        ${Object.keys(SECTIONS).map((k) => `<div class="bi-sec" data-sec="${k}"></div>${
+          k === 'symbols' ? '<div class="bi-sec" data-sky hidden></div>' : ''}`).join('')}
       </div>`;
     const root = el.querySelector('.bi');
-    state = { root, cache: {}, symbols: [], showAll: false, sheet: null, offs: [] };
+    const navigate = (hash) => { if (ctx?.navigate) ctx.navigate(hash); else location.hash = hash; };
+    state = { root, cache: {}, symbols: [], showAll: false, sheet: null, offs: [], navigate, skySig: null };
     paint();
     root.addEventListener('click', onRootClick);
 

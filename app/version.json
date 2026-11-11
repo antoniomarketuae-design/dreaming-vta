@@ -1,7 +1,12 @@
 {
-  "version": 17,
+  "version": 18,
   "updated": "2026-11-11",
   "notes": [
+    {
+      "version": 18,
+      "date": "2026-11-11",
+      "text": "New layout, as the team decided: Home is simple again (your 3 newest dreams in a list). The dream circle is now the Calendar tab, with a day card under it and a Grid option. Sky moved to Insights as 'Your dream sky', and symbol meanings now open in full with Read more. Journal views: List, Calendar, Gallery, Moons, Stories and the new Milky Way."
+    },
     {
       "version": 17,
       "date": "2026-11-11",

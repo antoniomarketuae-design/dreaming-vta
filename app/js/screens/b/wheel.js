@@ -1,7 +1,8 @@
-// New layout: the dream wheel on Home. The month as a circle, like a zodiac wheel: day 1 at the top and clockwise,
-// each day labelled 1st, 2nd, 3rd…; days with dreams light up with the dream's picture, today has a gold ring and
-// future days are dimmed. The middle shows the chosen day's dream (tap it to open the dream; "next" when the day has
-// more than one). This file only builds HTML; Home keeps the state and wires the taps.
+// New layout: the dream wheel, the Calendar tab's main view. The month as a circle, like a zodiac wheel: day 1 at the
+// top and clockwise, each day labelled 1st, 2nd, 3rd…; days with dreams light up with the dream's picture, days with a
+// day-journal note get a small ember mark, today has a gold ring and future days are dimmed. The middle shows the
+// chosen day's dream (tap it to open the dream; "next" when the day has more than one). This file only builds HTML;
+// the Calendar (calendar.js) keeps the state and wires the taps. Styles: .bw-* in css/b-calendar.css.
 import { listDreams, localDay } from '../../store.js';
 import { symbolsOf, dreamDay, dreamType, DREAM_TYPES } from '../../symbols.js';
 import { esc, icons } from '../../ui.js';
@@ -117,8 +118,11 @@ function centerHTML(month, n, list, index) {
     </div>`;
 }
 
-/** The wheel section for `month` ('YYYY-MM') with day `selected` chosen and its `index`-th dream in the middle. */
-export function wheelHTML({ month, selected, index = 0 }) {
+/**
+ * The wheel section for `month` ('YYYY-MM') with day `selected` chosen and its `index`-th dream in the middle.
+ * `notes`: day numbers that have a day-journal note.
+ */
+export function wheelHTML({ month, selected, index = 0 }, { notes = new Set() } = {}) {
   const n = daysIn(month);
   const byDay = dreamsByDay(month);
   const now = localDay();
@@ -139,22 +143,24 @@ export function wheelHTML({ month, selected, index = 0 }) {
       day === selected ? 'is-sel' : '',
       list.some((d) => dreamType(d) === 'nightmare') ? 'is-night' : '',
     ].filter(Boolean).join(' ');
-    const what = list.length ? `${list.length} ${list.length === 1 ? 'dream' : 'dreams'}` : 'no dream';
+    const noted = notes.has(day);
+    const what = `${list.length ? `${list.length} ${list.length === 1 ? 'dream' : 'dreams'}` : 'no dream'}${noted ? ', day note' : ''}`;
     return `
       <button type="button" class="${cls}" style="--a:${angle}deg" data-wheel-day="${day}"
         aria-label="${esc(`${MONTHS[Number(month.slice(5, 7)) - 1]} ${ordinal(day)}: ${what}`)}" aria-pressed="${day === selected}" ${future ? 'disabled' : ''}>
         <span class="bw-dot">${list.length ? picture(list[0], 28, 'bw-dot-img') : ''}</span>
         ${list.length > 1 ? `<span class="bw-count">${list.length}</span>` : ''}
+        ${noted ? '<span class="bw-note"></span>' : ''}
       </button>
       <span class="bw-label${day === todayN ? ' is-today' : ''}${list.length ? ' is-dream' : ''}" style="--a:${angle}deg" aria-hidden="true">${ordinal(day)}</span>`;
   }).join('');
 
   return `
-    <section class="bh-section bw" aria-labelledby="bw-title" data-wheel>
+    <section class="bw" aria-labelledby="bw-title" data-wheel>
       <div class="bw-head">
         <button type="button" class="icon-btn bw-nav" data-wheel-prev aria-label="Previous month">${icons.back}</button>
         <div class="bw-head-text">
-          <h2 class="bh-h2" id="bw-title">${esc(label)}</h2>
+          <h2 class="bw-h2" id="bw-title" aria-live="polite">${esc(label)}</h2>
           <p class="bw-sub">${total ? `${total} ${total === 1 ? 'dream' : 'dreams'} on ${byDay.size} ${byDay.size === 1 ? 'day' : 'days'}` : 'No dreams this month yet'}</p>
         </div>
         <button type="button" class="icon-btn bw-nav bw-nav-next" data-wheel-next aria-label="Next month" ${current ? 'disabled' : ''}>${icons.back}</button>
@@ -164,6 +170,5 @@ export function wheelHTML({ month, selected, index = 0 }) {
         ${days}
         ${centerHTML(month, selected, byDay.get(selected) || [], index)}
       </div>
-      <a class="bw-all" href="#journal">All dreams in the journal${icons.chevronRight}</a>
     </section>`;
 }
