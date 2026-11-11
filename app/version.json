@@ -1,7 +1,12 @@
 {
-  "version": 19,
+  "version": 20,
   "updated": "2026-11-11",
   "notes": [
+    {
+      "version": 20,
+      "date": "2026-11-11",
+      "text": "Home now follows the PDF: your 3 newest dreams with their name, date and symbols (a gold date tile on the left), and a Load more button that adds 3 more each time. The voice button and the 'Your day' card are gone from Home (write about your day in the Calendar tab)."
+    },
     {
       "version": 19,
       "date": "2026-11-11",

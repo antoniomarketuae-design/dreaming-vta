@@ -1,20 +1,18 @@
-// New layout: Home tab, following the owner's structure. Kept simple on purpose:
-// Greeting + date · big record button (+ voice) · the 3 newest dreams in a list ("See all" opens the Journal) ·
-// "What you dream about" (recurring symbols of the last 30 days; tap one for its meaning) · "Your day" (today's day
-// journal, which opens the Calendar's day sheet). Repaints itself when dreams or day notes change.
-// (The dream wheel that was here in v15 is now the Calendar tab.)
-import { listDreams, getDream, localDay, getProfile, getDayNote, onChange } from '../../store.js';
-import { symbolsOf, recurringSymbols, NO_MEANING, dreamDay, dreamType, DREAM_TYPES } from '../../symbols.js';
-import { esc, greeting, formatLongDate, relativeDay, icons } from '../../ui.js';
-import { dreamArtURL } from '../../dreamart.js';
-import { hasVideo } from '../../videos.js';
-import { openDaySheet, SUN } from './calendar.js';
+// New layout: Home tab, strictly as the owner's mind map (video/DREAMS APP.pdf, "HOME TAB"):
+// date (with a greeting) · record dream button · the 3 newest dreams, each with its name, date and symbols (a moon-gold
+// date tile on the left) · "Load more dreams" (3 more each tap, in place) · "What you dream about" (recurring symbols of
+// the last 30 days; tap one for its meaning). Repaints itself when dreams change.
+// (The dream wheel that was here in v15 is now the Calendar tab; the day journal lives in the Calendar too.)
+import { listDreams, getDream, localDay, getProfile, onChange } from '../../store.js';
+import { symbolsOf, recurringSymbols, NO_MEANING, dreamDay } from '../../symbols.js';
+import { esc, greeting, formatLongDate, icons } from '../../ui.js';
 
-const RECENT = 3;    // dreams listed on Home
+const FIRST = 3;     // dreams shown at first
+const STEP = 3;      // ...and how many more each "Load more" adds
 const TOP_SYMBOLS = 5;
-const SNIPPET = 120; // characters of today's note shown on the card
 
 // Screen state. Reset each time Home opens; kept while it repaints for data changes.
+let shown = FIRST;
 let expanded = null; // key of the symbol whose meaning is open
 let cleanup = null;
 
@@ -22,18 +20,6 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const titleOf = (d) => String(d?.title || '').trim() || 'Untitled dream';
 const dreamHref = (d) => `#dream/${encodeURIComponent(d.id)}`;
 const norm = (s) => String(s || '').toLowerCase().trim();
-
-// ---------- pictures ----------
-
-/** The dream's picture (AI image or generated painting), or a soft gradient if it can't be drawn. */
-function thumb(d, px) {
-  let url = '';
-  try { url = dreamArtURL(d, px) || ''; } catch {}
-  if (url) return `<img class="bh-thumb-img" src="${esc(url)}" alt="" width="${px}" height="${px}" decoding="async">`;
-  return `<span class="bh-thumb-img bh-thumb-fallback" style="--h:${(Number(d.seed) || 0) % 360}"></span>`;
-}
-
-const videoMark = (d) => (hasVideo(d) ? `<span class="video-mark" aria-hidden="true">${icons.play}</span>` : '');
 
 // Crescent moon, a few stars and a soft cloud: the empty-journal picture.
 const EMPTY_ART = `
@@ -89,47 +75,65 @@ function headerHTML(now) {
 const actionHTML = () => `
   <div class="bh-action">
     <a class="btn bh-record" href="#record">${icons.plus}<span>Record a dream</span></a>
-    <a class="bh-voice" href="#record/voice" aria-label="Record a dream by voice">${icons.mic}</a>
   </div>`;
 
-// ---------- 3. recent dreams ----------
+// ---------- 3. recent dreams + Load more ----------
 
-function firstLine(text) {
-  return String(text || '').split('\n').map((s) => s.trim()).find(Boolean) || '';
+/** The date tile: day number, short month, and the year when it isn't this year. */
+function dateTile(day) {
+  const date = new Date(`${day}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return '<span class="bh-tile" aria-hidden="true"></span>';
+  const month = date.toLocaleDateString(undefined, { month: 'short' }).replace('.', '');
+  const year = date.getFullYear() !== new Date().getFullYear() ? `<span class="bh-tile-y">${date.getFullYear()}</span>` : '';
+  return `
+    <span class="bh-tile${day === localDay() ? ' bh-tile-today' : ''}" aria-hidden="true">
+      <span class="bh-tile-d">${date.getDate()}</span>
+      <span class="bh-tile-m">${esc(month)}</span>${year}
+    </span>`;
+}
+
+function longDate(day) {
+  const date = new Date(`${day}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return '';
+  const opts = { weekday: 'long', day: 'numeric', month: 'long' };
+  if (date.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+  return date.toLocaleDateString(undefined, opts);
 }
 
 function rowHTML(d) {
-  const type = dreamType(d);
-  const typeLabel = type === 'general' ? '' : (DREAM_TYPES.find((t) => t.id === type)?.label || '');
+  const day = dreamDay(d);
   const syms = symbolsOf(d).slice(0, 3);
-  const extra = syms.length
-    ? `<span class="bh-chips">${syms.map((s) => `<span class="chip bh-chip">${esc(s.name)}</span>`).join('')}</span>`
-    : (firstLine(d.text) ? `<span class="bh-row-text">${esc(firstLine(d.text))}</span>` : '');
+  const label = [titleOf(d), longDate(day), syms.length ? `symbols: ${syms.map((x) => x.name).join(', ')}` : ''].filter(Boolean).join(', ');
   return `
     <li>
-      <a class="glass bh-row${type === 'nightmare' ? ' bh-row-night' : ''}" href="${dreamHref(d)}">
-        <span class="bh-thumb">${thumb(d, 60)}${videoMark(d)}</span>
+      <a class="glass bh-row" href="${dreamHref(d)}" aria-label="${esc(label)}">
+        ${dateTile(day)}
         <span class="bh-row-body">
           <span class="bh-row-title">${esc(titleOf(d))}</span>
-          <span class="bh-row-meta">
-            <span>${esc(relativeDay(dreamDay(d)))}</span>
-            ${typeLabel ? `<span class="bh-type bh-type-${type}">${esc(typeLabel)}</span>` : ''}
-          </span>
-          ${extra}
+          ${syms.length
+            ? `<span class="bh-chips">${syms.map((x) => `<span class="chip bh-chip">${esc(x.name)}</span>`).join('')}</span>`
+            : '<span class="bh-row-none">No symbols yet</span>'}
         </span>
         <span class="bh-row-go" aria-hidden="true">${icons.chevronRight}</span>
       </a>
     </li>`;
 }
 
+function moreHTML(total) {
+  const left = total - shown;
+  if (left <= 0) return '';
+  return `
+    <button type="button" class="btn btn-ghost bh-more" data-more>
+      <span>Load more dreams</span><span class="bh-more-n">${left} left</span>
+    </button>`;
+}
+
 function recentHTML(dreams) {
   return `
     <section class="bh-section" aria-labelledby="bh-recent-title">
-      <div class="bh-head">
-        <h2 class="bh-h2" id="bh-recent-title">Recent dreams</h2>
-        ${dreams.length > RECENT ? '<a class="bh-see-all" href="#journal">See all</a>' : ''}
-      </div>
-      <ul class="bh-list">${dreams.slice(0, RECENT).map(rowHTML).join('')}</ul>
+      <h2 class="bh-h2" id="bh-recent-title">Recent dreams</h2>
+      <ul class="bh-list">${dreams.slice(0, shown).map(rowHTML).join('')}</ul>
+      ${moreHTML(dreams.length)}
     </section>`;
 }
 
@@ -223,40 +227,6 @@ function symbolsHTML(dreams) {
     </section>`;
 }
 
-// ---------- 5. your day ----------
-
-/** First ~120 characters of the note, cut at a word, on one line. */
-function snippet(text) {
-  const flat = String(text || '').replace(/\s+/g, ' ').trim();
-  if (flat.length <= SNIPPET) return flat;
-  const cut = flat.slice(0, SNIPPET);
-  const space = cut.lastIndexOf(' ');
-  return `${(space > SNIPPET * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,.;:–-]+$/, '')}…`;
-}
-
-function dayHTML() {
-  const note = getDayNote(localDay());
-  const head = `
-      <div class="bh-day-head">
-        <span class="bh-day-icon" aria-hidden="true">${SUN}</span>
-        <div class="bh-day-titles">
-          <h2 class="bh-day-title" id="bh-day-title">Your day</h2>
-          <p class="bh-day-sub">Today</p>
-        </div>
-        ${note ? `<button type="button" class="bh-day-edit" data-day-open>${icons.edit}<span>Edit</span></button>` : ''}
-      </div>`;
-  const body = note
-    ? `<button type="button" class="bh-day-note" data-day-open aria-label="Edit today’s note: ${esc(snippet(note))}">${esc(snippet(note))}</button>`
-    : `
-      <p class="bh-day-prompt">What happened today? A few lines about events, people and feelings help you see what your dreams pick up.</p>
-      <button type="button" class="btn btn-ghost bh-day-btn" data-day-open>${icons.edit}<span>Write about today</span></button>`;
-  return `
-    <section class="bh-section glass bh-day${note ? ' bh-filled' : ''}" aria-labelledby="bh-day-title">
-      ${head}
-      ${body}
-    </section>`;
-}
-
 // ---------- screen ----------
 
 function screenHTML() {
@@ -265,8 +235,7 @@ function screenHTML() {
     ${headerHTML(new Date())}
     ${actionHTML()}
     ${dreams.length ? recentHTML(dreams) : emptyHTML()}
-    ${symbolsHTML(dreams)}
-    ${dayHTML()}`;
+    ${symbolsHTML(dreams)}`;
 }
 
 export default {
@@ -276,6 +245,7 @@ export default {
 
   render(el, ctx) {
     cleanup?.();
+    shown = FIRST;
     expanded = null;
 
     el.innerHTML = '<div class="bh"></div>';
@@ -307,19 +277,33 @@ export default {
       }
     };
 
+    // "Load more": adds the next rows in place and keeps the focus on the button (or the first new row).
+    const loadMore = (btn) => {
+      const dreams = listDreams();
+      const list = root.querySelector('.bh-list');
+      if (!list) return;
+      const from = shown;
+      shown = Math.min(dreams.length, shown + STEP);
+      list.insertAdjacentHTML('beforeend', dreams.slice(from, shown).map(rowHTML).join(''));
+      for (const li of [...list.children].slice(from)) li.classList.add('bh-new');
+      const html = moreHTML(dreams.length).trim();
+      if (html) {
+        btn.outerHTML = html;
+        root.querySelector('[data-more]')?.focus({ preventScroll: true });
+      } else {
+        btn.remove();
+        list.children[from]?.querySelector('a')?.focus({ preventScroll: true });
+      }
+    };
+
     // Listeners live on our own root (the screen element is shared with other screens).
     root.addEventListener('click', (e) => {
       let b;
-      if ((b = e.target.closest('[data-sym]'))) toggleSymbol(b);
-      else if (e.target.closest('[data-day-open]')) openDaySheet(localDay(), ctx, { focusNote: true });
+      if ((b = e.target.closest('[data-more]'))) loadMore(b);
+      else if ((b = e.target.closest('[data-sym]'))) toggleSymbol(b);
     });
 
-    const unsubscribe = onChange(repaint);
-    window.addEventListener('dreaming:daynote', repaint);
-    cleanup = () => {
-      unsubscribe();
-      window.removeEventListener('dreaming:daynote', repaint);
-    };
+    cleanup = onChange(repaint);
   },
 
   destroy() {

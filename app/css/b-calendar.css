@@ -1,5 +1,5 @@
 /* New layout: calendar (js/screens/b/calendar.js). Every selector starts with .bc- so nothing leaks into other screens.
-   Colours: violet glow = dreams, ember = day-journal notes, moon gold = today. The day sheet is shared with Home. */
+   Colours: violet glow = dreams, ember = day-journal notes, moon gold = today. */
 
 .bc { display: flex; flex-direction: column; }
 .bc-title { margin-bottom: 14px; }

@@ -5,7 +5,7 @@
 //     note get a warm mark, today has a moon-gold ring. Tapping a day opens its sheet.
 // Under both, the month's totals. Swipe the month sideways to turn the page.
 // The day sheet holds that day's dreams and its day journal, which the dream page shows next to the dreams of the
-// following morning. openDaySheet() is shared with Home's "Your day" card.
+// following morning (exported as openDaySheet()).
 // Saving a note fires 'dreaming:daynote' on window (store.js does not notify for settings), so screens can repaint.
 import { listDreams, listDayNotes, getDayNote, setDayNote, localDay, onChange, getSetting, setSetting } from '../../store.js';
 import { symbolsOf, dreamDay } from '../../symbols.js';
@@ -14,7 +14,7 @@ import { dreamArtURL } from '../../dreamart.js';
 import { hasVideo } from '../../videos.js';
 import { wheelHTML, defaultDay, dreamsByDay } from './wheel.js';
 
-/** A small sun: the day journal's mark (the moon belongs to dreams). Home uses it too. */
+/** A small sun: the day journal's mark (the moon belongs to dreams). */
 export const SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>';
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -99,7 +99,7 @@ function dreamRowHTML(d) {
     </li>`;
 }
 
-// ---------- the day sheet (shared with Home) ----------
+// ---------- the day sheet ----------
 
 /**
  * Opens the sheet for `day` ('YYYY-MM-DD', not in the future): its dreams and its day journal.

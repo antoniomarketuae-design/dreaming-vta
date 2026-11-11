@@ -19,7 +19,7 @@
 .bh-name { color: var(--moon); }
 .bh-date { margin: 3px 0 0; font-size: 15px; font-weight: 300; color: var(--text-dim); text-shadow: 0 1px 12px rgba(8, 4, 30, 0.6); }
 
-/* ---- 2. Record: big glowing button + round voice shortcut ---- */
+/* ---- 2. Record: one big glowing button ---- */
 
 .bh-action { display: flex; align-items: center; gap: 12px; margin-top: 20px; }
 
@@ -61,23 +61,6 @@
   50% { opacity: 1; transform: scale(1.03); }
 }
 
-.bh-voice {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 64px;
-  height: 64px;
-  border: 1px solid rgba(255, 217, 138, 0.3);
-  border-radius: 50%;
-  background: var(--glass-strong);
-  -webkit-backdrop-filter: var(--blur);
-  backdrop-filter: var(--blur);
-  color: var(--moon);
-  box-shadow: 0 8px 24px rgba(8, 4, 30, 0.35), 0 0 22px rgba(255, 217, 138, 0.12);
-}
-.bh-voice svg { width: 26px; height: 26px; }
-.bh-voice:active { transform: scale(0.96); opacity: 0.85; }
-
 /* ---- Section heads ---- */
 
 .bh-section { margin-top: 30px; }
@@ -90,18 +73,6 @@
   color: var(--text);
   text-shadow: 0 2px 14px rgba(8, 4, 30, 0.6);
 }
-.bh-see-all {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  margin-right: -8px;
-  padding: 0 12px;
-  color: var(--text-dim);
-  font-size: 14px;
-  text-decoration: none;
-}
-.bh-see-all:active { opacity: 0.7; }
-
 /* ---- 3. Recent dreams ---- */
 
 .bh-list { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 0; padding: 0; list-style: none; }
@@ -109,35 +80,41 @@
 .bh-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 80px;
+  gap: 14px;
+  min-height: 76px;
   padding: 10px 10px 10px 10px;
   color: var(--text);
   text-decoration: none;
   transition: transform 0.15s ease;
 }
 .bh-row:active { transform: scale(0.985); background: rgba(255, 255, 255, 0.08); }
-.bh-row-night { border-color: rgba(255, 159, 143, 0.22); }
 
-.bh-thumb {
-  position: relative;
+/* The date tile: day number over the short month, moon gold; today glows. */
+.bh-tile {
   flex: none;
-  width: 60px;
-  height: 60px;
-  overflow: hidden;
-  border-radius: 14px;
-  background: linear-gradient(145deg, rgba(141, 108, 245, 0.35), rgba(242, 154, 140, 0.18));
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
-}
-.bh-thumb-img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.bh-thumb-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border: 1px solid rgba(255, 217, 138, 0.32);
+  border-radius: 15px;
   background:
-    radial-gradient(80% 70% at 30% 25%, hsla(var(--h), 70%, 70%, 0.55), transparent 70%),
-    radial-gradient(70% 60% at 75% 80%, hsla(calc(var(--h) + 60), 80%, 70%, 0.45), transparent 70%),
-    #241a5a;
+    radial-gradient(120% 90% at 50% 0%, rgba(255, 217, 138, 0.16), transparent 70%),
+    rgba(22, 15, 56, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: var(--moon);
+  line-height: 1;
 }
-.bh-thumb .video-mark { right: 4px; bottom: 4px; width: 22px; height: 22px; }
-.bh-thumb .video-mark svg { width: 11px; height: 11px; }
+.bh-tile-d { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.bh-tile-m { margin-top: 3px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 217, 138, 0.8); }
+.bh-tile-y { margin-top: 2px; font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em; color: var(--text-faint); }
+.bh-tile-today {
+  border-color: rgba(255, 217, 138, 0.75);
+  background: radial-gradient(120% 100% at 50% 0%, rgba(255, 217, 138, 0.34), rgba(255, 217, 138, 0.08) 75%), rgba(40, 28, 84, 0.7);
+  box-shadow: 0 0 18px rgba(255, 217, 138, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
 
 .bh-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .bh-row-title {
@@ -148,20 +125,6 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.bh-row-meta { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--text-faint); font-size: 12.5px; }
-
-.bh-type {
-  flex: none;
-  padding: 0 8px;
-  border: 1px solid var(--glass-border);
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 600;
-  line-height: 18px;
-}
-.bh-type-lucid { border-color: rgba(255, 217, 138, 0.32); background: rgba(255, 217, 138, 0.13); color: var(--moon); }
-.bh-type-nightmare { border-color: rgba(255, 159, 143, 0.32); background: rgba(255, 159, 143, 0.15); color: var(--ember); }
-.bh-type-prophetic { border-color: rgba(140, 210, 255, 0.3); background: rgba(140, 210, 255, 0.13); color: #b9e3ff; }
 
 /* Symbols: up to three small chips on one line; a long name shortens rather than pushing the row wider */
 .bh-chips { display: flex; gap: 6px; min-width: 0; margin-top: 6px; overflow: hidden; }
@@ -176,15 +139,7 @@
   line-height: 18px;
   text-overflow: ellipsis;
 }
-.bh-row-text {
-  margin-top: 3px;
-  overflow: hidden;
-  color: var(--text-dim);
-  font-size: 14px;
-  line-height: 1.35;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
+.bh-row-none { margin-top: 4px; color: var(--text-faint); font-size: 13px; }
 .bh-row-go { flex: none; color: var(--text-faint); }
 .bh-row-go svg { display: block; width: 18px; height: 18px; }
 
@@ -281,62 +236,6 @@
 .bh-sym-link span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .bh-sym-link svg { flex: none; width: 15px; height: 15px; }
 .bh-sym-link:active { opacity: 0.7; }
-
-/* ---- 5. Your day (day journal) ---- */
-
-.bh-day { padding: 14px 14px 16px; }
-.bh-day-head { display: flex; align-items: center; gap: 12px; }
-.bh-day-icon {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 13px;
-  background: rgba(255, 159, 143, 0.14);
-  color: #ffc4b8;
-}
-.bh-day-icon svg { width: 22px; height: 22px; }
-.bh-day-titles { flex: 1; min-width: 0; }
-.bh-day-title { margin: 0; font-size: 18px; line-height: 1.2; font-weight: 400; color: var(--text); }
-.bh-day-sub { margin: 1px 0 0; color: var(--text-faint); font-size: 13px; }
-.bh-day-edit {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 40px;
-  padding: 0 14px;
-  border: 1px solid var(--glass-border);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-.bh-day-edit svg { width: 15px; height: 15px; }
-.bh-day-edit:active { opacity: 0.7; }
-.bh-day-prompt { margin: 12px 2px 14px; color: var(--text-dim); font-size: 15px; line-height: 1.45; text-wrap: pretty; }
-.bh-day-btn { border-radius: 999px; }
-.bh-day-btn svg { width: 18px; height: 18px; }
-.bh-day-note {
-  display: block;
-  width: 100%;
-  margin: 12px 0 0;
-  padding: 11px 14px;
-  border: 0;
-  border-left: 2px solid rgba(255, 159, 143, 0.55);
-  border-radius: 4px 12px 12px 4px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
-  font-size: 15px;
-  line-height: 1.5;
-  text-align: left;
-  overflow-wrap: anywhere;
-  cursor: pointer;
-}
-.bh-day-note:active { background: rgba(255, 255, 255, 0.09); }
 
 /* ---- Calm for people who turn motion off ---- */
 
