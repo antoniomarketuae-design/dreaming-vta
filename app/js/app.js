@@ -30,7 +30,7 @@ import { getAccount } from './account.js';
 // Other screens are reached by link: #record[/voice|/edit/<id>], #dream/<id>[/analyze], #celebrate/<id>, #technique/<id>,
 // #article/<id>, #goals, #module/<id>, #onboarding, #plus, #lock.
 const TABS_CURRENT = [home, journal, lucidity, insights, profile];
-const TABS_NEW = [homeNew, journal, insightsNew, me, calendar];
+const TABS_NEW = [homeNew, journal, insightsNew, calendar, me];
 const SHARED = [record, dream, onboarding, celebrate, technique, article, goals, moduleScreen, plus, lock];
 const tabs = () => (getLayout() === 'new' ? TABS_NEW : TABS_CURRENT);
 const screens = () => (getLayout() === 'new' ? [...TABS_NEW, profile, lucidity, ...SHARED] : [...TABS_CURRENT, ...SHARED]);
