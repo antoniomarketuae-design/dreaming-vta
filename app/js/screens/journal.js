@@ -11,7 +11,7 @@ import { hasVideo } from '../videos.js';
 import { hasImage } from '../images.js';
 import { symbolsOf } from '../symbols.js';
 import { isNewLayout } from '../layout.js';
-import { EXTRA_VIEWS } from './b/views/index.js';
+import { EXTRA_VIEWS, VIEW_NOTES } from './b/views/index.js';
 
 const VIEW_KEY = 'dreaming.journal.view';
 const NOTE_KEY = 'journalNoteHiddenAt'; // dream count when the "only on this iPhone" note was tucked away
@@ -502,12 +502,12 @@ export default {
           <div class="jr-chips" role="group" aria-label="Quick filters"></div>
         </div>
         <div class="jr-active" hidden></div>
+        ${newLayout ? '<div class="jr-lab" data-lab></div>' : ''}
         <div class="jr-body"></div>
-        <div class="jr-seg${newLayout ? ' jr-seg-many' : ''}" role="group" aria-label="View">
+        <div class="jr-seg${newLayout ? ' jr-seg-3' : ''}" role="group" aria-label="View">
           <button type="button" data-view="list" aria-pressed="${view === 'list'}">${icons.list}<span>List</span></button>
           <button type="button" data-view="calendar" aria-pressed="${view === 'calendar'}">${icons.calendar}<span>Calendar</span></button>
-          ${newLayout ? `<button type="button" data-view="gallery" aria-pressed="${view === 'gallery'}">${icons.image}<span>Gallery</span></button>
-          ${EXTRA_VIEWS.map((x) => `<button type="button" data-view="${x.id}" aria-pressed="${view === x.id}">${x.icon}<span>${esc(x.label)}</span></button>`).join('')}` : ''}
+          ${newLayout ? `<button type="button" data-view="gallery" aria-pressed="${view === 'gallery'}">${icons.image}<span>Gallery</span></button>` : ''}
         </div>
         <div class="jr-sheet" role="dialog" aria-modal="true" aria-labelledby="jr-sheet-title" hidden></div>
       </div>`;
@@ -538,6 +538,57 @@ export default {
       activeEl.innerHTML = n
         ? `<span>${plural(n, 'filter')} on · ${current.length} of ${plural(entries.length, 'dream')}</span><button type="button" data-clear-filters>Clear</button>`
         : '';
+    };
+
+    // The six test views live behind "Test 6 new journal views" (not in the switcher); while one is open, a bar says so.
+    const paintLab = () => {
+      const lab = root.querySelector('[data-lab]');
+      if (!lab) return;
+      const xv = EXTRA_VIEWS.find((x) => x.id === view);
+      lab.innerHTML = xv
+        ? `<div class="jr-lab-bar"><span class="jr-lab-on">${xv.icon}<span>Testing: <b>${esc(xv.label)}</b> view</span></span>
+            <button type="button" data-open-lab>Change</button><button type="button" data-lab-back>Back to list</button></div>`
+        : `<button type="button" class="jr-lab-btn" data-open-lab>${icons.sparkle}<span>Test 6 new journal views</span>${icons.chevronRight}</button>`;
+    };
+
+    const setViewTo = (next) => {
+      view = next;
+      setView(view);
+      for (const v of root.querySelectorAll('[data-view]')) v.setAttribute('aria-pressed', String(v.dataset.view === view));
+      paintLab();
+      paintBody();
+    };
+
+    let labSheet = null;
+    const closeLab = () => { labSheet?.remove(); labSheet = null; };
+    const openLab = () => {
+      closeLab();
+      labSheet = document.createElement('div');
+      labSheet.className = 'jr-labsheet';
+      labSheet.innerHTML = `
+        <div class="jr-labsheet-scrim" data-lab-close></div>
+        <div class="jr-labsheet-card glass" role="dialog" aria-modal="true" aria-labelledby="jr-lab-title">
+          <div class="jr-labsheet-head">
+            <h2 id="jr-lab-title">New journal views</h2>
+            <button type="button" class="icon-btn" data-lab-close aria-label="Close">${icons.close}</button>
+          </div>
+          <p class="jr-labsheet-note">On test while we choose. Try each one; your dreams stay the same.</p>
+          <div class="jr-labsheet-list">
+            ${EXTRA_VIEWS.map((x) => `
+              <button type="button" class="jr-labsheet-item" data-lab-view="${x.id}" aria-pressed="${view === x.id}">
+                <span class="jr-labsheet-icon">${x.icon}</span>
+                <span class="jr-labsheet-text"><b>${esc(x.label)}</b><small>${esc(VIEW_NOTES[x.id] || '')}</small></span>
+                ${view === x.id ? `<span class="jr-labsheet-on">${icons.check}</span>` : icons.chevronRight}
+              </button>`).join('')}
+          </div>
+        </div>`;
+      labSheet.addEventListener('click', (ev) => {
+        const pick = ev.target.closest('[data-lab-view]');
+        if (pick) { closeLab(); setViewTo(pick.dataset.labView); window.scrollTo(0, 0); return; }
+        if (ev.target.closest('[data-lab-close]')) closeLab();
+      });
+      document.body.append(labSheet);
+      labSheet.querySelector('[data-lab-view]')?.focus();
     };
 
     const paintBody = () => {
@@ -643,18 +694,19 @@ export default {
     root.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter' && ev.target === input) input.blur();
       if (ev.key === 'Escape' && !sheet.hidden) closeSheet();
+      if (ev.key === 'Escape' && labSheet) closeLab();
     });
 
     root.addEventListener('click', (ev) => {
       const hit = (sel) => ev.target.closest(sel);
       let b;
-      if ((b = hit('[data-view]'))) {
+      if (hit('[data-open-lab]')) {
+        openLab();
+      } else if (hit('[data-lab-back]')) {
+        setViewTo('list');
+      } else if ((b = hit('[data-view]'))) {
         if (b.dataset.view === view) return;
-        view = b.dataset.view;
-        setView(view);
-        for (const v of root.querySelectorAll('[data-view]')) v.setAttribute('aria-pressed', String(v.dataset.view === view));
-        b.scrollIntoView?.({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-        paintBody();
+        setViewTo(b.dataset.view);
       } else if ((b = hit('[data-quick]'))) {
         const id = b.dataset.quick;
         if (id === 'nightmare') filters.kind = filters.kind === 'nightmare' ? 'all' : 'nightmare';
@@ -733,7 +785,9 @@ export default {
       window.removeEventListener('scroll', onScroll);
       try { extra?.destroy?.(); } catch {}
       extra = null;
+      closeLab();
     };
+    paintLab();
     onScroll();
 
     refresh();
