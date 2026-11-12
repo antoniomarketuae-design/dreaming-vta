@@ -14,12 +14,14 @@ import { esc } from '../../ui.js';
 import { localDay } from '../../store.js';
 
 const MARGIN = 0.16;     // room around a figure, in figure units
-const NODE_MAX = 118;    // badge width when zoomed in (px)
-const NODE_MIN = 40;     // ...and when zoomed right out
-const NODE_OPEN = 78;    // badge width the map opens with (the owner: not too close; the whole sign mostly in view)
-const NODE_SPREAD = 74;  // the dreams are spread on the figure as if badges were this wide at the whole-sign view
+const NODE_MAX = 44;     // a night's circle at most (px): small, the owner's choice
+const NODE_MIN = 22;     // ...and when zoomed right out
+const NODE_OPEN = 36;    // the size the map opens with (the whole sign mostly in view)
+const NODE_SPREAD = 52;  // nights are spread on the figure as if circles (+ date) were this wide at the whole-sign view
+const LABEL_ROOM = 24;   // px kept between neighbouring circles for the date under each
 // Words by badge width: the day from 40 px, + weekday · month from 66 px, + the title from 92 px.
-const WORDS = [[92, 'is-w3'], [66, 'is-w2'], [40, 'is-w1']];
+// Words by the room between neighbouring circles (px): the number always, + the date from 52, + the title from 120.
+const WORDS = [[120, 'is-w3'], [52, 'is-w2'], [0, 'is-w1']];
 const ZOOM_MAX = 8;
 const ART_PX = 160;      // picture size asked for a badge
 const FALLBACK = {       // a soft rounded badge for a sign without a drawn shape yet
@@ -119,66 +121,43 @@ function milkyWaySVG(H, seed) {
 }
 
 /**
- * One night as a badge shaped like its sign's creature, with the day, weekday, month and the dream's title inside.
- * `night`: that day's dreams, newest first. One dream: the badge opens it. Several: a count bubble, and the badge opens
+ * One night as a small circle on the sign's figure: its day number inside, its date ("MON · NOV") under it, and the
+ * dream's title under that when zoomed in. The ring takes the dream type's colour (a night with a nightmare: coral).
+ * `night`: that day's dreams, newest first. One dream: the circle opens it. Several: a gold count, and the circle opens
  * the night's sheet with all of them (data-zday, handled by the Journal).
  */
 function badgeHTML(night, season, x, y, newest) {
   const e = night[0];
   const d = e.d;
   const many = night.length > 1;
-  const shape = shapeOf(season.sign.id);
-  const [W, H] = shape.vb;
-  const [tx, ty, tw, th] = shape.text;
   const date = new Date(`${e.day}T12:00:00`);
   const ok = !Number.isNaN(date.getTime());
   const wk = ok ? date.toLocaleDateString(undefined, { weekday: 'short' }).replace('.', '') : '';
   const mon = ok ? date.toLocaleDateString(undefined, { month: 'short' }).replace('.', '') : '';
-  // A night with a nightmare in it glows coral; otherwise the newest dream's type sets the colour.
   const type = night.some((x) => dreamType(x.d) === 'nightmare') ? 'nightmare' : dreamType(d);
   const look = TYPE_LOOK[type] || TYPE_LOOK.general;
   const moon = moonSign(e.day);
   const title = many ? `${night.length} dreams` : String(d.title || '').trim() || 'Untitled dream';
-  const label = [many ? `${night.length} dreams: ${night.map((x) => String(x.d.title || '').trim() || 'Untitled dream').join('; ')}` : title, ok ? date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '',
+  const label = [many ? `${night.length} dreams: ${night.map((x) => String(x.d.title || '').trim() || 'Untitled dream').join('; ')}` : title,
+    ok ? date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '',
     type !== 'general' ? look.name : '', moon ? `Moon in ${moon.name}` : ''].filter(Boolean).join(', ');
-  const cid = `zc-${String(d.id).replace(/[^\w-]/g, '')}`;
-  const href = many ? '#journal' : `#dream/${encodeURIComponent(d.id)}`;
-  const extra = many ? ` data-zday="${esc(e.day)}" role="button"` : '';
-  const badges = `
-      ${moon ? `<span class="jr-zn-moon" aria-hidden="true" title="Moon in ${esc(moon.name)}">${moon.glyph}</span>` : ''}
-      ${many ? `<span class="jr-zn-count" aria-hidden="true">${night.length}</span>` : ''}`;
-  if (shape.art) {
-    // A sign drawn from a picture: its lines glow in the dream's colour; the words sit under it.
-    return `
-    <a class="jr-zn jr-zn-pic${newest ? ' is-newest' : ''}" href="${href}" data-zn${extra}
-      style="left:${x.toFixed(3)}%;top:${y.toFixed(3)}%;--tc:${look.rgb};--ratio:${shape.ratio.toFixed(4)}" aria-label="${esc(label)}">
-      <span class="jr-zn-glow" aria-hidden="true"><span class="jr-zn-art" style="-webkit-mask-image:url(${shape.art});mask-image:url(${shape.art})"></span></span>
-      <span class="jr-zn-cap" aria-hidden="true">
-        <b>${ok ? date.getDate() : ''}</b><small>${esc(wk)}<span class="jr-zn-mon"> · ${esc(mon)}</span></small>
-      </span>
-      <span class="jr-zn-sub" aria-hidden="true">${esc(title)}</span>${badges}
-    </a>`;
-  }
   return `
-    <a class="jr-zn${newest ? ' is-newest' : ''}" href="${many ? `#journal` : `#dream/${encodeURIComponent(d.id)}`}" data-zn${many ? ` data-zday="${esc(e.day)}" role="button"` : ''}
-      style="left:${x.toFixed(3)}%;top:${y.toFixed(3)}%;--tc:${look.rgb};--ratio:${(H / W).toFixed(4)}" aria-label="${esc(label)}">
-      <svg class="jr-zn-svg" viewBox="0 0 ${W} ${H}" aria-hidden="true" focusable="false">
-        <defs><clipPath id="${cid}"><path d="${shape.body}"/></clipPath></defs>
-        <path class="jr-zn-fill" d="${shape.body}"/>
-        <image class="jr-zn-img" data-art="${esc(d.id)}" data-px="${ART_PX}" clip-path="url(#${cid})" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="xMidYMid slice"/>
-        <path class="jr-zn-shade" d="${shape.body}"/>
-        ${shape.lines ? `<path class="jr-zn-lines" d="${shape.lines}"/>` : ''}
-        <path class="jr-zn-edge" d="${shape.body}"/>
-      </svg>
-      <span class="jr-zn-text" aria-hidden="true"
-        style="left:${((tx / W) * 100).toFixed(2)}%;top:${((ty / H) * 100).toFixed(2)}%;width:${((tw / W) * 100).toFixed(2)}%;height:${((th / H) * 100).toFixed(2)}%">
-        <b>${ok ? date.getDate() : ''}</b>
-        <small>${esc(wk)}<span class="jr-zn-mon"> · ${esc(mon)}</span></small>
-        <em>${esc(title)}</em>
-      </span>
-      ${moon ? `<span class="jr-zn-moon" aria-hidden="true" title="Moon in ${esc(moon.name)}">${moon.glyph}</span>` : ''}
+    <a class="jr-zn jr-zn-dot${newest ? ' is-newest' : ''}" href="${many ? '#journal' : `#dream/${encodeURIComponent(d.id)}`}" data-zn${many ? ` data-zday="${esc(e.day)}" role="button"` : ''}
+      style="left:${x.toFixed(3)}%;top:${y.toFixed(3)}%;--tc:${look.rgb};--ratio:1" aria-label="${esc(label)}">
+      <span class="jr-zn-ring" aria-hidden="true">${ok ? date.getDate() : '?'}</span>
+      <span class="jr-zn-date" aria-hidden="true">${esc(wk)} · ${esc(mon)}</span>
+      <span class="jr-zn-sub" aria-hidden="true">${esc(title)}</span>
       ${many ? `<span class="jr-zn-count" aria-hidden="true">${night.length}</span>` : ''}
     </a>`;
+}
+
+/** The sign's emblem near the top-left of its map: the owner's picture when there is one, else the big sign symbol. */
+function emblemHTML(season) {
+  const shape = shapeOf(season.sign.id);
+  if (shape.art) {
+    return `<span class="jr-zm-emblem" aria-hidden="true" style="aspect-ratio:${(1 / shape.ratio).toFixed(4)}"><span class="jr-zm-emblem-art" style="-webkit-mask-image:url(${shape.art});mask-image:url(${shape.art})"></span></span>`;
+  }
+  return `<span class="jr-zm-emblem jr-zm-emblem-glyph" aria-hidden="true">${season.sign.glyph}</span>`;
 }
 
 /** One season: its heading and its map. `items`: the season's dreams, newest first. */
@@ -217,6 +196,7 @@ function seasonMapHTML(season, items) {
           aria-label="${esc(`See the ${plural(n, 'dream')} of ${season.sign.name} season`)}">${plural(n, 'dream')}<span aria-hidden="true">›</span></button>
       </h2>
       <div class="jr-zm" data-zm data-ar="${ar.toFixed(4)}">
+        ${emblemHTML(season)}
         <div class="jr-zm-scroll" data-zm-scroll>
           <div class="jr-zm-layer" data-zm-layer>
             <svg class="jr-zm-sky" viewBox="0 0 ${VB} ${VH}" preserveAspectRatio="none" aria-hidden="true" focusable="false">
@@ -284,8 +264,10 @@ function setupMap(el) {
   let z = 1;
   let vw = 0;
   let vh = 0;
-  const nodeAt = (zoom) => Math.max(NODE_MIN, Math.min(NODE_MAX, 0.9 * dmin * vw * zoom));
-  const openZoom = () => Math.min(ZOOM_MAX, Math.max(1, NODE_OPEN / Math.max(1e-6, 0.9 * dmin * vw)));
+  // Room between the two closest circles (px) at a zoom; a circle leaves LABEL_ROOM of it for the date underneath.
+  const roomAt = (zoom) => dmin * vw * zoom;
+  const nodeAt = (zoom) => Math.max(NODE_MIN, Math.min(NODE_MAX, roomAt(zoom) - LABEL_ROOM));
+  const openZoom = () => Math.min(ZOOM_MAX, Math.max(1, (NODE_OPEN + LABEL_ROOM) / Math.max(1e-6, dmin * vw)));
 
   /** Zoom to `next`, keeping the point under (fx, fy) (viewport px) where it is. */
   const apply = (next, fx = vw / 2, fy = vh / 2) => {
@@ -301,7 +283,7 @@ function setupMap(el) {
     layer.style.marginTop = h < vh ? `${(vh - h) / 2}px` : '0px';
     const node = nodeAt(z);
     layer.style.setProperty('--node', `${node.toFixed(1)}px`);
-    const words = WORDS.find(([at]) => node >= at)?.[1] || '';
+    const words = WORDS.find(([at]) => roomAt(z) >= at)?.[1] || '';
     layer.classList.remove('is-w1', 'is-w2', 'is-w3');
     if (words) layer.classList.add(words);
     layer.classList.toggle('is-detail', Boolean(words));
