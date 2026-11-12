@@ -1,7 +1,12 @@
 {
-  "version": 46,
+  "version": 47,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 47,
+      "date": "2026-11-12",
+      "text": "Journal map: 'Newest dreams' and 'Pinch to zoom' sit lower, at the very bottom of the map, so the map keeps more room. The List / Stories / Milky Way switch floats just above the bottom bar again, with a small gap."
+    },
     {
       "version": 46,
       "date": "2026-11-12",
