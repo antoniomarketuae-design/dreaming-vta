@@ -862,7 +862,7 @@ body.jr-sq-open { overflow: hidden; }
 /* ---- New layout: the Zodiac look. Each sign season is its constellation; the dreams are stars on it. ---- */
 
 .jr-zs { margin-top: 18px; }
-.jr-zs-head { display: flex; align-items: center; gap: 8px; margin: 0 4px 0; }
+.jr-zs-head { display: flex; align-items: center; gap: 8px; margin: 0 -10px; } /* edge to edge, like the map */
 .jr-zs-glyph {
   display: grid;
   place-items: center;
@@ -885,17 +885,25 @@ body.jr-sq-open { overflow: hidden; }
 .jr-zs-name { font-size: 16px; font-weight: 400; letter-spacing: 0.01em; color: var(--text); text-shadow: 0 2px 14px rgba(8, 4, 30, 0.6); }
 .jr-zs-dates { font-size: 13px; font-weight: 600; color: rgba(255, 217, 138, 0.85); }
 /* The current sign: today's date first, then the sign. */
-.jr-zs-today { font-size: 14px; font-weight: 600; color: var(--moon); }
+.jr-zs-today { display: inline-flex; align-items: baseline; gap: 6px; color: var(--moon); }
+.jr-zs-num { font-size: 22px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.jr-zs-wd { font-size: 14px; font-weight: 600; color: rgba(255, 217, 138, 0.9); }
+.jr-zs-short { display: none; }
+@media (max-width: 360px) {
+  .jr-zs-long { display: none; }
+  .jr-zs-short { display: inline; }
+}
+/* The count: small gold text you can tap (no pill), with room to tap. */
 .jr-zs-n {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  min-height: 32px;
-  padding: 0 12px;
-  border: 1px solid rgba(255, 217, 138, 0.35);
-  border-radius: 999px;
-  background: rgba(255, 217, 138, 0.08);
+  gap: 2px;
+  min-height: 34px;
+  margin-right: -4px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
   color: var(--moon);
   font: inherit;
   font-size: 12.5px;
@@ -903,7 +911,7 @@ body.jr-sq-open { overflow: hidden; }
   white-space: nowrap;
   cursor: pointer;
 }
-.jr-zs-n span { font-size: 15px; line-height: 1; }
+.jr-zs-n span { font-size: 16px; line-height: 1; }
 .jr-zs-n:active { transform: scale(0.95); }
 
 /* The map: a zoomable window on the sign's sky (a Milky Way band, the constellation in thin gold, the dreams). */

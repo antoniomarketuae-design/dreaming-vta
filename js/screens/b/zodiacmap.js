@@ -30,7 +30,12 @@ const FALLBACK = {       // a soft rounded badge for a sign without a drawn shap
 };
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-const todayShort = () => new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+/** Today as "<b>12</b> Thursday · November" (the long weekday and month; the short forms on narrow screens via CSS). */
+function todayHTML() {
+  const d = new Date();
+  const part = (o) => d.toLocaleDateString(undefined, o).replace('.', '');
+  return `<b class="jr-zs-num">${d.getDate()}</b><span class="jr-zs-wd"><span class="jr-zs-long">${esc(part({ weekday: 'long' }))} · ${esc(part({ month: 'long' }))}</span><span class="jr-zs-short">${esc(part({ weekday: 'short' }))} · ${esc(part({ month: 'short' }))}</span></span>`;
+}
 const shapeOf = (id) => SHAPES[id] || FALLBACK;
 
 // Small seeded random numbers, so a sign's sky looks the same every time.
@@ -189,7 +194,7 @@ function seasonMapHTML(season, items) {
       <h2 class="jr-zs-head${now ? ' is-now' : ''}">
         <span class="jr-zs-glyph" role="img" aria-label="${esc(`${season.sign.name} season`)}">${season.sign.glyph}</span>
         <span class="jr-zs-line">${now
-          ? `<b class="jr-zs-today">Today, ${esc(todayShort())}</b>`
+          ? `<span class="jr-zs-today" aria-label="${esc(`Today, ${new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}`)}">${todayHTML()}</span>`
           : `<span class="jr-zs-dates">${esc(seasonMonths(season))}</span>`}</span>
         <button type="button" class="jr-zs-n" data-zseason="${esc(season.key)}"
           aria-label="${esc(`See the ${plural(n, 'dream')} of ${season.sign.name} season`)}">${plural(n, 'dream')}<span aria-hidden="true">›</span></button>
