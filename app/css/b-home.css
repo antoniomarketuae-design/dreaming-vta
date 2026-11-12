@@ -252,3 +252,24 @@
   .bh-empty-cloud, .bh-new { animation: none; }
   .glass.bh-row, .bh-schip { transition: none; }
 }
+
+/* The built-in example dreams, said plainly (they ship with the app; nobody's real dreams). */
+.bh-examples { margin: 10px 0 2px; padding: 12px 14px; border-color: rgba(255, 217, 138, 0.3); }
+.bh-examples p { margin: 0; color: var(--text-dim); font-size: 13.5px; line-height: 1.45; }
+.bh-examples b { color: var(--moon); font-weight: 700; }
+.bh-examples-btn { margin-top: 10px; min-height: 40px; border-radius: 999px; font-size: 14px; }
+.bh-example, .jr-example {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 7px;
+  border: 1px solid rgba(255, 217, 138, 0.4);
+  border-radius: 999px;
+  color: var(--moon);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 17px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.bh-row-body .bh-example { align-self: flex-start; margin: 3px 0 1px; }

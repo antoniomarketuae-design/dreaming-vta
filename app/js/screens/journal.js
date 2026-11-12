@@ -7,7 +7,7 @@
 // dream-type symbols (like an iPhone folder); tapping it opens the filter square, a 3×3 of tiles (the four dream types,
 // Recurring, the most common feelings, then symbols, and More for the full sheet with symbols and dates). Dream types
 // filter by dream.type (filters.types). The current layout is unchanged.
-import { listDreams, withDefaults, localDay, SYMBOL_CATEGORIES, getSetting, setSetting } from '../store.js';
+import { listDreams, withDefaults, localDay, SYMBOL_CATEGORIES, getSetting, setSetting, isSampleDream } from '../store.js';
 import { TAGS } from '../analyze.js';
 import { nextTechnique } from '../progress.js';
 import { esc, icons, relativeDay, relativeDayWeekday } from '../ui.js';
@@ -314,6 +314,7 @@ function rowHTML(e) {
         </div>
         <div class="jr-row-meta">
           <span>${esc(newLayout ? relativeDayWeekday(e.day) : relativeDay(e.day))}</span>
+          ${isSampleDream(d) ? '<span class="jr-example">Example</span>' : ''}
           ${night ? '<span class="jr-kind">Nightmare</span>' : ''}
           ${d.recurring ? `<span class="jr-rec" role="img" aria-label="Recurring">${icons.repeat}</span>` : ''}
         </div>
