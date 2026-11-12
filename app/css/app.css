@@ -16,8 +16,8 @@
   --radius: 22px;
   --radius-sm: 14px;
   --tabbar-h: 48px;     /* the tab bar above the bottom edge area (border + 4 px + 43 px row) */
-  /* Of the iPhone's bottom edge area (34 px) only what clears the home bar is kept; the tabs reach down into the rest. */
-  --tabbar-safe: max(0px, calc(env(safe-area-inset-bottom) - 18px));
+  /* Of the iPhone's bottom edge area (34 px) 24 px is kept under the tabs (v50: owner wanted the bar a bit higher). */
+  --tabbar-safe: max(0px, calc(env(safe-area-inset-bottom) - 10px));
   --blur: blur(16px) saturate(140%);
   color-scheme: dark;
 }

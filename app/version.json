@@ -1,7 +1,12 @@
 {
-  "version": 49,
+  "version": 50,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 50,
+      "date": "2026-11-12",
+      "text": "The bottom bar (Home, Journal, Insights, Calendar, Profile) sits a little higher above the bottom edge of the screen."
+    },
     {
       "version": 49,
       "date": "2026-11-12",
