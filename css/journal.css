@@ -381,47 +381,6 @@ button.jr-cell:active { background: rgba(255, 255, 255, 0.08); }
 .jr-daylist { scroll-margin-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 76px); }
 .jr-hint { margin: 16px 4px 0; font-size: 14px; text-align: center; }
 
-/* ---- Gallery (new layout only): the dreams' AI pictures, three to a row ---- */
-
-.jr-gal-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.jr-gal-tile {
-  position: relative;
-  display: block;
-  aspect-ratio: 1;
-  overflow: hidden;
-  border-radius: 14px;
-  background: linear-gradient(145deg, rgba(141, 108, 245, 0.35), rgba(242, 154, 140, 0.18));
-}
-/* Hairline edge drawn over the picture */
-.jr-gal-tile::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset;
-  pointer-events: none;
-}
-.jr-gal-tile:active { opacity: 0.8; }
-.jr-gal-img { width: 100%; height: 100%; object-fit: cover; }
-.jr-gal-tile .video-mark { right: 6px; bottom: 6px; z-index: 1; width: 24px; height: 24px; }
-.jr-gal-tile .video-mark svg { width: 11px; height: 11px; }
-
-.jr-gal-empty { margin-top: 16px; padding: 28px 20px 22px; text-align: center; }
-.jr-gal-empty-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 64px;
-  height: 64px;
-  margin-bottom: 12px;
-  border-radius: 20px;
-  background: radial-gradient(circle at 35% 30%, rgba(255, 217, 138, 0.22), rgba(155, 123, 255, 0.2) 70%);
-  color: var(--moon);
-}
-.jr-gal-empty-icon svg { width: 30px; height: 30px; filter: drop-shadow(0 0 8px rgba(255, 217, 138, 0.45)); }
-.jr-gal-empty-title { margin: 0 0 6px; font-size: 18px; font-weight: 400; line-height: 1.35; }
-.jr-gal-empty-hint { margin: 0; color: var(--text-dim); font-size: 14.5px; line-height: 1.45; }
-.jr-gal-empty-hint b { color: var(--text); font-weight: 600; }
-.jr-gal-empty .btn { margin-top: 18px; text-decoration: none; }
 
 /* ---- Floating List / Calendar switch ---- */
 
@@ -456,12 +415,9 @@ button.jr-cell:active { background: rgba(255, 255, 255, 0.08); }
 }
 .jr-seg button svg { width: 17px; height: 17px; }
 .jr-seg button[aria-pressed="true"] { background: rgba(240, 234, 255, 0.9); color: #24184f; }
-/* New layout: List · Calendar · Gallery · Moons · Stories · Milky Way. The chosen view shows its name, the others
-   only their icon, so all six fit on a phone. */
-.jr-seg-6 { max-width: calc(100% - 24px); }
-.jr-seg-6 button { padding: 0 13px; white-space: nowrap; }
-.jr-seg-6 button[aria-pressed="false"] { justify-content: center; min-width: 44px; padding: 0 10px; }
-.jr-seg-6 button[aria-pressed="false"] span { display: none; }
+/* New layout: List · Stories · Milky Way */
+.jr-seg-new { max-width: calc(100% - 24px); }
+.jr-seg-new button { padding: 0 15px; white-space: nowrap; }
 
 /* Extra views get the whole body; room at the bottom for the switcher */
 .jr-xview { padding-bottom: calc(var(--tabbar-h) + 84px); }
@@ -589,7 +545,6 @@ button.jr-cell:active { background: rgba(255, 255, 255, 0.08); }
 
 @media (max-width: 360px) {
   .jr-seg button { padding: 0 13px; }
-  .jr-seg-6 button { padding: 0 10px; }
-  .jr-seg-6 button[aria-pressed="false"] { min-width: 40px; padding: 0 8px; }
+  .jr-seg-new button { padding: 0 12px; }
   .jr-qchip, .jr-filter-btn { padding: 0 12px; }
 }

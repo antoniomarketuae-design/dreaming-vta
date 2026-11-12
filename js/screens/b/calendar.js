@@ -1,8 +1,12 @@
 // New layout: Calendar tab. Two looks, switched at the top (remembered in settings.calendarStyle):
 //   Circle (default): the dream wheel (wheel.js), the month as a zodiac-like circle. Tap a day to put its dream in the
-//     middle; under the circle, that day's card ("what happened this day") opens the day sheet.
+//     middle, where a gold "See more" button opens it; tapping the chosen day again on the ring opens it too.
 //   Grid: a Monday-first month. Days with dreams glow (with a count when there are several), days with a day-journal
-//     note get a warm mark, today has a moon-gold ring. Tapping a day opens its sheet.
+//     note get a warm mark, today has a moon-gold ring. Tapping a day chooses it (a light tile, aria-pressed);
+//     tapping the chosen day again opens its day sheet.
+// Both share one chosen day (`pick`; on a new month: its newest dream day, else today or the 1st) and show the same
+// day card under the month: the day's name, its note (or "What happened this day?") and a button to the day sheet.
+// In Grid the card also lists the day's dreams, since the grid has no middle like the circle.
 // Under both, the month's totals. Swipe the month sideways to turn the page.
 // The day sheet holds that day's dreams and its day journal, which the dream page shows next to the dreams of the
 // following morning (exported as openDaySheet()).
@@ -24,7 +28,7 @@ const STYLE_KEY = 'calendarStyle'; // 'wheel' | 'grid'
 
 // Month on screen, kept between visits (null: this month).
 let view = null; // { y, m (0-11) }
-let pick = null; // the circle's chosen day in that month: { selected: day number, index: which of its dreams }
+let pick = null; // the chosen day in that month (both looks): { selected: day number, index: which dream the circle shows }
 let cleanup = null;
 let sheet = null; // the open day sheet: { day, close }
 
@@ -72,7 +76,7 @@ function emitDayNote(day) {
 /** Dreams of one day, newest first. */
 const dreamsOn = (day) => listDreams().filter((d) => dreamDay(d) === day);
 
-// ---------- dream rows (the sheet) ----------
+// ---------- dream rows (the sheet, and the Grid's day card in a smaller size) ----------
 
 function thumb(d, px) {
   let url = '';
@@ -81,13 +85,14 @@ function thumb(d, px) {
   return `<span class="bc-thumb-img bc-thumb-fallback" style="--h:${(Number(d.seed) || 0) % 360}"></span>`;
 }
 
-function dreamRowHTML(d) {
+/** One dream as a row: picture, title, up to 3 symbols. `small`: the compact row of the day card. */
+function dreamRowHTML(d, { small = false } = {}) {
   const syms = symbolsOf(d).slice(0, 3);
   return `
     <li>
-      <a class="bc-dream" href="#dream/${esc(encodeURIComponent(d.id))}">
+      <a class="bc-dream${small ? ' bc-dream-sm' : ''}" href="#dream/${esc(encodeURIComponent(d.id))}">
         <span class="bc-thumb">
-          ${thumb(d, 52)}
+          ${thumb(d, small ? 40 : 52)}
           ${hasVideo(d) ? `<span class="video-mark" aria-hidden="true">${icons.play}</span>` : ''}
         </span>
         <span class="bc-dream-body">
@@ -133,7 +138,7 @@ export function openDaySheet(day, ctx, { focusNote = false } = {}) {
         <section class="bc-sheet-sec" aria-labelledby="bc-sheet-dreams">
           <h3 class="bc-sheet-label" id="bc-sheet-dreams">${dreams.length ? `Dreams · ${dreams.length}` : 'Dreams'}</h3>
           ${dreams.length
-            ? `<ul class="bc-dreams">${dreams.map(dreamRowHTML).join('')}</ul>`
+            ? `<ul class="bc-dreams">${dreams.map((d) => dreamRowHTML(d)).join('')}</ul>`
             : `<p class="bc-sheet-none">No dreams recorded for ${isToday ? 'today' : 'this day'}.</p>`}
           <a class="bc-sheet-record" href="#record">${icons.plus}<span>${isToday ? 'Record a dream' : 'Record a dream for this day'}</span></a>
           ${isToday ? '' : `<p class="bc-sheet-hint">In the editor, set the date to ${esc(formatDate(day))}.</p>`}
@@ -252,21 +257,23 @@ function monthData(y, m) {
   return { prefix, byDay, notes, dreams };
 }
 
-function cellHTML(iso, n, noted, today) {
+/** One day of the grid. `sel`: the chosen day (a light tile; tapping it again opens the day sheet). */
+function cellHTML(iso, n, noted, today, sel) {
   const num = Number(iso.slice(8));
   if (iso > today) return `<span class="bc-day bc-future"><span class="bc-disc">${num}</span></span>`;
   const cls = ['bc-day'];
   if (n) cls.push('bc-has');
   if (noted) cls.push('bc-noted');
   if (iso === today) cls.push('bc-today');
+  if (sel) cls.push('bc-sel');
   const label = [
     longDay(iso),
     iso === today ? 'today' : '',
     n ? plural(n, 'dream') : 'no dreams',
     noted ? 'day note' : '',
-  ].filter(Boolean).join(', ');
+  ].filter(Boolean).join(', ') + (sel ? '. Press again to open this day' : '');
   return `
-    <button type="button" class="${cls.join(' ')}" data-day="${iso}" aria-label="${esc(label)}">
+    <button type="button" class="${cls.join(' ')}" data-pick="${iso}" aria-pressed="${sel}" aria-label="${esc(label)}">
       <span class="bc-disc">${num}${n > 1 ? `<span class="bc-count">${n}</span>` : ''}</span>
       ${noted ? '<span class="bc-note-mark"></span>' : ''}
     </button>`;
@@ -287,12 +294,16 @@ function snippet(text) {
   return `${(space > SNIPPET * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,.;:–-]+$/, '')}…`;
 }
 
-/** The circle's chosen day, under it: the day's name and its day-journal note (tap to open the day sheet). */
-function dayCardHTML(iso, dreams) {
+/**
+ * The chosen day's card, under the circle or the grid (one shared card): the day's name, its day-journal note and a
+ * button to the day sheet. `dreams`: that day's dreams, newest first. `rows`: also list them (the Grid has no middle).
+ */
+function dayCardHTML(iso, dreams = [], { rows = false } = {}) {
   const today = localDay();
   const note = getDayNote(iso);
   const rel = relativeDay(iso);
-  const sub = [rel && rel !== formatDate(iso) ? rel : '', dreams ? plural(dreams, 'dream') : 'No dreams'].filter(Boolean).join(' · ');
+  const count = dreams.length;
+  const sub = [rel && rel !== formatDate(iso) ? rel : '', count ? plural(count, 'dream') : 'No dreams'].filter(Boolean).join(' · ');
   const isToday = iso === today;
   return `
     <section class="glass bc-daycard" aria-labelledby="bc-daycard-title">
@@ -303,6 +314,9 @@ function dayCardHTML(iso, dreams) {
           <p class="bc-daycard-sub">${esc(sub)}</p>
         </div>
       </div>
+      ${rows && count
+        ? `<ul class="bc-dreams bc-daycard-dreams" aria-label="${esc(`Dreams on ${longDay(iso)}`)}">${dreams.map((d) => dreamRowHTML(d, { small: true })).join('')}</ul>`
+        : ''}
       ${note
         ? `<button type="button" class="bc-daycard-note" data-day="${iso}" aria-label="${esc(`Open this day’s note: ${snippet(note)}`)}">${esc(snippet(note))}</button>`
         : `<p class="bc-daycard-prompt">${isToday ? 'What happened today?' : 'What happened this day?'} A few lines about events, people and feelings help you see what your dreams pick up.</p>`}
@@ -316,11 +330,10 @@ function wheelBodyHTML() {
   const { notes } = monthData(y, m);
   const days = new Set([...notes].map((iso) => Number(iso.slice(8, 10))));
   const iso = `${month}-${pad(pick.selected)}`;
-  const count = (dreamsByDay(month).get(pick.selected) || []).length;
   return `
     ${isCurrent(view) ? '' : '<div class="bc-now-row"><button type="button" class="bc-back-now" data-cal="now">Back to this month</button></div>'}
     ${wheelHTML({ month, selected: pick.selected, index: pick.index }, { notes: days })}
-    ${dayCardHTML(iso, count)}`;
+    ${dayCardHTML(iso, dreamsByDay(month).get(pick.selected) || [])}`;
 }
 
 function totalsHTML() {
@@ -357,12 +370,13 @@ function gridHTML(anim) {
   const lead = (new Date(y, m, 1).getDay() + 6) % 7; // Monday first
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const current = isCurrent(view);
+  const chosen = `${prefix}-${pad(pick.selected)}`;
 
   const cells = [];
   for (let i = 0; i < lead; i++) cells.push('<span class="bc-day bc-blank" aria-hidden="true"></span>');
   for (let day = 1; day <= daysInMonth; day++) {
     const iso = `${prefix}-${pad(day)}`;
-    cells.push(cellHTML(iso, byDay.get(iso) || 0, notes.has(iso), today));
+    cells.push(cellHTML(iso, byDay.get(iso) || 0, notes.has(iso), today, iso === chosen));
   }
 
   const week = weekdayInitials();
@@ -384,7 +398,8 @@ function gridHTML(anim) {
         <span><i class="bc-key bc-key-note"></i>Day note</span>
         <span><i class="bc-key bc-key-today"></i>Today</span>
       </div>
-    </div>`;
+    </div>
+    ${dayCardHTML(chosen, dreamsByDay(prefix).get(pick.selected) || [], { rows: true })}`;
 }
 
 export default {
@@ -398,6 +413,11 @@ export default {
     const monthKey = () => `${view.y}-${pad(view.m + 1)}`;
     const freshPick = () => { pick = { selected: defaultDay(monthKey()), index: 0 }; };
     freshPick();
+    const openDream = (d) => {
+      const href = `#dream/${encodeURIComponent(d.id)}`;
+      if (ctx?.navigate) ctx.navigate(href);
+      else location.hash = href;
+    };
 
     el.innerHTML = '<div class="bc"></div>';
     const root = el.firstElementChild;
@@ -440,9 +460,16 @@ export default {
         }
         return;
       }
-      // The circle: choose a day, the next dream of that day, or turn the month.
+      // The circle: choose a day (tap the chosen one again to open its dream), the next dream of that day, or turn
+      // the month.
       if ((b = e.target.closest('[data-wheel-day]'))) {
-        pick = { selected: Number(b.dataset.wheelDay), index: 0 };
+        const n = Number(b.dataset.wheelDay);
+        const list = dreamsByDay(monthKey()).get(n) || [];
+        if (n === pick.selected && list.length) {
+          openDream(list[Math.min(pick.index, list.length - 1)]);
+          return;
+        }
+        pick = { selected: n, index: 0 };
         paint();
         root.querySelector(`[data-wheel-day="${pick.selected}"]`)?.focus({ preventScroll: true });
         return;
@@ -465,6 +492,17 @@ export default {
         else go(act === 'next' ? 1 : -1, `[data-cal="${act}"]`);
         return;
       }
+      // The grid: choose a day (its card shows under the grid); tap the chosen one again to open its day sheet.
+      if ((b = e.target.closest('[data-pick]'))) {
+        const iso = b.dataset.pick;
+        const n = Number(iso.slice(8, 10));
+        if (n === pick.selected) { openDaySheet(iso, ctx); return; }
+        pick = { selected: n, index: 0 };
+        paint();
+        root.querySelector(`[data-pick="${iso}"]`)?.focus({ preventScroll: true });
+        return;
+      }
+      // The day card's note and button.
       const day = e.target.closest('[data-day]');
       if (day) openDaySheet(day.dataset.day, ctx);
     });

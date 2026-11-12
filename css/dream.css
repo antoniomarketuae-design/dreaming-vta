@@ -971,31 +971,286 @@ button.dream-interp-imgrow:active { opacity: 0.75; }
   .dream-interp-vbusy { animation: none; }
 }
 
-/* ---- New layout: dream type switch and "Your day before" ---- */
-.dream-type {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px;
-  margin: 12px 0 4px;
-  padding: 4px;
-  border: 1px solid var(--glass-border);
+/* ---- New layout (.dream--new): dream type chip + sheet, glowing section buttons, "Your day before" ---- */
+
+/* Each type's colour as an "r, g, b" triple, used as rgb(var(--tc)) / rgba(var(--tc), a). dream.js always puts one
+   of these four on the chip and on each card (an unknown type gets the general one). */
+.dream-tone-general { --tc: 201, 182, 255; }   /* lilac */
+.dream-tone-lucid { --tc: 255, 217, 138; }     /* gold, like var(--moon) */
+.dream-tone-nightmare { --tc: 255, 159, 143; } /* coral, like var(--ember) */
+.dream-tone-prophetic { --tc: 185, 227, 255; } /* pale blue */
+
+.dream--new .dream-badges { align-items: center; margin: 0 0 20px; }
+
+/* The type chip under the title: "☾ General dream ▾" */
+.dream-typechip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 38px;
+  padding: 5px 12px 5px 5px;
+  border: 1px solid rgba(var(--tc), 0.42);
   border-radius: 999px;
-  background: var(--glass);
+  background:
+    linear-gradient(135deg, rgba(var(--tc), 0.2), rgba(var(--tc), 0.05) 75%),
+    rgba(22, 15, 56, 0.55);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  box-shadow: 0 0 18px rgba(var(--tc), 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  color: rgb(var(--tc));
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.25s ease;
 }
-.dream-type-btn {
-  min-height: 36px;
-  padding: 6px 4px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
+/* A 46 px tall tap area around the 38 px chip */
+.dream-typechip::before { content: ""; position: absolute; inset: -4px -2px; }
+.dream-typechip:active { transform: scale(0.97); }
+.dream-typechip:focus-visible { outline: 2px solid rgba(var(--tc), 0.9); outline-offset: 3px; }
+.dream-typechip-glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--tc), 0.3), rgba(var(--tc), 0.06) 72%);
+}
+.dream-typechip-glyph svg { width: 18px; height: 18px; filter: drop-shadow(0 0 4px rgba(var(--tc), 0.7)); }
+.dream-typechip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dream-typechip-caret { flex: none; display: grid; place-items: center; margin-left: -2px; opacity: 0.75; }
+.dream-typechip-caret svg { width: 15px; height: 15px; }
+/* One soft ring of light after the type changes */
+.dream-typechip-pop { animation: dream-typechip-pop 0.9s ease-out 0.12s; }
+@keyframes dream-typechip-pop {
+  0% { box-shadow: 0 0 0 0 rgba(var(--tc), 0.55), 0 0 18px rgba(var(--tc), 0.2); }
+  100% { box-shadow: 0 0 0 14px rgba(var(--tc), 0), 0 0 18px rgba(var(--tc), 0.2); }
+}
+
+/* Story · Details · Sleep as three round glowing buttons, labels under, joined by a faint line */
+.dream--new .dream-tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 0 20px;
+  border-bottom: 0;
+}
+.dream--new .dream-tabs::before {
+  content: "";
+  position: absolute;
+  top: 25px; /* through the middle of the orbs */
+  left: 16.6%;
+  right: 16.6%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(222, 212, 255, 0.04), rgba(222, 212, 255, 0.2) 50%, rgba(222, 212, 255, 0.04));
+  pointer-events: none;
+}
+.dream--new .dream-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 4px 2px;
+  color: var(--text-faint);
+  font-size: 13px;
+  -webkit-tap-highlight-color: transparent;
+}
+.dream--new .dream-tab[aria-selected="true"]::after { content: none; }
+.dream--new .dream-tab:focus-visible { outline: none; }
+.dream--new .dream-tab:focus-visible .dream-tab-orb { outline: 2px solid var(--moon); outline-offset: 3px; }
+.dream-tab-orb {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(155, 123, 255, 0.16), rgba(155, 123, 255, 0) 70%),
+    rgba(24, 17, 60, 0.92);
   color: var(--text-dim);
-  font: inherit;
+  transition: color 0.25s ease, border-color 0.25s ease, box-shadow 0.3s ease, background 0.3s ease, transform 0.15s ease;
+}
+.dream-tab-orb svg { width: 22px; height: 22px; transition: filter 0.3s ease; }
+.dream-tab-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-faint);
   font-size: 13px;
   font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: color 0.25s ease;
 }
-.dream-type-btn[aria-checked="true"] { background: rgba(255, 217, 138, 0.16); color: var(--moon); box-shadow: 0 0 0 1px rgba(255, 217, 138, 0.35) inset; }
-.dream-type-btn[data-type="nightmare"][aria-checked="true"] { background: rgba(255, 159, 143, 0.16); color: var(--ember); box-shadow: 0 0 0 1px rgba(255, 159, 143, 0.35) inset; }
-.dream-type-btn:active { transform: scale(0.97); }
+.dream--new .dream-tab[aria-selected="true"] .dream-tab-orb {
+  border-color: rgba(255, 217, 138, 0.55);
+  background:
+    radial-gradient(circle at 50% 40%, rgba(255, 217, 138, 0.3), rgba(255, 217, 138, 0.06) 70%),
+    rgba(40, 28, 72, 0.95);
+  box-shadow: 0 0 0 4px rgba(255, 217, 138, 0.07), 0 0 26px rgba(255, 217, 138, 0.34);
+  color: var(--moon);
+}
+.dream--new .dream-tab[aria-selected="true"] .dream-tab-orb svg { filter: drop-shadow(0 0 6px rgba(255, 217, 138, 0.6)); }
+.dream--new .dream-tab[aria-selected="true"] .dream-tab-label { color: var(--moon); }
+.dream--new .dream-tab:active .dream-tab-orb { transform: scale(0.94); }
+
+/* Small screens (iPhone SE): slightly smaller orbs */
+@media (max-height: 700px) {
+  .dream-tab-orb { width: 46px; height: 46px; }
+  .dream--new .dream-tabs::before { top: 23px; }
+  .dream--new .dream-badges { margin-bottom: 18px; }
+}
+
+/* The type sheet: four large cards (a radiogroup) sliding up from the bottom */
+.dream-lock { overflow: hidden; } /* on <body> while the sheet is open */
+
+.dream-tsheet { position: fixed; inset: 0; z-index: 25; display: flex; align-items: flex-end; justify-content: center; }
+.dream-tsheet-out { pointer-events: none; }
+.dream-tsheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 5, 24, 0.62);
+  opacity: 0;
+  transition: opacity 0.26s ease;
+  touch-action: none;
+}
+.dream-tsheet-panel {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100% - env(safe-area-inset-top) - 24px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px calc(env(safe-area-inset-right) + 18px) calc(env(safe-area-inset-bottom) + 18px) calc(env(safe-area-inset-left) + 18px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 0;
+  border-radius: 26px 26px 0 0;
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(155, 123, 255, 0.26), rgba(155, 123, 255, 0) 65%),
+    rgba(26, 18, 64, 0.96);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  backdrop-filter: blur(24px) saturate(150%);
+  box-shadow: 0 -16px 50px rgba(0, 0, 0, 0.45);
+  outline: none;
+  transform: translateY(100%);
+  transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.dream-tsheet-in .dream-tsheet-backdrop { opacity: 1; }
+.dream-tsheet-in .dream-tsheet-panel { transform: none; }
+.dream-tsheet-out .dream-tsheet-backdrop { opacity: 0; }
+.dream-tsheet-out .dream-tsheet-panel { transform: translateY(100%); transition-duration: 0.24s; }
+
+.dream-tsheet-grab { width: 38px; height: 5px; margin: 0 auto 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.22); }
+.dream-tsheet-x {
+  position: absolute;
+  top: 12px;
+  right: calc(env(safe-area-inset-right) + 14px);
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-dim);
+}
+.dream-tsheet-x::before { content: ""; position: absolute; inset: -4px; } /* 44 px tap area */
+.dream-tsheet-x svg { width: 18px; height: 18px; }
+.dream-tsheet-kicker {
+  margin: 4px 48px 4px 2px;
+  color: var(--moon);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.dream-tsheet-title { margin: 0 48px 16px 2px; color: var(--text); font-size: 24px; font-weight: 300; line-height: 1.2; letter-spacing: -0.01em; }
+
+.dream-tsheet-opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.dream-tsheet-opt {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  min-height: 128px;
+  padding: 14px;
+  border: 1px solid rgba(var(--tc), 0.2);
+  border-radius: 20px;
+  background:
+    radial-gradient(140% 100% at 0% 0%, rgba(var(--tc), 0.16), rgba(var(--tc), 0) 62%),
+    rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+.dream-tsheet-opt:active { transform: scale(0.98); }
+.dream-tsheet-opt:focus-visible { outline: 2px solid var(--moon); outline-offset: 2px; }
+.dream-tsheet-opt[aria-checked="true"] {
+  border-color: rgba(255, 217, 138, 0.8);
+  background:
+    radial-gradient(140% 100% at 0% 0%, rgba(var(--tc), 0.2), rgba(var(--tc), 0) 62%),
+    rgba(255, 217, 138, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(255, 217, 138, 0.3), 0 0 24px rgba(255, 217, 138, 0.18);
+}
+.dream-tsheet-glyph {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(var(--tc), 0.35);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(var(--tc), 0.26), rgba(var(--tc), 0.04) 72%);
+  box-shadow: 0 0 18px rgba(var(--tc), 0.2);
+  color: rgb(var(--tc));
+}
+.dream-tsheet-glyph svg { width: 24px; height: 24px; filter: drop-shadow(0 0 5px rgba(var(--tc), 0.65)); }
+.dream-tsheet-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; max-width: 100%; }
+.dream-tsheet-name { color: var(--text); font-size: 16px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.dream-tsheet-line { color: var(--text-dim); font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
+.dream-tsheet-check {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--moon);
+  box-shadow: 0 0 12px rgba(255, 217, 138, 0.55);
+  color: #24184f;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.dream-tsheet-check svg { width: 15px; height: 15px; stroke-width: 2.6; }
+.dream-tsheet-opt[aria-checked="true"] .dream-tsheet-check { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dream-typechip,
+  .dream-tab-orb,
+  .dream-tab-orb svg,
+  .dream-tab-label,
+  .dream-tsheet-backdrop,
+  .dream-tsheet-panel,
+  .dream-tsheet-opt,
+  .dream-tsheet-check { transition: none; }
+  .dream-typechip-pop { animation: none; }
+  .dream-typechip:active,
+  .dream-tsheet-opt:active,
+  .dream--new .dream-tab:active .dream-tab-orb { transform: none; }
+}
 
 .dream-day { display: flex; flex-direction: column; gap: 8px; }
 .dream-day-when { display: flex; align-items: center; justify-content: space-between; margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }

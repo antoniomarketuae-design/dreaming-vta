@@ -56,7 +56,7 @@ const FOUND = [
   { v: 'ai', e: '🤖', t: 'An AI assistant' },
   { v: 'other', e: '✨', t: 'Somewhere else' },
 ];
-const MAIN_GOALS = [
+export const MAIN_GOALS = [
   { v: 'analysis', t: 'Interpret my dreams', d: 'Look for what they might be telling you', tags: ['surreal', 'night'], seed: 4021 },
   { v: 'lucid', t: 'Lucid dreaming', d: 'Notice you are dreaming, then steer', tags: ['flying'], seed: 977 },
   { v: 'journal', t: 'Keep a dream journal', d: 'Remember more of your nights', tags: ['calm', 'nature'], seed: 3310 },
@@ -90,7 +90,7 @@ const TECHNIQUES_KNOWN = [
   { v: 'ssild', e: '👂', t: 'SSILD' },
   { v: 'none', e: '', t: 'None yet' },
 ];
-const GOAL_ROWS = [
+export const GOAL_ROWS = [
   [['🕊️', 'Fly over a city'], ['🌍', 'Visit an impossible world'], ['🎹', 'Play an instrument'], ['💫', 'See someone I miss'], ['🗺️', 'Go on an adventure'], ['🌊', 'Breathe underwater']],
   [['🚀', 'Travel to space'], ['🪄', 'Do real magic'], ['🐉', 'Meet a dragon'], ['🧘', 'Find deep calm'], ['🏔️', 'Climb a mountain'], ['🎨', 'Paint something new']],
 ];
@@ -165,7 +165,7 @@ const LIFE_GOALS = [
 const nameOf = (p) => String(p.name || '').trim();
 const withName = (p, text) => (nameOf(p) ? `${text}, ${esc(nameOf(p))}` : text);
 
-const STEPS = [
+export const STEPS = [
   { id: 'welcome', kind: 'welcome', bar: false },
   { id: 'recall', kind: 'single', key: 'recall', title: 'How often do you remember your dreams?', options: RECALL },
   {

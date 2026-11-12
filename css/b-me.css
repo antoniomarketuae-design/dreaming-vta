@@ -238,6 +238,31 @@
   white-space: nowrap;
 }
 
+/* ---- Personalise Dreaming (the sheet itself: b-survey.css) ---- */
+
+.bm-survey { margin-top: 14px; padding: 16px; }
+.bm-survey-head { display: flex; align-items: center; gap: 14px; }
+.bm-survey-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 217, 138, 0.28), rgba(155, 123, 255, 0.26) 60%, rgba(155, 123, 255, 0.1));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  color: var(--moon);
+}
+.bm-survey-icon svg { width: 23px; height: 23px; }
+.bm-survey-who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.bm-survey-title { margin: 0; color: var(--text); font-size: 18px; font-weight: 500; line-height: 1.25; }
+.bm-survey-sub { color: var(--text-dim); font-size: 13.5px; line-height: 1.35; }
+.bm-survey-progress { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.bm-survey-count { color: var(--text-dim); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.bm-survey-count b { color: var(--text); font-weight: 600; }
+.bm-survey-progress .bm-bar i { transition: width 0.3s ease; }
+.bm-survey-btn { margin-top: 14px; min-height: 46px; padding: 10px 14px; border-radius: 999px; }
+
 /* ---- Notifications · Settings ---- */
 
 .bm-group { margin-top: 14px; padding: 2px 0; overflow: hidden; }
@@ -286,13 +311,36 @@
 .bm-chev { flex: none; display: grid; place-items: center; color: var(--text-faint); }
 .bm-chev svg { width: 17px; height: 17px; }
 
-.bm-footer {
-  margin: 28px 16px 8px;
-  color: var(--text-faint);
-  font-size: 13px;
-  text-align: center;
+/* ---- Kept only on this iPhone (calm, always shown) ---- */
+
+.bm-note { display: flex; gap: 12px; margin-top: 22px; padding: 14px 14px 8px; }
+.bm-note-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 217, 138, 0.14);
+  color: var(--moon);
 }
+.bm-note-icon svg { width: 19px; height: 19px; }
+.bm-note-body { flex: 1; min-width: 0; }
+.bm-note-title { margin: 0; color: var(--text); font-size: 15px; font-weight: 600; line-height: 1.35; }
+.bm-note-text { margin: 2px 0 0; color: var(--text-dim); font-size: 13.5px; line-height: 1.4; }
+.bm-note-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 40px;
+  color: var(--moon);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.bm-note-link svg { width: 15px; height: 15px; }
+.bm-note-link:active { opacity: 0.7; }
 
 @media (prefers-reduced-motion: reduce) {
-  .bm-avatar-face { transition: none; }
+  .bm-avatar-face, .bm-survey-progress .bm-bar i { transition: none; }
 }
