@@ -30,7 +30,7 @@ const FALLBACK = {       // a soft rounded badge for a sign without a drawn shap
 };
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-const todayLong = () => new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+const todayShort = () => new Date().toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 const shapeOf = (id) => SHAPES[id] || FALLBACK;
 
 // Small seeded random numbers, so a sign's sky looks the same every time.
@@ -188,13 +188,9 @@ function seasonMapHTML(season, items) {
     <section class="jr-month jr-zs" aria-label="${esc(`${season.sign.name} season, ${seasonRange(season)}, ${plural(n, 'dream')}`)}">
       <h2 class="jr-zs-head${now ? ' is-now' : ''}">
         <span class="jr-zs-glyph" aria-hidden="true">${season.sign.glyph}</span>
-        <span class="jr-zs-titles">
-          ${now
-            ? `<span class="jr-zs-today">Today is <b>${esc(todayLong())}</b></span>
-               <span class="jr-zs-name">${esc(season.sign.name)} season</span>`
-            : `<span class="jr-zs-name">${esc(season.sign.name)} season</span>
-               <span class="jr-zs-dates">${esc(seasonMonths(season))}</span>`}
-        </span>
+        <span class="jr-zs-line">${now
+          ? `<b class="jr-zs-today">Today, ${esc(todayShort())}</b><span class="jr-zs-dot" aria-hidden="true">·</span><span class="jr-zs-name">${esc(season.sign.name)} season</span>`
+          : `<span class="jr-zs-name">${esc(season.sign.name)} season</span><span class="jr-zs-dot" aria-hidden="true">·</span><span class="jr-zs-dates">${esc(seasonMonths(season))}</span>`}</span>
         <span class="jr-zs-n">${plural(n, 'dream')}</span>
       </h2>
       <div class="jr-zm" data-zm data-ar="${ar.toFixed(4)}">

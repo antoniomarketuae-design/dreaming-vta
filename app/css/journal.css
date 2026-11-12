@@ -861,40 +861,48 @@ body.jr-sq-open { overflow: hidden; }
 /* ---- New layout: the Zodiac look. Each sign season is its constellation; the dreams are stars on it. ---- */
 
 .jr-zs { margin-top: 18px; }
-.jr-zs-head { display: flex; align-items: center; gap: 10px; margin: 0 4px 2px; }
+.jr-zs-head { display: flex; align-items: center; gap: 8px; margin: 0 4px 0; }
 .jr-zs-glyph {
   display: grid;
   place-items: center;
   flex: none;
-  width: 40px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
   border: 1px solid rgba(255, 217, 138, 0.4);
   border-radius: 50%;
   background: radial-gradient(circle at 50% 35%, rgba(255, 217, 138, 0.22), rgba(22, 15, 56, 0.5) 70%);
-  box-shadow: 0 0 18px rgba(255, 217, 138, 0.25);
+  box-shadow: 0 0 14px rgba(255, 217, 138, 0.22);
   color: var(--moon);
   font-family: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols", system-ui, sans-serif;
-  font-size: 22px;
+  font-size: 16px;
   line-height: 1;
 }
-.jr-zs-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.jr-zs-name { font-size: 20px; font-weight: 300; letter-spacing: 0.02em; color: var(--text); text-shadow: 0 2px 14px rgba(8, 4, 30, 0.6); }
-.jr-zs-dates { font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 217, 138, 0.8); }
+.jr-zs-line { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; overflow: hidden; white-space: nowrap; }
+.jr-zs-line > * { flex: none; }
+.jr-zs-line > :last-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.jr-zs-dot { color: var(--text-faint); }
+.jr-zs-name { font-size: 16px; font-weight: 400; letter-spacing: 0.01em; color: var(--text); text-shadow: 0 2px 14px rgba(8, 4, 30, 0.6); }
+.jr-zs-dates { font-size: 13px; font-weight: 600; color: rgba(255, 217, 138, 0.85); }
 /* The current sign: today's date first, then the sign. */
-.jr-zs-today { font-size: 13px; color: var(--text-dim); }
-.jr-zs-today b { color: var(--moon); font-weight: 600; }
-.jr-zs-head.is-now .jr-zs-name { font-size: 21px; }
-.jr-zs-n { flex: none; color: var(--text-faint); font-size: 12.5px; font-weight: 600; }
+.jr-zs-today { font-size: 14px; font-weight: 600; color: var(--moon); }
+.jr-zs-n { flex: none; color: var(--text-faint); font-size: 12px; font-weight: 600; white-space: nowrap; }
 
 /* The map: a zoomable window on the sign's sky (a Milky Way band, the constellation in thin gold, the dreams). */
+/* Open, like the Milky Way view: no frame; the sky melts into the page at its edges. Wider than the content column
+   so the stars reach the screen edges. */
 .jr-zm {
   position: relative;
-  height: min(380px, 104vw);
-  margin-top: 8px;
+  height: min(400px, 108vw);
+  margin: 4px -16px 0;
   overflow: hidden;
-  border-radius: 26px;
-  background: radial-gradient(120% 90% at 50% 40%, rgba(40, 26, 92, 0.55), rgba(10, 6, 30, 0.75));
-  box-shadow: inset 0 0 0 1px rgba(255, 217, 138, 0.14), inset 0 0 40px rgba(0, 0, 0, 0.45);
+}
+.jr-zm-scroll {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%),
+    linear-gradient(to bottom, transparent 0, #000 56px, #000 calc(100% - 56px), transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to right, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%),
+    linear-gradient(to bottom, transparent 0, #000 56px, #000 calc(100% - 56px), transparent 100%);
+  mask-composite: intersect;
 }
 .jr-zm-scroll {
   position: absolute;
@@ -907,7 +915,7 @@ body.jr-sq-open { overflow: hidden; }
 }
 .jr-zm-scroll::-webkit-scrollbar { display: none; }
 .jr-zm-layer { position: relative; width: 100%; aspect-ratio: 1.4; --node: 60px; }
-.jr-zm-sky { position: absolute; inset: 0; width: 100%; height: 100%; }
+.jr-zm-sky { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; } /* the band runs past the figure and fades out */
 
 .jr-zm-mw path { fill: none; stroke-linecap: round; }
 .jr-zm-mw-haze { stroke: rgba(150, 120, 240, 0.045); }
@@ -1022,8 +1030,8 @@ body.jr-sq-open { overflow: hidden; }
 /* Zoom buttons, bottom right, over the map. */
 .jr-zm-ctl {
   position: absolute;
-  right: 10px;
-  bottom: 10px;
+  right: 22px;
+  bottom: 14px;
   display: flex;
   gap: 6px;
 }
@@ -1047,8 +1055,8 @@ body.jr-sq-open { overflow: hidden; }
 /* "Pinch to zoom", bottom left, until the first pinch on this map. */
 .jr-zm-hint {
   position: absolute;
-  left: 12px;
-  bottom: 16px;
+  left: 22px;
+  bottom: 20px;
   margin: 0;
   padding: 4px 10px;
   border-radius: 999px;
