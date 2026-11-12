@@ -840,3 +840,101 @@ body.jr-sq-open { overflow: hidden; }
   .jr-tile, .jr-msq-more svg { transition: none; }
   .jr-msq.is-open .jr-msq-grid > :nth-child(n + 7) { animation: none; }
 }
+
+/* ---- New layout: the Zodiac look. Each sign season is its constellation; the dreams are stars on it. ---- */
+
+.jr-zs { margin-top: 18px; }
+.jr-zs-head { display: flex; align-items: center; gap: 10px; margin: 0 4px 2px; }
+.jr-zs-glyph {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 217, 138, 0.4);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, rgba(255, 217, 138, 0.22), rgba(22, 15, 56, 0.5) 70%);
+  box-shadow: 0 0 18px rgba(255, 217, 138, 0.25);
+  color: var(--moon);
+  font-family: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols", system-ui, sans-serif;
+  font-size: 22px;
+  line-height: 1;
+}
+.jr-zs-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.jr-zs-name { font-size: 20px; font-weight: 300; letter-spacing: 0.02em; color: var(--text); text-shadow: 0 2px 14px rgba(8, 4, 30, 0.6); }
+.jr-zs-dates { font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 217, 138, 0.8); }
+.jr-zs-n { flex: none; color: var(--text-faint); font-size: 12.5px; font-weight: 600; }
+
+/* The constellation itself: no box, just the sky. */
+.jr-zs-fig { position: relative; width: 100%; max-height: 420px; margin: 0 auto; }
+.jr-zs-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.jr-zs-glow { fill: none; stroke: rgba(255, 217, 138, 0.16); stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; filter: blur(3px); }
+.jr-zs-line { fill: none; stroke: rgba(255, 217, 138, 0.55); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.jr-zs-dots circle { fill: #fff6dc; opacity: 0.85; }
+
+.jr-zs-star {
+  position: absolute;
+  width: var(--star);
+  height: var(--star);
+  transform: translate(-50%, -50%);
+  color: var(--text);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.jr-zs-pic {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 2px solid rgba(var(--tc), 0.9);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #c9b6ff, #3a2a78);
+  box-shadow: 0 0 0 3px rgba(14, 9, 38, 0.6), 0 0 16px rgba(var(--tc), 0.6), 0 0 34px rgba(var(--tc), 0.25);
+  transition: transform 0.15s ease;
+}
+.jr-zs-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.jr-zs-img:not([src]) { visibility: hidden; }
+.jr-zs-star:active .jr-zs-pic { transform: scale(0.92); }
+.jr-zs-star.is-newest .jr-zs-pic { animation: jr-zs-twinkle 3.2s ease-in-out infinite; }
+@keyframes jr-zs-twinkle {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(14, 9, 38, 0.6), 0 0 16px rgba(var(--tc), 0.6), 0 0 34px rgba(var(--tc), 0.25); }
+  50% { box-shadow: 0 0 0 3px rgba(14, 9, 38, 0.6), 0 0 24px rgba(var(--tc), 0.85), 0 0 50px rgba(var(--tc), 0.4); }
+}
+/* The Moon's sign that night: a tiny badge on the star's shoulder. */
+.jr-zs-moon {
+  position: absolute;
+  right: -5px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(201, 182, 255, 0.55);
+  border-radius: 50%;
+  background: #1b1440;
+  color: #e4dbff;
+  font-family: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols", system-ui, sans-serif;
+  font-size: 10.5px;
+  line-height: 1;
+}
+.jr-zs-day {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  border-radius: 7px;
+  background: rgba(14, 9, 38, 0.7);
+  color: rgba(255, 217, 138, 0.85);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.jr-zs-day b { color: var(--moon); font-size: 11px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .jr-zs-star.is-newest .jr-zs-pic { animation: none; }
+  .jr-zs-pic { transition: none; }
+}

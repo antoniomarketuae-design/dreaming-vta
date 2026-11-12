@@ -17,14 +17,16 @@ import { symbolsOf, dreamType } from '../symbols.js';
 import { isNewLayout } from '../layout.js';
 import { EXTRA_VIEWS } from './b/views/index.js';
 import { TYPE_LOOK, TYPE_IDS, RECURRING_LOOK, MORE_GLYPH, moodGlyph, hueRGB } from './b/types.js';
+import { FIGURES, seasonOf, moonSign, placeOnFigure } from './b/zodiac.js';
 
 const VIEW_KEY = 'dreaming.journal.view';
 const NOTE_KEY = 'journalNoteHiddenAt'; // dream count when the "only on this iPhone" note was tucked away
 const NOTE_RETURNS_AFTER = 20;          // ...it comes back after this many more dreams, as a backup reminder
 const SYMBOL_LIMIT = 18;                // symbols shown in the filter sheet before "Show all"
-const LIST_STYLE_KEY = 'journalListStyle'; // new layout: 'squares' (default) or 'rows'
+const LIST_STYLE_KEY = 'journalListStyle'; // new layout: 'zodiac' (default), 'squares' or 'rows'
 const TILE_PX = 200;                    // picture size asked of dreamArtURL for a day square
 const MONTH_FIRST = 6;                  // day squares shown per month before "Show all"
+const STAR_PX = 120;                    // picture size asked of dreamArtURL for a dream star
 
 const blankFilters = () => ({ kind: 'all', types: [], lucid: false, recurring: false, emotions: [], symbols: [], from: '', to: '' });
 
@@ -309,7 +311,99 @@ function rowHTML(e) {
     </a>`;
 }
 
-const listStyle = () => (getSetting(LIST_STYLE_KEY, 'squares') === 'rows' ? 'rows' : 'squares');
+const LIST_STYLES = ['zodiac', 'squares', 'rows'];
+const listStyle = () => {
+  const v = getSetting(LIST_STYLE_KEY, 'zodiac');
+  return LIST_STYLES.includes(v) ? v : 'zodiac';
+};
+
+// ---- The Zodiac look: each sign season drawn as its constellation, the dreams as stars on it ----
+
+const MARGIN = 0.13; // room around a figure (in figure units) so the dream stars aren't cut off
+
+/** Star size by how many dreams share the figure (CSS px), and whether their day labels still fit. */
+function starSize(n) {
+  if (n <= 5) return { px: 50, labels: true };
+  if (n <= 9) return { px: 42, labels: true };
+  if (n <= 14) return { px: 34, labels: false };
+  if (n <= 22) return { px: 28, labels: false };
+  return { px: 23, labels: false };
+}
+
+function seasonRange(season) {
+  const f = new Date(`${season.from}T12:00:00`);
+  const t = new Date(`${season.to}T12:00:00`);
+  const opt = { day: 'numeric', month: 'short' };
+  const thisYear = new Date().getFullYear();
+  const yr = f.getFullYear() !== thisYear || t.getFullYear() !== thisYear ? ` ${t.getFullYear()}` : '';
+  return `${f.toLocaleDateString(undefined, opt)} – ${t.toLocaleDateString(undefined, opt)}${yr}`;
+}
+
+/** One season as its constellation. `items`: that season's dreams, newest first (they are laid out oldest first). */
+function seasonHTML(season, items) {
+  const fig = FIGURES[season.sign.id];
+  const n = items.length;
+  const { px, labels } = starSize(n);
+  // A box around the figure, never taller than it is wide, so tall signs (Cancer, Libra) stay a sensible size.
+  const hb = fig.h + 2 * MARGIN;
+  const wb = Math.max(fig.w + 2 * MARGIN, hb);
+  const ox = (wb - fig.w) / 2;
+  const X = (x) => ((ox + x) / wb) * 100;
+  const Y = (y) => ((MARGIN + y) / hb) * 100;
+  const k = 1000;
+  const lines = fig.lines.map(([a, b]) => `M${Math.round((ox + fig.stars[a][0]) * k)} ${Math.round((MARGIN + fig.stars[a][1]) * k)}L${Math.round((ox + fig.stars[b][0]) * k)} ${Math.round((MARGIN + fig.stars[b][1]) * k)}`).join('');
+  const dots = fig.stars.map(([x, y, mag]) => `<circle cx="${Math.round((ox + x) * k)}" cy="${Math.round((MARGIN + y) * k)}" r="${Math.max(4, 11 - mag * 1.6).toFixed(1)}"/>`).join('');
+  const chrono = items.slice().reverse();
+  // Keep the pictures apart: their size plus a little air (and room for the day label), in figure units, assuming a
+  // phone-wide figure (~340 px); the box margin leaves room at the edges.
+  const spots = placeOnFigure(fig, n, { minGap: ((px + (labels ? 22 : 10)) / 340) * wb, room: MARGIN * 0.75 });
+  const stars = chrono.map((e, i) => {
+    const d = e.d;
+    const [x, y] = spots[i];
+    const date = new Date(`${e.day}T12:00:00`);
+    const ok = !Number.isNaN(date.getTime());
+    const wk = ok ? date.toLocaleDateString(undefined, { weekday: 'short' }).replace('.', '') : '';
+    const type = dreamType(d);
+    const look = TYPE_LOOK[type] || TYPE_LOOK.general;
+    const moon = moonSign(e.day);
+    const title = String(d.title || '').trim() || 'Untitled dream';
+    const label = [title, ok ? date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '',
+      type !== 'general' ? look.name : '', moon ? `Moon in ${moon.name}` : ''].filter(Boolean).join(', ');
+    return `
+      <a class="jr-zs-star${i === n - 1 ? ' is-newest' : ''}" href="#dream/${encodeURIComponent(d.id)}" style="left:${X(x).toFixed(2)}%;top:${Y(y).toFixed(2)}%;--tc:${look.rgb}" aria-label="${esc(label)}">
+        <span class="jr-zs-pic"><img class="jr-zs-img" data-art="${esc(d.id)}" data-px="${STAR_PX}" alt="" width="${STAR_PX}" height="${STAR_PX}" decoding="async"></span>
+        ${moon && px >= 34 ? `<span class="jr-zs-moon" aria-hidden="true" title="Moon in ${esc(moon.name)}">${moon.glyph}</span>` : ''}
+        ${labels && ok ? `<span class="jr-zs-day" aria-hidden="true"><b>${date.getDate()}</b> ${esc(wk)}</span>` : ''}
+      </a>`;
+  }).join('');
+  return `
+    <section class="jr-month jr-zs" aria-label="${esc(`${season.sign.name} season, ${seasonRange(season)}, ${plural(n, 'dream')}`)}">
+      <h2 class="jr-zs-head">
+        <span class="jr-zs-glyph" aria-hidden="true">${season.sign.glyph}</span>
+        <span class="jr-zs-titles"><span class="jr-zs-name">${esc(season.sign.name)}</span><span class="jr-zs-dates">${esc(seasonRange(season))}</span></span>
+        <span class="jr-zs-n">${plural(n, 'dream')}</span>
+      </h2>
+      <div class="jr-zs-fig" style="aspect-ratio:${(wb / hb).toFixed(3)};--star:${px}px">
+        <svg class="jr-zs-svg" viewBox="0 0 ${Math.round(wb * k)} ${Math.round(hb * k)}" preserveAspectRatio="none" aria-hidden="true">
+          <path class="jr-zs-glow" d="${lines}"/><path class="jr-zs-line" d="${lines}"/><g class="jr-zs-dots">${dots}</g>
+        </svg>
+        ${stars}
+      </div>
+    </section>`;
+}
+
+function zodiacHTML(shown) {
+  const groups = new Map();
+  for (const e of shown) {
+    const season = seasonOf(e.day);
+    const key = season ? season.key : 'undated';
+    if (!groups.has(key)) groups.set(key, { season, items: [] });
+    groups.get(key).items.push(e);
+  }
+  return [...groups.values()].map(({ season, items }) => (season ? seasonHTML(season, items) : `
+    <section class="jr-month"><h2 class="section-title">Undated <span class="jr-count">${items.length}</span></h2>
+      <div class="jr-rows">${items.map(rowHTML).join('')}</div></section>`)).join('');
+}
 
 /** New layout: one dream as a small square: its picture behind, the day number and weekday, type glyph, title, symbols. */
 function dayTileHTML(e) {
@@ -341,6 +435,7 @@ function styleSwitchHTML() {
   const st = listStyle();
   return `
     <div class="jr-lstyle" role="group" aria-label="List look">
+      <button type="button" data-liststyle="zodiac" aria-pressed="${st === 'zodiac'}">${icons.zodiac}<span>Zodiac</span></button>
       <button type="button" data-liststyle="squares" aria-pressed="${st === 'squares'}">${icons.widget}<span>Squares</span></button>
       <button type="button" data-liststyle="rows" aria-pressed="${st === 'rows'}">${icons.list}<span>Rows</span></button>
     </div>`;
@@ -358,13 +453,14 @@ function noMatchHTML(what = 'dreams') {
 function listHTML(shown, filtering) {
   if (!shown.length) return noMatchHTML();
   const squares = newLayout && listStyle() === 'squares';
+  const zodiac = newLayout && listStyle() === 'zodiac';
   const groups = new Map();
   for (const e of shown) {
     const key = e.day.slice(0, 7);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(e);
   }
-  const months = [...groups.entries()].map(([key, items]) => {
+  const months = zodiac ? zodiacHTML(shown) : [...groups.entries()].map(([key, items]) => {
     const [y, m] = key.split('-').map(Number);
     const label = y && m ? monthName(y, m - 1) : 'Undated';
     if (squares) {
@@ -538,7 +634,7 @@ function sheetHTML(emotionOpts, symbolOpts, showAllSymbols) {
 // Paints thumbnails a few at a time so a long journal still opens instantly.
 function fillThumbs(container, byId) {
   const job = ++thumbJob;
-  const imgs = [...container.querySelectorAll('img.jr-thumb[data-id]:not([src]), img.jr-tile-img[data-art]:not([src])')];
+  const imgs = [...container.querySelectorAll('img.jr-thumb[data-id]:not([src]), img[data-art]:not([src])')];
   let i = 0;
   const step = () => {
     if (job !== thumbJob || !container.isConnected) return;
@@ -547,7 +643,7 @@ function fillThumbs(container, byId) {
       const img = imgs[i++];
       let url = '';
       const tile = Boolean(img.dataset.art);
-      try { url = dreamArtURL(byId.get(tile ? img.dataset.art : img.dataset.id), tile ? TILE_PX : 64) || ''; } catch {}
+      try { url = dreamArtURL(byId.get(tile ? img.dataset.art : img.dataset.id), tile ? Number(img.dataset.px) || TILE_PX : 64) || ''; } catch {}
       if (url) img.src = url;
     }
     if (i < imgs.length) requestAnimationFrame(step);
