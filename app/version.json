@@ -1,7 +1,12 @@
 {
-  "version": 48,
+  "version": 49,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 49,
+      "date": "2026-11-12",
+      "text": "Journal map: the 'Newest dreams' button is gone (pinch, or double-tap, to zoom in and out), giving the sign a bit more room. 'Pinch to zoom' is now just text, without a box."
+    },
     {
       "version": 48,
       "date": "2026-11-12",
