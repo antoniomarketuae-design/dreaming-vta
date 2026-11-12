@@ -364,7 +364,7 @@ function styleSwitchHTML() {
   const st = listStyle();
   return `
     <div class="jr-lstyle" role="group" aria-label="List look">
-      <button type="button" data-liststyle="zodiac" aria-pressed="${st === 'zodiac'}">${icons.zodiac}<span>Zodiac</span></button>
+      <button type="button" data-liststyle="zodiac" aria-pressed="${st === 'zodiac'}">${icons.zodiac}<span>Map</span></button>
       <button type="button" data-liststyle="squares" aria-pressed="${st === 'squares'}">${icons.widget}<span>Squares</span></button>
       <button type="button" data-liststyle="rows" aria-pressed="${st === 'rows'}">${icons.list}<span>Rows</span></button>
     </div>`;
