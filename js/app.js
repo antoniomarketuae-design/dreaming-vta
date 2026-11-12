@@ -166,6 +166,7 @@ async function checkForUpdate(reason) {
 
   if (!state.version) {
     state.version = latest;
+    globalThis.DREAMING_VERSION = latest.version; // sent to the server (X-App-Version) for the team dashboard
     // Only screens that show version info need a refresh; recording must never be interrupted.
     if (active?.id === 'profile') render();
     return;
