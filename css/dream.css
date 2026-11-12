@@ -1210,3 +1210,25 @@ button.dream-interp-imgrow:active { opacity: 0.75; }
 .dream-day-input { width: 100%; min-height: 96px; resize: vertical; }
 .dream-day-actions { display: flex; gap: 8px; }
 .dream-day-actions .btn { flex: 1; }
+
+/* "Remembered more? Add to this dream": under the story, opens the editor at the end of the text. */
+.dream-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  margin: 10px 0 0;
+  padding: 0 16px;
+  border: 1px dashed rgba(255, 217, 138, 0.38);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 217, 138, 0.06);
+  color: var(--moon);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dream-more svg { width: 18px; height: 18px; }
+.dream-more:active { transform: scale(0.98); }

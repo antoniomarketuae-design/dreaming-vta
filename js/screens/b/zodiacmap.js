@@ -138,17 +138,38 @@ function badgeHTML(night, season, x, y, newest) {
   const look = TYPE_LOOK[type] || TYPE_LOOK.general;
   const moon = moonSign(e.day);
   const title = many ? `${night.length} dreams` : String(d.title || '').trim() || 'Untitled dream';
+  // Several dreams that night (written at different times, maybe different dreams): one arc of the ring per dream.
+  const arcs = many ? arcsCSS(night.map((x) => (TYPE_LOOK[dreamType(x.d)] || TYPE_LOOK.general).rgb)) : '';
+  const titles = many
+    ? night.slice(0, 3).map((x) => `<i>${esc(String(x.d.title || '').trim() || 'Untitled dream')}</i>`).join('')
+      + (night.length > 3 ? `<i>+${night.length - 3} more</i>` : '')
+    : esc(title);
   const label = [many ? `${night.length} dreams: ${night.map((x) => String(x.d.title || '').trim() || 'Untitled dream').join('; ')}` : title,
     ok ? date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '',
     type !== 'general' ? look.name : '', moon ? `Moon in ${moon.name}` : ''].filter(Boolean).join(', ');
   return `
-    <a class="jr-zn jr-zn-dot${newest ? ' is-newest' : ''}" href="${many ? '#journal' : `#dream/${encodeURIComponent(d.id)}`}" data-zn${many ? ` data-zday="${esc(e.day)}" role="button"` : ''}
-      style="left:${x.toFixed(3)}%;top:${y.toFixed(3)}%;--tc:${look.rgb};--ratio:1" aria-label="${esc(label)}">
+    <a class="jr-zn jr-zn-dot${many ? ' is-many' : ''}${newest ? ' is-newest' : ''}" href="${many ? '#journal' : `#dream/${encodeURIComponent(d.id)}`}" data-zn${many ? ` data-zday="${esc(e.day)}" role="button"` : ''}
+      style="left:${x.toFixed(3)}%;top:${y.toFixed(3)}%;--tc:${look.rgb};--ratio:1${many ? `;--s:${nightScale(night.length)};--arcs:${arcs}` : ''}" aria-label="${esc(label)}">
       <span class="jr-zn-ring" aria-hidden="true">${ok ? date.getDate() : '?'}</span>
       <span class="jr-zn-date" aria-hidden="true">${esc(wk)} · ${esc(mon)}</span>
-      <span class="jr-zn-sub" aria-hidden="true">${esc(title)}</span>
+      <span class="jr-zn-sub" aria-hidden="true">${titles}</span>
       ${many ? `<span class="jr-zn-count" aria-hidden="true">${night.length}</span>` : ''}
     </a>`;
+}
+
+/** How much bigger a night's circle is for its number of dreams: 2 → ×1.2, 3 → ×1.35, 4 or more → ×1.5. */
+function nightScale(n) {
+  return n <= 1 ? 1 : n === 2 ? 1.2 : n === 3 ? 1.35 : 1.5;
+}
+
+/** A conic gradient: the ring cut into one arc per dream, a small gap between arcs. `rgbs`: "r, g, b" strings. */
+function arcsCSS(rgbs) {
+  const step = 360 / rgbs.length;
+  const gap = Math.min(10, step * 0.18);
+  return `conic-gradient(${rgbs.map((c, i) => {
+    const a = i * step;
+    return `transparent ${a.toFixed(1)}deg ${(a + gap / 2).toFixed(1)}deg, rgb(${c}) ${(a + gap / 2).toFixed(1)}deg ${(a + step - gap / 2).toFixed(1)}deg, transparent ${(a + step - gap / 2).toFixed(1)}deg ${(a + step).toFixed(1)}deg`;
+  }).join(', ')})`;
 }
 
 /** The sign's emblem near the top-left of its map: the owner's picture when there is one, else the big sign symbol. */
@@ -253,10 +274,11 @@ function setupMap(el) {
 
   // Badge centres as fractions of the layer; distances measured in layer widths.
   const pts = badges.map((b) => [parseFloat(b.style.left) / 100, parseFloat(b.style.top) / 100]);
+  const scale = badges.map((b) => Number(b.style.getPropertyValue('--s')) || 1); // nights with several dreams are bigger
   let dmin = Infinity;
   for (let i = 0; i < pts.length; i += 1) {
     for (let j = i + 1; j < pts.length; j += 1) {
-      dmin = Math.min(dmin, Math.hypot(pts[i][0] - pts[j][0], (pts[i][1] - pts[j][1]) / ar));
+      dmin = Math.min(dmin, Math.hypot(pts[i][0] - pts[j][0], (pts[i][1] - pts[j][1]) / ar) / ((scale[i] + scale[j]) / 2));
     }
   }
   if (!Number.isFinite(dmin)) dmin = 1;
@@ -306,15 +328,19 @@ function setupMap(el) {
   const refit = () => {
     const w = scroller.clientWidth;
     if (!w || Math.abs(w - vw) < 1) return;
+    const first = !vw; // drawn before it had a size: open it the usual way now
     const wasWhole = z <= 1.01;
     vw = w;
     vh = scroller.clientHeight;
-    if (wasWhole && vw) apply(1); else focusNewest();
+    if (wasWhole && !first) apply(1); else focusNewest();
   };
 
   vw = scroller.clientWidth;
   vh = scroller.clientHeight;
   if (vw) focusNewest();
+  // Measure again whenever the map gets (or changes) its width, e.g. when it was drawn before the page was laid out.
+  const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(() => refit()) : null;
+  watch?.observe(scroller);
 
   const onClick = (ev) => {
     const btn = ev.target.closest('[data-zm-act]');
@@ -370,6 +396,7 @@ function setupMap(el) {
   return {
     refit,
     destroy() {
+      watch?.disconnect();
       el.removeEventListener('click', onClick);
       scroller.removeEventListener('click', onDbl);
       scroller.removeEventListener('touchstart', onStart);

@@ -15,7 +15,9 @@
   --violet: #9b7bff;
   --radius: 22px;
   --radius-sm: 14px;
-  --tabbar-h: 54px;
+  --tabbar-h: 42px;     /* the tab bar above the bottom edge area (border + 3 px + 38 px row) */
+  /* Of the iPhone's bottom edge area (34 px) only what clears the home bar is kept; the tabs reach down into the rest. */
+  --tabbar-safe: max(0px, calc(env(safe-area-inset-bottom) - 18px));
   --blur: blur(16px) saturate(140%);
   color-scheme: dark;
 }
@@ -72,7 +74,7 @@ body[data-screen="home"] #app::after { opacity: 0; }
   padding:
     calc(env(safe-area-inset-top) + 16px)
     calc(env(safe-area-inset-right) + 20px)
-    calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 28px)
+    calc(var(--tabbar-h) + var(--tabbar-safe) + 28px)
     calc(env(safe-area-inset-left) + 20px);
 }
 body[data-tabbar="hidden"] .screen { padding-bottom: calc(env(safe-area-inset-bottom) + 24px); }
@@ -209,7 +211,7 @@ button.chip[aria-pressed="false"] { opacity: 0.55; }
   z-index: 10;
   display: flex;
   justify-content: center;
-  padding: 6px env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 4px) env(safe-area-inset-left);
+  padding: 3px env(safe-area-inset-right) 0 env(safe-area-inset-left);
   background: rgba(18, 13, 46, 0.5);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   backdrop-filter: blur(20px) saturate(160%);
@@ -224,14 +226,15 @@ button.chip[aria-pressed="false"] { opacity: 0.55; }
   flex-direction: column;
   align-items: center;
   gap: 1px;
-  min-height: 44px;
-  padding: 2px 0;
+  min-height: calc(38px + var(--tabbar-safe));
+  padding: 1px 0 calc(var(--tabbar-safe) + 1px); /* the tap area reaches the bottom edge */
   color: var(--text-faint);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 500;
+  line-height: 1.15;
   text-decoration: none;
 }
-.tab svg { width: 25px; height: 25px; }
+.tab svg { width: 22px; height: 22px; }
 .tab[aria-current="page"] { color: var(--moon); }
 .tab { position: relative; }
 .tab-dot {
