@@ -1145,7 +1145,7 @@ body.jr-sq-open { overflow: hidden; }
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   padding: 5px;
   border: 1px solid rgba(255, 217, 138, 0.22);
@@ -1257,15 +1257,15 @@ body.jr-sq-open { overflow: hidden; }
   left: 14px;
   z-index: 1;
   width: 46%;
-  opacity: 0.5;
-  filter: drop-shadow(0 0 6px rgba(255, 217, 138, 0.6)) drop-shadow(0 0 18px rgba(255, 217, 138, 0.25));
+  opacity: 0.55;
+  filter: drop-shadow(0 0 6px rgba(178, 150, 255, 0.7)) drop-shadow(0 0 18px rgba(155, 123, 255, 0.35));
   pointer-events: none;
 }
 .jr-zm-emblem-art {
   display: block;
   width: 100%;
   height: 100%;
-  background: var(--moon);
+  background: #c9b6ff;
   -webkit-mask-size: contain;
   mask-size: contain;
   -webkit-mask-repeat: no-repeat;
@@ -1276,7 +1276,7 @@ body.jr-sq-open { overflow: hidden; }
 .jr-zm-emblem-glyph {
   width: auto;
   aspect-ratio: auto;
-  color: var(--moon);
+  color: #c9b6ff;
   font-family: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols", system-ui, sans-serif;
   font-size: 96px;
   line-height: 1;
@@ -1330,3 +1330,15 @@ body.jr-sq-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .jr-zn-dot.is-newest .jr-zn-ring { animation: none; }
 }
+
+/* ---- v42: the new layout's top packed tight ---- */
+.jr-new .jr-head { margin-bottom: 0; padding-bottom: 4px; }
+.jr-new .jr-searchrow { margin-top: 0; }
+/* The look switch hangs from the filter bubble, touching it. */
+.jr-new .jr-lstyle { position: relative; z-index: 1; margin: -1px auto 0; border-top-left-radius: 0; border-top-right-radius: 0; border-top-color: transparent; padding-top: 1px; }
+/* The date row right under the switch. */
+.jr-new .jr-zs:first-of-type, .jr-new .jr-lstyle + .jr-zs { margin-top: 2px; }
+.jr-new .jr-zs-head { min-height: 32px; }
+.jr-new .jr-zm { margin-top: 0; }
+/* Hint and switch above the sky layer. */
+.jr-zm-hint, .jr-zm-ctl { z-index: 3; }

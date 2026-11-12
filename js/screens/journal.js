@@ -140,12 +140,15 @@ function toggleIn(field, key) {
 
 const SQUARE_TILES = 9; // a 3×3, the last one is More
 
-/** The filter row (new layout): the four dream types and Recurring as squares you tap, then All (the big square). */
+// Filterable dream types: Lucid, Nightmare, Prophetic (the owner dropped "General": most dreams are general anyway).
+const FILTER_TYPES = TYPE_IDS.filter((t) => t !== 'general');
+
+/** The filter row (new layout): Lucid, Nightmare, Prophetic and Recurring as squares you tap, then All (the big square). */
 function stripHTML() {
   const f = filters;
   const n = activeCount(f);
   const tiles = [
-    ...TYPE_IDS.map((t) => ({ id: `type:${t}`, label: TYPE_LOOK[t].short, glyph: TYPE_LOOK[t].glyph, rgb: TYPE_LOOK[t].rgb, on: f.types.includes(t) })),
+    ...FILTER_TYPES.map((t) => ({ id: `type:${t}`, label: TYPE_LOOK[t].short, glyph: TYPE_LOOK[t].glyph, rgb: TYPE_LOOK[t].rgb, on: f.types.includes(t) })),
     { id: 'recurring', label: 'Recurring', glyph: RECURRING_LOOK.glyph, rgb: RECURRING_LOOK.rgb, on: f.recurring },
   ];
   // Filters only the big square shows (feelings, symbols, dates): counted on the All square.
@@ -171,7 +174,7 @@ function squareTiles(entries, emotionOpts, symbolOpts) {
     typeN[t] = (typeN[t] || 0) + 1;
     if (e.d.recurring) rec += 1;
   }
-  const tiles = TYPE_IDS.map((t) => ({
+  const tiles = FILTER_TYPES.map((t) => ({
     id: `type:${t}`, label: TYPE_LOOK[t].short, glyph: TYPE_LOOK[t].glyph, rgb: TYPE_LOOK[t].rgb, n: typeN[t], on: f.types.includes(t),
   }));
   tiles.push({ id: 'recurring', label: 'Recurring', glyph: RECURRING_LOOK.glyph, rgb: RECURRING_LOOK.rgb, n: rec, on: f.recurring });
@@ -524,7 +527,7 @@ function sheetHTML(emotionOpts, symbolOpts, showAllSymbols) {
         <section class="jr-sheet-sec">
           <h3 class="jr-sheet-label">Dream type</h3>
           <p class="jr-sheet-hint">A dream matches if it is any type you pick.</p>
-          <div class="jr-opts">${TYPE_IDS.map((t) => `<button type="button" class="jr-opt" data-ntype="${t}" aria-pressed="${f.types.includes(t)}">${TYPE_LOOK[t].glyph}<span>${esc(TYPE_LOOK[t].short)}</span></button>`).join('')}</div>
+          <div class="jr-opts">${FILTER_TYPES.map((t) => `<button type="button" class="jr-opt" data-ntype="${t}" aria-pressed="${f.types.includes(t)}">${TYPE_LOOK[t].glyph}<span>${esc(TYPE_LOOK[t].short)}</span></button>`).join('')}</div>
         </section>
         <section class="jr-sheet-sec">
           <h3 class="jr-sheet-label">Only show</h3>
@@ -620,7 +623,7 @@ export default {
     let current = [];
 
     el.innerHTML = `
-      <div class="jr">
+      <div class="jr${newLayout ? ' jr-new' : ''}">
         ${headHTML()}
         <div class="jr-searchrow${newLayout ? ` jr-searchrow-new${searchOpen || query ? ' is-search' : ''}` : ''}">
           <div class="jr-search-wrap">
@@ -680,7 +683,7 @@ export default {
         chipsEl.innerHTML = quickChipsHTML(emotionOpts);
         chipsEl.scrollLeft = left;
       }
-      activeEl.hidden = !n;
+      activeEl.hidden = newLayout || !n; // the new layout's glowing squares and All badge show it instead
       activeEl.innerHTML = n
         ? `<span>${plural(n, 'filter')} on · ${current.length} of ${plural(entries.length, 'dream')}</span><button type="button" data-clear-filters>Clear</button>`
         : '';
