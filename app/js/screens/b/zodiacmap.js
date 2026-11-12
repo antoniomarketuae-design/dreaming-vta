@@ -11,6 +11,7 @@ import { SHAPES } from './signshapes.js';
 import { TYPE_LOOK } from './types.js';
 import { dreamType } from '../../symbols.js';
 import { esc } from '../../ui.js';
+import { localDay } from '../../store.js';
 
 const MARGIN = 0.16;     // room around a figure, in figure units
 const NODE_MAX = 118;    // badge width when zoomed in (px)
@@ -29,6 +30,7 @@ const FALLBACK = {       // a soft rounded badge for a sign without a drawn shap
 };
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const todayLong = () => new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
 const shapeOf = (id) => SHAPES[id] || FALLBACK;
 
 // Small seeded random numbers, so a sign's sky looks the same every time.
@@ -42,6 +44,15 @@ function rng(seed) {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+/** The months a season covers, e.g. "Sep – Oct" (with the year when it isn't this year). */
+function seasonMonths(season) {
+  const f = new Date(`${season.from}T12:00:00`);
+  const t = new Date(`${season.to}T12:00:00`);
+  const m = (d) => d.toLocaleDateString(undefined, { month: 'short' }).replace('.', '');
+  const yr = t.getFullYear() !== new Date().getFullYear() ? ` ${t.getFullYear()}` : '';
+  return `${m(f)} – ${m(t)}${yr}`;
 }
 
 function seasonRange(season) {
@@ -102,9 +113,15 @@ function milkyWaySVG(H, seed) {
     </g>`;
 }
 
-/** One dream as a badge shaped like its sign's creature, with its day, weekday, month and title inside. */
-function badgeHTML(e, season, x, y, newest) {
+/**
+ * One night as a badge shaped like its sign's creature, with the day, weekday, month and the dream's title inside.
+ * `night`: that day's dreams, newest first. One dream: the badge opens it. Several: a count bubble, and the badge opens
+ * the night's sheet with all of them (data-zday, handled by the Journal).
+ */
+function badgeHTML(night, season, x, y, newest) {
+  const e = night[0];
   const d = e.d;
+  const many = night.length > 1;
   const shape = shapeOf(season.sign.id);
   const [W, H] = shape.vb;
   const [tx, ty, tw, th] = shape.text;
@@ -112,15 +129,16 @@ function badgeHTML(e, season, x, y, newest) {
   const ok = !Number.isNaN(date.getTime());
   const wk = ok ? date.toLocaleDateString(undefined, { weekday: 'short' }).replace('.', '') : '';
   const mon = ok ? date.toLocaleDateString(undefined, { month: 'short' }).replace('.', '') : '';
-  const type = dreamType(d);
+  // A night with a nightmare in it glows coral; otherwise the newest dream's type sets the colour.
+  const type = night.some((x) => dreamType(x.d) === 'nightmare') ? 'nightmare' : dreamType(d);
   const look = TYPE_LOOK[type] || TYPE_LOOK.general;
   const moon = moonSign(e.day);
-  const title = String(d.title || '').trim() || 'Untitled dream';
-  const label = [title, ok ? date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '',
+  const title = many ? `${night.length} dreams` : String(d.title || '').trim() || 'Untitled dream';
+  const label = [many ? `${night.length} dreams: ${night.map((x) => String(x.d.title || '').trim() || 'Untitled dream').join('; ')}` : title, ok ? date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '',
     type !== 'general' ? look.name : '', moon ? `Moon in ${moon.name}` : ''].filter(Boolean).join(', ');
   const cid = `zc-${String(d.id).replace(/[^\w-]/g, '')}`;
   return `
-    <a class="jr-zn${newest ? ' is-newest' : ''}" href="#dream/${encodeURIComponent(d.id)}" data-zn
+    <a class="jr-zn${newest ? ' is-newest' : ''}" href="${many ? `#journal` : `#dream/${encodeURIComponent(d.id)}`}" data-zn${many ? ` data-zday="${esc(e.day)}" role="button"` : ''}
       style="left:${x.toFixed(3)}%;top:${y.toFixed(3)}%;--tc:${look.rgb};--ratio:${(H / W).toFixed(4)}" aria-label="${esc(label)}">
       <svg class="jr-zn-svg" viewBox="0 0 ${W} ${H}" aria-hidden="true" focusable="false">
         <defs><clipPath id="${cid}"><path d="${shape.body}"/></clipPath></defs>
@@ -137,6 +155,7 @@ function badgeHTML(e, season, x, y, newest) {
         <em>${esc(title)}</em>
       </span>
       ${moon ? `<span class="jr-zn-moon" aria-hidden="true" title="Moon in ${esc(moon.name)}">${moon.glyph}</span>` : ''}
+      ${many ? `<span class="jr-zn-count" aria-hidden="true">${night.length}</span>` : ''}
     </a>`;
 }
 
@@ -144,6 +163,7 @@ function badgeHTML(e, season, x, y, newest) {
 function seasonMapHTML(season, items) {
   const fig = FIGURES[season.sign.id];
   const n = items.length;
+  const now = seasonOf(localDay())?.key === season.key; // the sign the Sun is in today
   const hb = fig.h + 2 * MARGIN;
   const wb = Math.max(fig.w + 2 * MARGIN, hb * 1.05);
   const ox = (wb - fig.w) / 2;
@@ -155,14 +175,26 @@ function seasonMapHTML(season, items) {
   const lines = fig.lines.map(([a, b]) => `M${sx(fig.stars[a][0]).toFixed(0)} ${sy(fig.stars[a][1]).toFixed(0)}L${sx(fig.stars[b][0]).toFixed(0)} ${sy(fig.stars[b][1]).toFixed(0)}`).join('');
   const stars = fig.stars.map(([x, y, mag]) => `<circle cx="${sx(x).toFixed(0)}" cy="${sy(y).toFixed(0)}" r="${Math.max(2.5, 7 - mag * 1.1).toFixed(1)}"/>`).join('');
   // Spread the dreams so that, fully zoomed out on a phone (~340 px wide), the small badges still don't pile up.
-  const chrono = items.slice().reverse();
-  const spots = placeOnFigure(fig, n, { minGap: ((NODE_SPREAD + 6) / 340) * wb, room: MARGIN * 0.7 });
-  const badges = chrono.map((e, i) => badgeHTML(e, season, ((ox + spots[i][0]) / wb) * 100, ((MARGIN + spots[i][1]) / hb) * 100, i === n - 1)).join('');
+  // One badge per night, oldest first along the figure.
+  const byDay = new Map();
+  for (const e of items) {
+    if (!byDay.has(e.day)) byDay.set(e.day, []);
+    byDay.get(e.day).push(e);
+  }
+  const nights = [...byDay.values()].reverse();
+  const spots = placeOnFigure(fig, nights.length, { minGap: ((NODE_SPREAD + 6) / 340) * wb, room: MARGIN * 0.7 });
+  const badges = nights.map((night, i) => badgeHTML(night, season, ((ox + spots[i][0]) / wb) * 100, ((MARGIN + spots[i][1]) / hb) * 100, i === nights.length - 1)).join('');
   return `
     <section class="jr-month jr-zs" aria-label="${esc(`${season.sign.name} season, ${seasonRange(season)}, ${plural(n, 'dream')}`)}">
-      <h2 class="jr-zs-head">
+      <h2 class="jr-zs-head${now ? ' is-now' : ''}">
         <span class="jr-zs-glyph" aria-hidden="true">${season.sign.glyph}</span>
-        <span class="jr-zs-titles"><span class="jr-zs-name">${esc(season.sign.name)}</span><span class="jr-zs-dates">${esc(seasonRange(season))}</span></span>
+        <span class="jr-zs-titles">
+          ${now
+            ? `<span class="jr-zs-today">Today is <b>${esc(todayLong())}</b></span>
+               <span class="jr-zs-name">${esc(season.sign.name)} season</span>`
+            : `<span class="jr-zs-name">${esc(season.sign.name)} season</span>
+               <span class="jr-zs-dates">${esc(seasonMonths(season))}</span>`}
+        </span>
         <span class="jr-zs-n">${plural(n, 'dream')}</span>
       </h2>
       <div class="jr-zm" data-zm data-ar="${ar.toFixed(4)}">

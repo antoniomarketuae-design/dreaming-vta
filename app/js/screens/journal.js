@@ -18,6 +18,7 @@ import { isNewLayout } from '../layout.js';
 import { EXTRA_VIEWS } from './b/views/index.js';
 import { TYPE_LOOK, TYPE_IDS, RECURRING_LOOK, MORE_GLYPH, moodGlyph, hueRGB } from './b/types.js';
 import { zodiacSeasonsHTML, wireZodiacMaps } from './b/zodiacmap.js';
+import { openDaySheet } from './b/calendar.js';
 
 const VIEW_KEY = 'dreaming.journal.view';
 const NOTE_KEY = 'journalNoteHiddenAt'; // dream count when the "only on this iPhone" note was tucked away
@@ -856,6 +857,10 @@ export default {
       if ((b = hit('.jr-seg [data-view]'))) {
         if (b.dataset.view === view) return;
         setViewTo(b.dataset.view);
+      } else if ((b = hit('[data-zday]'))) {
+        // A night with several dreams on the zodiac map: its sheet lists them all.
+        ev.preventDefault();
+        openDaySheet(b.dataset.zday, ctx);
       } else if (hit('[data-search-open]')) {
         searchOpen = true;
         searchRow.classList.add('is-search');

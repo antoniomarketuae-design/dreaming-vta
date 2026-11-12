@@ -863,6 +863,10 @@ body.jr-sq-open { overflow: hidden; }
 .jr-zs-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .jr-zs-name { font-size: 20px; font-weight: 300; letter-spacing: 0.02em; color: var(--text); text-shadow: 0 2px 14px rgba(8, 4, 30, 0.6); }
 .jr-zs-dates { font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 217, 138, 0.8); }
+/* The current sign: today's date first, then the sign. */
+.jr-zs-today { font-size: 13px; color: var(--text-dim); }
+.jr-zs-today b { color: var(--moon); font-weight: 600; }
+.jr-zs-head.is-now .jr-zs-name { font-size: 21px; }
 .jr-zs-n { flex: none; color: var(--text-faint); font-size: 12.5px; font-weight: 600; }
 
 /* The map: a zoomable window on the sign's sky (a Milky Way band, the constellation in thin gold, the dreams). */
@@ -980,6 +984,23 @@ body.jr-sq-open { overflow: hidden; }
   line-height: 1;
 }
 .is-w2 .jr-zn-moon, .is-w3 .jr-zn-moon { display: grid; }
+/* Several dreams on one night: a gold count on the badge's other shoulder. */
+.jr-zn-count {
+  position: absolute;
+  left: 4%;
+  top: -6%;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--moon);
+  box-shadow: 0 0 0 2px #1b1440, 0 0 10px rgba(255, 217, 138, 0.6);
+  color: #1b1440;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 19px;
+  text-align: center;
+}
 
 /* Zoom buttons, bottom right, over the map. */
 .jr-zm-ctl {
