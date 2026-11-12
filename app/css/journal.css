@@ -1188,3 +1188,7 @@ body.jr-sq-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .jr-search-btn, .jr-fs-tile { transition: none; }
 }
+
+/* A look that failed to draw: what happened, for a screenshot. */
+.jr-lookfail { margin: 10px 4px 0; padding: 10px 12px; border: 1px solid rgba(255, 159, 143, 0.4); border-radius: 14px; background: rgba(255, 159, 143, 0.08); color: var(--text-dim); font-size: 12.5px; line-height: 1.45; }
+.jr-lookfail code { display: block; margin-top: 6px; color: #ffc4b8; font-size: 11px; word-break: break-word; }

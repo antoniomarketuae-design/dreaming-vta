@@ -1,7 +1,12 @@
 {
-  "version": 37,
+  "version": 38,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 38,
+      "date": "2026-11-12",
+      "text": "Journal: switching between Map, Squares and Rows always lets you come back to Map. If the Map ever can't be drawn on your phone, the Journal shows your dreams as rows with a short note saying why (please send us a screenshot of it), and Map stays chosen so you can tap it again."
+    },
     {
       "version": 37,
       "date": "2026-11-12",
