@@ -1,4 +1,5 @@
-/* New layout: Insights tab (js/screens/b/insights.js). Every selector starts with .bi- (body.bi-lock while a sheet is open) */
+/* New layout: Insights tab (js/screens/b/insights.js). Every selector starts with .bi-
+   The moon card is styled in b-moon.css, the symbol sheet in b-symbolsheet.css, the sky in bv-sky.css. */
 
 .bi { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .bi-sec { min-width: 0; }
@@ -22,7 +23,7 @@
 .bi-hint { margin: 10px 2px 0; color: var(--text-faint); font-size: 12.5px; text-align: center; }
 .bi-foot { margin: 12px 2px 0; color: var(--text-faint); font-size: 12.5px; text-align: center; }
 
-/* Thin bar used by symbols, types and progress */
+/* Thin bar used by symbols and types */
 .bi-bar { display: block; height: 5px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
 .bi-bar i { display: block; height: 100%; border-radius: inherit; background: rgba(155, 123, 255, 0.6); }
 
@@ -112,49 +113,7 @@
   cursor: pointer;
 }
 
-/* ---- Symbol sheet ---- */
-
-.bi-meaning {
-  margin-top: 16px;
-  padding: 14px 16px;
-  border: 1px solid rgba(255, 217, 138, 0.22);
-  border-radius: var(--radius-sm);
-  background: linear-gradient(160deg, rgba(255, 217, 138, 0.08), rgba(155, 123, 255, 0.08));
-}
-.bi-meaning-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 6px;
-  color: var(--moon);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.bi-meaning-label svg { flex: none; width: 15px; height: 15px; }
-.bi-meaning-text { margin: 0; color: var(--text); font-size: 16px; line-height: 1.5; overflow-wrap: anywhere; }
-.bi-meaning-from {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--glass-border);
-  color: var(--text-dim);
-  font-size: 13.5px;
-  line-height: 1.4;
-  text-decoration: none;
-}
-.bi-meaning-from span { min-width: 0; overflow-wrap: anywhere; }
-.bi-meaning-from b { color: var(--text); font-weight: 500; }
-.bi-meaning-from svg { flex: none; width: 16px; height: 16px; margin-left: auto; color: var(--text-faint); }
-.bi-meaning-from:active { opacity: 0.7; }
-.bi-meaning-src { margin: 10px 0 0; color: var(--text-faint); font-size: 13px; }
-.bi-meaning-none { border-color: var(--glass-border); background: rgba(255, 255, 255, 0.04); }
-.bi-meaning-none .bi-meaning-text { color: var(--text-dim); font-size: 15px; }
-
-/* Dream links (sheet + questions) */
+/* Dream links (under the questions) */
 .bi-dreams {
   margin: 0;
   padding: 0;
@@ -306,222 +265,8 @@
 .bi-dots i { width: 10px; height: 10px; border-radius: 50%; background: rgba(255, 255, 255, 0.12); }
 .bi-dots i.bi-on { background: var(--moon); box-shadow: 0 0 8px rgba(255, 217, 138, 0.6); }
 
-/* ---- 6. Survey card ---- */
-
-.bi-survey { padding: 16px; }
-.bi-survey-top { display: flex; align-items: flex-start; gap: 14px; }
-.bi-survey-icon {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  background: radial-gradient(circle at 35% 30%, rgba(255, 217, 138, 0.28), rgba(155, 123, 255, 0.26) 60%, rgba(155, 123, 255, 0.1));
-  color: var(--moon);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-}
-.bi-survey-icon svg { width: 24px; height: 24px; }
-.bi-survey-text { flex: 1; min-width: 0; }
-.bi-survey-title { margin: 0; color: var(--text); font-size: 18px; font-weight: 500; line-height: 1.25; }
-.bi-survey-lead { margin: 3px 0 0; color: var(--text-dim); font-size: 14px; line-height: 1.4; }
-
-.bi-progress { height: 6px; margin: 16px 0 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
-.bi-progress i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--moon), #c79bff); transition: width 0.3s ease; }
-.bi-survey-count { margin: 0 0 12px; color: var(--text-faint); font-size: 13px; }
-
-/* ---- Bottom sheet ---- */
-
-body.bi-lock { overflow: hidden; }
-
-.bi-sheet { position: fixed; inset: 0; z-index: 25; display: flex; align-items: flex-end; justify-content: center; }
-.bi-sheet-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(8, 5, 24, 0.6);
-  opacity: 0;
-  transition: opacity 0.26s ease;
-  touch-action: none;
-}
-.bi-sheet-panel {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 640px;
-  max-height: calc(100% - env(safe-area-inset-top) - 24px);
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  padding: 8px calc(env(safe-area-inset-right) + 20px) calc(env(safe-area-inset-bottom) + 18px) calc(env(safe-area-inset-left) + 20px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-bottom: 0;
-  border-radius: 26px 26px 0 0;
-  background:
-    radial-gradient(120% 60% at 50% 0%, rgba(155, 123, 255, 0.26), rgba(155, 123, 255, 0) 65%),
-    rgba(26, 18, 64, 0.95);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
-  backdrop-filter: blur(24px) saturate(150%);
-  box-shadow: 0 -16px 50px rgba(0, 0, 0, 0.45);
-  outline: none;
-  transform: translateY(100%);
-  transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.bi-sheet.bi-in .bi-sheet-backdrop { opacity: 1; }
-.bi-sheet.bi-in .bi-sheet-panel { transform: none; }
-.bi-sheet.bi-out .bi-sheet-backdrop { opacity: 0; }
-.bi-sheet.bi-out .bi-sheet-panel { transform: translateY(100%); transition-duration: 0.24s; }
-
-.bi-sheet-grab { flex: none; width: 38px; height: 5px; margin: 0 auto 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.22); }
-.bi-sheet-x {
-  position: absolute;
-  top: 12px;
-  right: calc(env(safe-area-inset-right) + 14px);
-  z-index: 1;
-  width: 36px;
-  height: 36px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-dim);
-}
-.bi-sheet-x svg { width: 18px; height: 18px; }
-.bi-sheet-body { display: flex; flex-direction: column; flex: 1 0 auto; min-width: 0; padding-top: 10px; }
-
-.bi-sheet-kicker {
-  margin: 0 48px 4px 0;
-  color: var(--moon);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.bi-sheet-title { margin: 0 48px 0 0; color: var(--text); font-size: 26px; font-weight: 300; line-height: 1.2; letter-spacing: -0.01em; overflow-wrap: anywhere; outline: none; }
-.bi-sheet-lead { margin: 4px 0 0; color: var(--text-dim); font-size: 15px; }
-.bi-sheet-label {
-  margin: 22px 2px 10px;
-  color: var(--text-faint);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-/* ---- Survey sheet ---- */
-
-/* A steady height, so the buttons stay put from one question to the next */
-.bi-sheet-survey .bi-sheet-panel { height: min(640px, calc(100% - env(safe-area-inset-top) - 24px)); }
-
-.bi-sv { display: flex; flex-direction: column; }
-.bi-sv-step {
-  margin: 4px 48px 8px 0;
-  color: var(--text-faint);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.bi-sv .bi-progress { margin: 0 48px 0 0; }
-.bi-sv-q { margin: 22px 0 4px; color: var(--text); font-size: 24px; font-weight: 300; line-height: 1.25; letter-spacing: -0.01em; outline: none; }
-.bi-sv-hint { margin: 0 0 16px; color: var(--text-faint); font-size: 14px; }
-.bi-sv-opts { display: flex; flex-direction: column; gap: 8px; }
-.bi-sv-opt {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  min-height: 52px;
-  padding: 12px 14px 12px 16px;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
-  font-size: 16px;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-.bi-sv-opt > span:first-child { min-width: 0; }
-.bi-sv-opt:active { transform: scale(0.99); }
-.bi-sv-opt[aria-pressed="true"] { border-color: rgba(190, 170, 255, 0.6); background: rgba(155, 123, 255, 0.28); }
-.bi-sv-tick {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 1.5px solid rgba(255, 255, 255, 0.22);
-  border-radius: 50%;
-  color: transparent;
-}
-.bi-sv-multi .bi-sv-tick { border-radius: 7px; }
-.bi-sv-tick svg { width: 15px; height: 15px; stroke-width: 2.6; }
-.bi-sv-opt[aria-pressed="true"] .bi-sv-tick { border-color: var(--moon); background: var(--moon); color: #24184f; }
-
-.bi-sv-foot { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 18px; }
-.bi-sv-foot .btn { flex: 1; width: auto; }
-.bi-sv-foot .bi-sv-back { flex: 0 0 auto; padding: 14px 20px; }
-.bi-sv-foot .btn:disabled { opacity: 0.4; cursor: default; }
-.bi-sv-foot .btn:disabled:active { transform: none; }
-.bi-sv-skip {
-  flex: none;
-  min-height: 50px;
-  padding: 0 12px;
-  border: 0;
-  background: none;
-  color: var(--text-dim);
-  font-size: 15.5px;
-  cursor: pointer;
-}
-.bi-sv-skip[hidden] { display: none; }
-.bi-sv-skip:active { opacity: 0.6; }
-
-.bi-thanks { padding-top: 6px; text-align: center; }
-.bi-thanks-icon {
-  display: grid;
-  place-items: center;
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 12px;
-  border-radius: 22px;
-  background: radial-gradient(circle at 35% 30%, rgba(255, 217, 138, 0.3), rgba(155, 123, 255, 0.28) 55%, rgba(155, 123, 255, 0.08));
-  box-shadow: 0 0 34px rgba(155, 123, 255, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-  color: var(--moon);
-}
-.bi-thanks-icon svg { width: 30px; height: 30px; filter: drop-shadow(0 0 8px rgba(255, 217, 138, 0.5)); }
-.bi-thanks .bi-sheet-title { margin: 0; }
-.bi-thanks .bi-sheet-lead { max-width: 320px; margin: 6px auto 0; }
-
-.bi-answers {
-  margin: 18px 0 0;
-  padding: 0;
-  list-style: none;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.04);
-  overflow: hidden;
-}
-.bi-answers li + li { border-top: 1px solid var(--glass-border); }
-.bi-answer {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 50px;
-  padding: 8px 12px 8px 14px;
-  border: 0;
-  background: none;
-  text-align: left;
-  cursor: pointer;
-}
-.bi-answer:active { background: var(--glass-hover); }
-.bi-answer-q { flex: 1 1 45%; min-width: 0; color: var(--text-dim); font-size: 14px; }
-.bi-answer-a { flex: 1 1 55%; min-width: 0; color: var(--text); font-size: 14.5px; text-align: right; overflow-wrap: anywhere; }
-.bi-answer-none { color: var(--text-faint); font-style: italic; }
-.bi-answer svg { flex: none; width: 16px; height: 16px; color: var(--text-faint); }
-
 @media (prefers-reduced-motion: reduce) {
-  .bi-sheet-backdrop, .bi-sheet-panel, .bi-progress i, .bi-q-from summary svg, .bi-sv-opt { transition: none; }
+  .bi-q-from summary svg { transition: none; }
 }
 
 @media (max-width: 350px) {

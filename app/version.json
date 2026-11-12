@@ -1,7 +1,12 @@
 {
-  "version": 21,
-  "updated": "2026-11-11",
+  "version": 22,
+  "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 22,
+      "date": "2026-11-12",
+      "text": "Team review fixes. Tap any symbol to read what it means, from our dream books (not only your own dreams). A small moon-cycle card on Home and Insights. Bigger recent dreams on Home. Profile: Personalise Dreaming with all the welcome questions, and the 'kept on this iPhone' note. Journal: List, Stories (with exact dates) and Milky Way. Calendar: the Grid has the day card too, and the circle has a See more button. Dream page: a new dream-type chip and round tabs."
+    },
     {
       "version": 21,
       "date": "2026-11-11",

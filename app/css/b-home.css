@@ -1,5 +1,6 @@
 /* New layout: home (js/screens/b/home.js). Every selector starts with .bh- so nothing leaks into other screens.
-   Home has the undimmed night sky behind it, so headings carry a soft shadow and lists sit on glass. */
+   Home has the undimmed night sky behind it, so headings carry a soft shadow and lists sit on glass.
+   The moon card is styled in b-moon.css, the symbol sheet in b-symbolsheet.css. */
 
 .bh { display: flex; flex-direction: column; }
 
@@ -19,9 +20,13 @@
 .bh-name { color: var(--moon); }
 .bh-date { margin: 3px 0 0; font-size: 15px; font-weight: 300; color: var(--text-dim); text-shadow: 0 1px 12px rgba(8, 4, 30, 0.6); }
 
-/* ---- 2. Record: one big glowing button ---- */
+/* ---- 2. Moon cycle (the compact card itself: b-moon.css) ---- */
 
-.bh-action { display: flex; align-items: center; gap: 12px; margin-top: 20px; }
+.bh-moon { margin-top: 16px; }
+
+/* ---- 3. Record: one big glowing button ---- */
+
+.bh-action { display: flex; align-items: center; gap: 12px; margin-top: 18px; }
 
 .bh-record {
   position: relative;
@@ -73,21 +78,30 @@
   color: var(--text);
   text-shadow: 0 2px 14px rgba(8, 4, 30, 0.6);
 }
-/* ---- 3. Recent dreams ---- */
+/* ---- 4. Recent dreams: the stars of Home, so bigger, brighter glass with a soft violet and gold glow ---- */
 
-.bh-list { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 0; padding: 0; list-style: none; }
+.bh-list { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 0; padding: 0; list-style: none; }
 
-.bh-row {
+.glass.bh-row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  min-height: 76px;
-  padding: 10px 10px 10px 10px;
+  gap: 15px;
+  min-height: 92px;
+  padding: 14px 10px 14px 14px;
+  border-color: rgba(201, 182, 255, 0.26);
+  background:
+    linear-gradient(135deg, rgba(155, 123, 255, 0.18), rgba(155, 123, 255, 0.04) 55%, rgba(255, 217, 138, 0.07)),
+    var(--glass-strong);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 30px -16px rgba(155, 123, 255, 0.8),
+    0 0 26px -10px rgba(255, 217, 138, 0.32);
   color: var(--text);
   text-decoration: none;
   transition: transform 0.15s ease;
 }
-.bh-row:active { transform: scale(0.985); background: rgba(255, 255, 255, 0.08); }
+.glass.bh-row:active { transform: scale(0.985); background: rgba(60, 44, 120, 0.7); }
+.bh-row:focus-visible { outline: 2px solid var(--moon); outline-offset: 2px; }
 
 /* The date tile: day number over the short month, moon gold; today glows. */
 .bh-tile {
@@ -96,51 +110,58 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  border: 1px solid rgba(255, 217, 138, 0.32);
-  border-radius: 15px;
+  width: 64px;
+  height: 64px;
+  border: 1px solid rgba(255, 217, 138, 0.38);
+  border-radius: 18px;
   background:
-    radial-gradient(120% 90% at 50% 0%, rgba(255, 217, 138, 0.16), transparent 70%),
-    rgba(22, 15, 56, 0.55);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    radial-gradient(120% 90% at 50% 0%, rgba(255, 217, 138, 0.2), transparent 70%),
+    rgba(22, 15, 56, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 16px -6px rgba(255, 217, 138, 0.45);
   color: var(--moon);
   line-height: 1;
 }
-.bh-tile-d { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-.bh-tile-m { margin-top: 3px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 217, 138, 0.8); }
-.bh-tile-y { margin-top: 2px; font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em; color: var(--text-faint); }
+.bh-tile-d { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.bh-tile-m { margin-top: 4px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 217, 138, 0.82); }
+.bh-tile-y { margin-top: 2px; font-size: 10px; font-weight: 600; letter-spacing: 0.04em; color: var(--text-faint); }
 .bh-tile-today {
-  border-color: rgba(255, 217, 138, 0.75);
-  background: radial-gradient(120% 100% at 50% 0%, rgba(255, 217, 138, 0.34), rgba(255, 217, 138, 0.08) 75%), rgba(40, 28, 84, 0.7);
-  box-shadow: 0 0 18px rgba(255, 217, 138, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 217, 138, 0.8);
+  background: radial-gradient(120% 100% at 50% 0%, rgba(255, 217, 138, 0.36), rgba(255, 217, 138, 0.08) 75%), rgba(40, 28, 84, 0.72);
+  box-shadow: 0 0 22px rgba(255, 217, 138, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .bh-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+/* Up to two lines, so a long dream name still reads */
 .bh-row-title {
+  display: -webkit-box;
   overflow: hidden;
-  font-size: 16px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: rgba(246, 241, 255, 0.94);
+  font-size: 17px;
   font-weight: 500;
   line-height: 1.3;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 
-/* Symbols: up to three small chips on one line; a long name shortens rather than pushing the row wider */
-.bh-chips { display: flex; gap: 6px; min-width: 0; margin-top: 6px; overflow: hidden; }
-.bh-chip {
+/* Symbols: up to three chips on one line; a long name shortens rather than pushing the row wider */
+.bh-chips { display: flex; gap: 6px; min-width: 0; margin-top: 8px; overflow: hidden; }
+.chip.bh-chip {
   display: block;
   flex: 0 1 auto;
   min-width: 0;
   min-height: 24px;
-  padding: 2px 9px;
+  padding: 2px 10px;
   overflow: hidden;
-  font-size: 12px;
+  border-color: rgba(190, 170, 255, 0.24);
+  background: rgba(155, 123, 255, 0.16);
+  color: rgba(236, 228, 255, 0.86);
+  font-size: 12.5px;
   line-height: 18px;
   text-overflow: ellipsis;
 }
-.bh-row-none { margin-top: 4px; color: var(--text-faint); font-size: 13px; }
-.bh-row-go { flex: none; color: var(--text-faint); }
+.bh-row-none { margin-top: 5px; color: var(--text-faint); font-size: 13px; }
+.bh-row-go { flex: none; color: rgba(255, 217, 138, 0.55); }
 .bh-row-go svg { display: block; width: 18px; height: 18px; }
 
 .bh-new { animation: bh-rise 0.35s ease-out both; }
@@ -166,81 +187,55 @@
 .bh-empty-title { margin: 6px 0; font-size: 21px; line-height: 1.25; font-weight: 300; color: var(--text); }
 .bh-empty-text { margin: 0; color: var(--text-dim); font-size: 15px; line-height: 1.45; text-wrap: pretty; }
 
-/* ---- 4. What you dream about ---- */
+/* ---- 5. What you dream about: one sentence, then symbol chips with counts ---- */
 
-.bh-sym { margin-top: 12px; padding: 16px 14px 6px; }
-.bh-sym-lead { margin: 0 2px 6px; color: var(--text); font-size: 15.5px; line-height: 1.45; text-wrap: pretty; }
+.bh-head { align-items: baseline; }
+.bh-meta { flex: none; margin-right: 4px; color: var(--text-faint); font-size: 13px; text-shadow: 0 1px 10px rgba(8, 4, 30, 0.6); }
+
+.bh-sym { margin-top: 12px; padding: 16px 14px 14px; }
+.bh-sym-lead { margin: 0 2px 12px; color: var(--text); font-size: 15.5px; line-height: 1.45; text-wrap: pretty; }
 .bh-sym-lead b { color: var(--moon); font-weight: 600; }
-.bh-sym-empty { margin: 0 2px 10px; color: var(--text-dim); font-size: 15px; line-height: 1.45; }
+.bh-sym-empty { margin: 0 2px; color: var(--text-dim); font-size: 15px; line-height: 1.45; }
 
-.bh-sym-list { margin: 0; padding: 0; list-style: none; }
-.bh-sym-item + .bh-sym-item { border-top: 1px solid var(--glass-border); }
-
-.bh-sym-row {
-  display: flex;
+.bh-schips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.bh-schips li { max-width: 100%; }
+.bh-schip {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-height: 58px;
-  padding: 8px 2px;
-  border: 0;
-  background: none;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 38px;
+  padding: 0 6px 0 14px;
+  border: 1px solid rgba(255, 217, 138, 0.22);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255, 217, 138, 0.09), rgba(155, 123, 255, 0.1));
   color: var(--text);
-  text-align: left;
+  font-size: 14.5px;
+  font-weight: 500;
   cursor: pointer;
+  transition: transform 0.15s ease;
 }
-.bh-sym-row:active { opacity: 0.7; }
-.bh-sym-glyph {
+.bh-schip:active { transform: scale(0.96); background: rgba(255, 217, 138, 0.16); }
+.bh-schip-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bh-schip-n {
   flex: none;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 11px;
-  background: rgba(255, 217, 138, 0.12);
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(255, 217, 138, 0.16);
   color: var(--moon);
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
-.bh-sym-glyph svg { width: 18px; height: 18px; }
-.bh-sym-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
-.bh-sym-name { overflow: hidden; font-size: 16px; font-weight: 500; line-height: 1.2; white-space: nowrap; text-overflow: ellipsis; }
-.bh-sym-bar { display: block; height: 3px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, 0.08); }
-.bh-sym-bar span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, var(--violet), var(--moon));
-  box-shadow: 0 0 8px rgba(255, 217, 138, 0.4);
-}
-.bh-sym-count { flex: none; color: var(--text-dim); font-size: 13px; font-variant-numeric: tabular-nums; }
-.bh-sym-chev { flex: none; color: var(--text-faint); transition: transform 0.2s ease; }
-.bh-sym-chev svg { display: block; width: 16px; height: 16px; }
-.bh-sym-item.bh-open .bh-sym-chev { transform: rotate(90deg); color: var(--moon); }
-
-.bh-sym-meaning { padding: 0 2px 12px 48px; animation: bh-rise 0.25s ease-out; }
-.bh-sym-meaning[hidden] { display: none; }
-.bh-sym-mtitle { margin: 0 0 4px; color: var(--moon); font-size: 13px; font-weight: 600; letter-spacing: 0.02em; }
-.bh-sym-text { margin: 0; color: var(--text); font-size: 15px; line-height: 1.5; overflow-wrap: anywhere; }
-.bh-sym-none { color: var(--text-dim); }
-.bh-sym-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  max-width: 100%;
-  min-height: 40px;
-  margin-top: 2px;
-  color: var(--moon);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-}
-.bh-sym-link span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.bh-sym-link svg { flex: none; width: 15px; height: 15px; }
-.bh-sym-link:active { opacity: 0.7; }
 
 /* ---- Calm for people who turn motion off ---- */
 
 @media (prefers-reduced-motion: reduce) {
   .bh-record::before { animation: none; opacity: 0.75; }
-  .bh-empty-cloud, .bh-new, .bh-sym-meaning { animation: none; }
-  .bh-row, .bh-sym-chev { transition: none; }
+  .bh-empty-cloud, .bh-new { animation: none; }
+  .glass.bh-row, .bh-schip { transition: none; }
 }

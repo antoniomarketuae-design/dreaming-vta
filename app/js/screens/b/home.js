@@ -1,25 +1,26 @@
-// New layout: Home tab, strictly as the owner's mind map (video/DREAMS APP.pdf, "HOME TAB"):
-// date (with a greeting) · record dream button · the 3 newest dreams, each with its name, date and symbols (a moon-gold
-// date tile on the left) · "Load more dreams" (3 more each tap, in place) · "What you dream about" (recurring symbols of
-// the last 30 days; tap one for its meaning). Repaints itself when dreams change.
+// New layout: Home tab, as the owner's mind map (video/DREAMS APP.pdf, "HOME TAB") and the team's review:
+// date (with a greeting) · this month's moon cycle (compact card, moon.js) · record dream button · recent dreams, big
+// and easy to spot: name, date (a moon-gold date tile on the left) and symbols, the 3 newest first, "Load more dreams"
+// adds 3 more each tap, in place · "What you dream about": one sentence on what keeps coming back, then up to 8 symbol
+// chips with counts (last 30 days); tapping one opens its meaning (symbolsheet.js). Repaints itself when dreams change.
 // (The dream wheel that was here in v15 is now the Calendar tab; the day journal lives in the Calendar too.)
-import { listDreams, getDream, localDay, getProfile, onChange } from '../../store.js';
-import { symbolsOf, recurringSymbols, NO_MEANING, dreamDay } from '../../symbols.js';
+import { listDreams, localDay, getProfile, onChange } from '../../store.js';
+import { symbolsOf, recurringSymbols, dreamDay } from '../../symbols.js';
 import { esc, greeting, formatLongDate, icons } from '../../ui.js';
+import { moonCardHTML } from './moon.js';
+import { openSymbolSheet, closeSymbolSheet } from './symbolsheet.js';
 
 const FIRST = 3;     // dreams shown at first
 const STEP = 3;      // ...and how many more each "Load more" adds
-const TOP_SYMBOLS = 5;
+const TOP_SYMBOLS = 8;
 
 // Screen state. Reset each time Home opens; kept while it repaints for data changes.
 let shown = FIRST;
-let expanded = null; // key of the symbol whose meaning is open
 let cleanup = null;
 
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const titleOf = (d) => String(d?.title || '').trim() || 'Untitled dream';
 const dreamHref = (d) => `#dream/${encodeURIComponent(d.id)}`;
-const norm = (s) => String(s || '').toLowerCase().trim();
 
 // Crescent moon, a few stars and a soft cloud: the empty-journal picture.
 const EMPTY_ART = `
@@ -70,14 +71,18 @@ function headerHTML(now) {
     </header>`;
 }
 
-// ---------- 2. record ----------
+// ---------- 2. moon cycle ----------
+
+const moonHTML = (dreams) => `<div class="bh-moon">${moonCardHTML({ dreams, compact: true })}</div>`;
+
+// ---------- 3. record ----------
 
 const actionHTML = () => `
   <div class="bh-action">
     <a class="btn bh-record" href="#record">${icons.plus}<span>Record a dream</span></a>
   </div>`;
 
-// ---------- 3. recent dreams + Load more ----------
+// ---------- 4. recent dreams + Load more ----------
 
 /** The date tile: day number, short month, and the year when it isn't this year. */
 function dateTile(day) {
@@ -172,41 +177,16 @@ function leadSentence({ list, total, lately }) {
   return `${lately ? 'Lately' : 'So far'} you dream most about ${names}: ${top.count} of ${last} ${plural(total, 'dream')}${tied.length > 1 ? ' each' : ''}.`;
 }
 
-function meaningHTML(s) {
-  if (s.meaning) {
-    const from = s.meaningFrom ? getDream(s.meaningFrom) : null;
-    const heading = s.title && norm(s.title) !== s.key ? `<p class="bh-sym-mtitle">${esc(s.title)}</p>` : '';
-    return `
-      ${heading}
-      <p class="bh-sym-text">${esc(s.meaning)}</p>
-      ${from ? `<a class="bh-sym-link" href="${dreamHref(from)}"><span>From “${esc(titleOf(from))}”</span>${icons.chevronRight}</a>` : ''}`;
-  }
-  const newest = getDream(s.dreamIds[0]);
-  return `
-    <p class="bh-sym-text bh-sym-none">${esc(NO_MEANING)}</p>
-    ${newest ? `<a class="bh-sym-link" href="${dreamHref(newest)}"><span>Open “${esc(titleOf(newest))}”</span>${icons.chevronRight}</a>` : ''}`;
-}
-
-function symRowHTML(s, i, total) {
-  const open = s.key === expanded;
-  const pct = total ? Math.max(6, Math.round((s.count / total) * 100)) : 0;
-  return `
-    <li class="bh-sym-item${open ? ' bh-open' : ''}">
-      <button type="button" class="bh-sym-row" data-sym="${esc(s.key)}" aria-expanded="${open}" aria-controls="bh-sym-${i}">
-        <span class="bh-sym-glyph" aria-hidden="true">${icons.sparkle}</span>
-        <span class="bh-sym-main">
-          <span class="bh-sym-name">${esc(s.name)}</span>
-          <span class="bh-sym-bar" aria-hidden="true"><span style="width:${pct}%"></span></span>
-        </span>
-        <span class="bh-sym-count">${esc(plural(s.count, 'dream'))}</span>
-        <span class="bh-sym-chev" aria-hidden="true">${icons.chevronRight}</span>
-      </button>
-      <div class="bh-sym-meaning" id="bh-sym-${i}" ${open ? '' : 'hidden'}>${meaningHTML(s)}</div>
-    </li>`;
-}
+/** A symbol chip with its count; tapping it opens the symbol's meaning. */
+const chipHTML = (s) => `
+  <li><button type="button" class="bh-schip" data-sym="${esc(s.key)}" data-name="${esc(s.name)}"
+    aria-label="${esc(`${s.name}, in ${plural(s.count, 'dream')}. What it can mean`)}">
+    <span class="bh-schip-name">${esc(s.name)}</span><span class="bh-schip-n" aria-hidden="true">${s.count}</span>
+  </button></li>`;
 
 function symbolsHTML(dreams) {
   let body;
+  let meta = '';
   if (!dreams.length) {
     body = '<p class="bh-sym-empty">Once you record a few dreams, the people, places and things that keep coming back will gather here.</p>';
   } else {
@@ -214,15 +194,18 @@ function symbolsHTML(dreams) {
     if (!sum.list.length) {
       body = '<p class="bh-sym-empty">No symbols yet. Add people, places or things to a dream, or analyze one, and they will gather here.</p>';
     } else {
-      if (expanded && !sum.list.some((s) => s.key === expanded)) expanded = null;
+      meta = sum.lately ? 'Last 30 days' : 'All time';
       body = `
         <p class="bh-sym-lead">${leadSentence(sum)}</p>
-        <ul class="bh-sym-list">${sum.list.map((s, i) => symRowHTML(s, i, sum.total)).join('')}</ul>`;
+        <ul class="bh-schips" aria-label="Symbols">${sum.list.map(chipHTML).join('')}</ul>`;
     }
   }
   return `
     <section class="bh-section" aria-labelledby="bh-sym-title">
-      <h2 class="bh-h2" id="bh-sym-title">What you dream about</h2>
+      <div class="bh-head">
+        <h2 class="bh-h2" id="bh-sym-title">What you dream about</h2>
+        ${meta ? `<span class="bh-meta">${meta}</span>` : ''}
+      </div>
       <div class="glass bh-sym">${body}</div>
     </section>`;
 }
@@ -233,6 +216,7 @@ function screenHTML() {
   const dreams = listDreams();
   return `
     ${headerHTML(new Date())}
+    ${moonHTML(dreams)}
     ${actionHTML()}
     ${dreams.length ? recentHTML(dreams) : emptyHTML()}
     ${symbolsHTML(dreams)}`;
@@ -246,7 +230,6 @@ export default {
   render(el, ctx) {
     cleanup?.();
     shown = FIRST;
-    expanded = null;
 
     el.innerHTML = '<div class="bh"></div>';
     const root = el.firstElementChild;
@@ -264,18 +247,9 @@ export default {
       });
     };
 
-    // One symbol open at a time.
-    const toggleSymbol = (btn) => {
-      const key = btn.dataset.sym;
-      expanded = expanded === key ? null : key;
-      for (const b of root.querySelectorAll('[data-sym]')) {
-        const open = b.dataset.sym === expanded;
-        b.setAttribute('aria-expanded', String(open));
-        b.closest('.bh-sym-item')?.classList.toggle('bh-open', open);
-        const panel = root.querySelector(`#${b.getAttribute('aria-controls')}`);
-        if (panel) panel.hidden = !open;
-      }
-    };
+    // A symbol chip: its meaning in the shared sheet (library first, then the user's own interpretation and dreams).
+    const navigate = (hash) => { if (ctx?.navigate) ctx.navigate(hash); else location.hash = hash; };
+    const openSymbol = (btn) => openSymbolSheet({ key: btn.dataset.sym, name: btn.dataset.name, navigate });
 
     // "Load more": adds the next rows in place and keeps the focus on the button (or the first new row).
     const loadMore = (btn) => {
@@ -300,7 +274,7 @@ export default {
     root.addEventListener('click', (e) => {
       let b;
       if ((b = e.target.closest('[data-more]'))) loadMore(b);
-      else if ((b = e.target.closest('[data-sym]'))) toggleSymbol(b);
+      else if ((b = e.target.closest('[data-sym]'))) openSymbol(b);
     });
 
     cleanup = onChange(repaint);
@@ -309,5 +283,6 @@ export default {
   destroy() {
     cleanup?.();
     cleanup = null;
+    closeSymbolSheet();
   },
 };

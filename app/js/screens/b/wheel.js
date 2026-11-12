@@ -1,8 +1,13 @@
 // New layout: the dream wheel, the Calendar tab's main view. The month as a circle, like a zodiac wheel: day 1 at the
 // top and clockwise, each day labelled 1st, 2nd, 3rd…; days with dreams light up with the dream's picture, days with a
-// day-journal note get a small ember mark, today has a gold ring and future days are dimmed. The middle shows the
-// chosen day's dream (tap it to open the dream; "next" when the day has more than one). This file only builds HTML;
-// the Calendar (calendar.js) keeps the state and wires the taps. Styles: .bw-* in css/b-calendar.css.
+// day-journal note get a small ember mark, today has a gold ring and future days are dimmed.
+// The middle shows the chosen day's dream: its picture, title and symbols, and a gold "See more" button that opens it
+// (the picture and title open it too). When the day has several dreams, small dots with a › under the button show
+// the next one (data-wheel-more).
+// On the ring, the first tap on a day chooses it; tapping the chosen day again opens the dream in the middle. The
+// chosen dream day has a soft pulsing ring (a still ring with reduced motion) as a hint that it can be opened.
+// This file only builds HTML; the Calendar (calendar.js) keeps the state and wires the taps. Styles: .bw-* in
+// css/b-calendar.css.
 import { listDreams, localDay } from '../../store.js';
 import { symbolsOf, dreamDay, dreamType, DREAM_TYPES } from '../../symbols.js';
 import { esc, icons } from '../../ui.js';
@@ -99,23 +104,38 @@ function centerHTML(month, n, list, index) {
         ${today ? `<a class="bw-record" href="#record">${icons.plus}<span>Record</span></a>` : ''}
       </div>`;
   }
-  const d = list[Math.min(index, list.length - 1)];
+  const i = Math.min(Math.max(0, index), list.length - 1);
+  const d = list[i];
   const type = dreamType(d);
   const typeLabel = type === 'general' ? '' : DREAM_TYPES.find((t) => t.id === type)?.label || '';
   const syms = symbolsOf(d).slice(0, 2);
+  const title = String(d.title || '').trim() || 'Untitled dream';
+  const href = `#dream/${encodeURIComponent(d.id)}`;
+  // The picture and title open the dream too, but only for touch: screen readers get the one "See more" link.
   return `
     <div class="bw-center">
-      <a class="bw-open" href="#dream/${encodeURIComponent(d.id)}" aria-label="Open ${esc(d.title || 'this dream')}">
-        <span class="bw-center-pic">${picture(d, 64, 'bw-center-img')}${hasVideo(d) ? `<span class="video-mark" aria-hidden="true">${icons.play}</span>` : ''}</span>
+      <a class="bw-open" href="${esc(href)}" tabindex="-1" aria-hidden="true">
+        <span class="bw-center-pic">${picture(d, 64, 'bw-center-img')}${hasVideo(d) ? `<span class="video-mark">${icons.play}</span>` : ''}</span>
         <span class="bw-when">${esc(when)}${typeLabel ? ` · <span class="bw-type bw-type-${type}">${esc(typeLabel)}</span>` : ''}</span>
-        <span class="bw-title">${esc(String(d.title || '').trim() || 'Untitled dream')}</span>
+        <span class="bw-title">${esc(title)}</span>
         ${syms.length ? `<span class="bw-syms">${syms.map((s) => `<span class="bw-sym">${esc(s.name)}</span>`).join('')}</span>` : ''}
       </a>
-      ${list.length > 1 ? `
-        <button type="button" class="bw-next" data-wheel-more aria-label="Next dream of this day">
-          <span>${index + 1} of ${list.length}</span>${icons.chevronRight}
-        </button>` : ''}
+      <a class="bw-cta" href="${esc(href)}" aria-label="${esc(`See more: ${title}${typeLabel ? `, ${typeLabel.toLowerCase()} dream` : ''}`)}">
+        <span>See more</span>${icons.chevronRight}
+      </a>
+      ${list.length > 1 ? switchHTML(i, list.length) : ''}
     </div>`;
+}
+
+/** Under "See more": a quiet way to show the day's next dream (dots for up to 5 dreams, "2/7" beyond). */
+function switchHTML(i, count) {
+  const marks = count <= 5
+    ? `<span class="bw-dots">${Array.from({ length: count }, (_, k) => `<i${k === i ? ' class="is-on"' : ''}></i>`).join('')}</span>`
+    : `<span class="bw-of">${i + 1}/${count}</span>`;
+  return `
+      <button type="button" class="bw-switch" data-wheel-more aria-label="${esc(`Dream ${i + 1} of ${count} on this day. Show the next one`)}">
+        <span class="bw-switch-in" aria-hidden="true">${marks}${icons.chevronRight}</span>
+      </button>`;
 }
 
 /**
@@ -144,7 +164,8 @@ export function wheelHTML({ month, selected, index = 0 }, { notes = new Set() } 
       list.some((d) => dreamType(d) === 'nightmare') ? 'is-night' : '',
     ].filter(Boolean).join(' ');
     const noted = notes.has(day);
-    const what = `${list.length ? `${list.length} ${list.length === 1 ? 'dream' : 'dreams'}` : 'no dream'}${noted ? ', day note' : ''}`;
+    const again = day === selected && list.length ? '. Press again to open the dream in the middle' : '';
+    const what = `${list.length ? `${list.length} ${list.length === 1 ? 'dream' : 'dreams'}` : 'no dream'}${noted ? ', day note' : ''}${again}`;
     return `
       <button type="button" class="${cls}" style="--a:${angle}deg" data-wheel-day="${day}"
         aria-label="${esc(`${MONTHS[Number(month.slice(5, 7)) - 1]} ${ordinal(day)}: ${what}`)}" aria-pressed="${day === selected}" ${future ? 'disabled' : ''}>

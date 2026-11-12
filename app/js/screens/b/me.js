@@ -1,7 +1,11 @@
 // New layout: Profile tab (#me), following the owner's structure, top to bottom:
 //   you (picture, name, dreams recorded, days on the app) · your plan with this month's balance
-//   (video credits, AI images, interpretations) and Get more / Redeem a code · Notifications ·
-//   Settings (#profile, where everything else lives: app layout, passcode, export, about).
+//   (video credits, AI images, interpretations) and Get more / Redeem a code · Personalise Dreaming (how many
+//   questions are answered, and a button that opens the survey sheet from survey.js: the first version's welcome
+//   questions plus the ones that used to sit in Insights) · Notifications · Settings (#profile, where everything else
+//   lives: app layout, passcode, export, about) · "Kept only on this iPhone" (no account, no cloud copy; links to
+//   Export, moved here from the Journal).
+// #me/survey opens the survey straight away, then the address goes back to #me.
 // The picture is saved on the profile as `avatar`: one of the emoji below, or a 160×160 JPEG data URL made on this
 // phone from a photo. It never leaves the iPhone. Settings' own name / plan code stays in profile.js; this tab only
 // reads the same data. Touches document/window/storage only inside render and event handlers, never at import time.
@@ -9,6 +13,7 @@ import { getProfile, setProfile, getStats, getSetting, listDreams, onChange } fr
 import { esc, icons } from '../../ui.js';
 import { getAccount, cachedAccount } from '../../account.js';
 import { plusPill, planLimits, renewDate, formatUntil } from '../../paywall.js';
+import { openSurvey, surveyProgress } from './survey.js';
 
 const AVATAR_PX = 160;   // saved photo size (square), about 8 KB as JPEG
 const AVATAR_Q = 0.8;    // JPEG quality
@@ -27,6 +32,7 @@ const hasPicture = (p) => isPhoto(p.avatar) || isEmoji(p.avatar);
 // Kept while the screen is open; reset each time the tab is opened.
 let pickerOpen = false;
 let cleanup = null;
+let survey = null; // the open survey sheet, if any
 
 // ---- Picture ----
 
@@ -227,9 +233,32 @@ function planCard() {
     </section>`;
 }
 
+// ---- Personalise Dreaming (the survey itself is in survey.js) ----
+
+function surveyCard() {
+  const { done, total } = surveyProgress();
+  const all = done >= total;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  return `
+    <section class="glass bm-survey${all ? ' is-done' : ''}" data-survey-card aria-labelledby="bm-survey-title">
+      <div class="bm-survey-head">
+        <span class="bm-survey-icon" aria-hidden="true">${all ? icons.check : icons.target}</span>
+        <span class="bm-survey-who">
+          <h2 class="bm-survey-title" id="bm-survey-title">Personalise Dreaming</h2>
+          <span class="bm-survey-sub">${all ? 'All answered. Change them anytime.' : 'Answer a few questions so Dreaming suits you better.'}</span>
+        </span>
+      </div>
+      <div class="bm-survey-progress">
+        <span class="bm-survey-count"><b>${done}</b> of ${total} answered</span>
+        <span class="bm-bar" role="progressbar" aria-label="Questions answered" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}"><i style="width:${pct}%"></i></span>
+      </div>
+      <button class="btn${all ? ' btn-ghost' : ''} bm-survey-btn" type="button" data-survey="${all ? 'edit' : 'go'}">${all ? 'Edit answers' : done ? 'Continue' : 'Start'}</button>
+    </section>`;
+}
+
 // ---- Notifications · Settings ----
 
-const row = ({ href, icon, hue, label, sub, value = '' }) => `
+const row =({ href, icon, hue, label, sub, value = '' }) => `
   <a class="bm-row" href="${href}">
     <span class="bm-tile" style="--bm-hue:${hue}">${icon}</span>
     <span class="bm-row-text">
@@ -250,7 +279,33 @@ function rowsHTML() {
     </div>`;
 }
 
+// ---- Kept only on this iPhone (moved here from the Journal; always shown) ----
+
+const keptNote = () => `
+  <section class="glass bm-note" aria-labelledby="bm-note-title">
+    <span class="bm-note-icon" aria-hidden="true">${icons.info}</span>
+    <div class="bm-note-body">
+      <h2 class="bm-note-title" id="bm-note-title">Kept only on this iPhone</h2>
+      <p class="bm-note-text">There is no account and no cloud copy. If this phone is lost or the app is removed, your dreams go with it.</p>
+      <a class="bm-note-link" href="#profile/export">Export a backup in Settings${icons.chevronRight}</a>
+    </div>
+  </section>`;
+
 // ---- Screen ----
+
+/** Opens the survey sheet; when the user closes it, the card shows the new count and gets the focus back. */
+function startSurvey(el, start) {
+  survey = openSurvey(start, {
+    onClose(byUser) {
+      survey = null;
+      if (!byUser) return;
+      const card = el.querySelector('.bm [data-survey-card]');
+      if (!card) return;
+      card.outerHTML = surveyCard();
+      try { el.querySelector('.bm [data-survey]')?.focus({ preventScroll: true }); } catch {}
+    },
+  });
+}
 
 function draw(el, ctx) {
   el.innerHTML = `
@@ -258,8 +313,9 @@ function draw(el, ctx) {
       <h1 class="screen-title">Profile</h1>
       ${userCard()}
       ${planCard()}
+      ${surveyCard()}
       ${rowsHTML()}
-      <p class="bm-footer">Your dreams and your picture stay on this iPhone.</p>
+      ${keptNote()}
     </div>`;
 
   const root = el.querySelector('.bm');
@@ -321,6 +377,8 @@ function draw(el, ctx) {
       openName();
     } else if (hit('[data-cancel-name]')) {
       closeName();
+    } else if ((b = hit('[data-survey]'))) {
+      startSurvey(el, b.dataset.survey === 'edit' ? 'summary' : undefined);
     }
   });
 
@@ -364,7 +422,8 @@ export default {
   label: 'Profile',
   icon: icons.profile,
 
-  render(el, ctx) {
+  // #me/survey opens the survey straight away (for links from other screens).
+  render(el, ctx, param) {
     cleanup?.();
     pickerOpen = false;
     draw(el, ctx);
@@ -383,10 +442,16 @@ export default {
     cleanup = () => {
       offDreams();
       window.removeEventListener('dreaming:account', onAccount);
+      survey?.close(true);
       cleanup = null;
     };
     // Fresh plan state; a new answer arrives as a 'dreaming:account' event and repaints the card.
     getAccount().catch(() => {});
+
+    if (param === 'survey') {
+      try { history.replaceState(null, '', '#me'); } catch {}
+      startSurvey(el);
+    }
   },
 
   destroy() {

@@ -1,5 +1,7 @@
-/* New layout: calendar (js/screens/b/calendar.js). Every selector starts with .bc- so nothing leaks into other screens.
-   Colours: violet glow = dreams, ember = day-journal notes, moon gold = today. */
+/* New layout: calendar (js/screens/b/calendar.js). Every selector starts with .bc- (.bw- for the wheel) so nothing
+   leaks into other screens.
+   Colours: violet glow = dreams, ember = day-journal notes, moon gold = today, a light lavender tile = the chosen day
+   (Grid), gold button = "See more" in the middle of the circle. */
 
 .bc { display: flex; flex-direction: column; }
 .bc-title { margin-bottom: 14px; }
@@ -99,6 +101,15 @@ button.bc-day:active .bc-disc { transform: scale(0.9); }
 /* Today: a moon-gold ring */
 .bc-today .bc-disc { box-shadow: inset 0 0 0 1.5px var(--moon); color: var(--moon); font-weight: 600; }
 .bc-today.bc-has .bc-disc { box-shadow: inset 0 0 0 2px var(--moon), 0 0 14px rgba(255, 217, 138, 0.5); color: #fff; }
+
+/* The chosen day: a light tile around the whole cell, so the disc keeps its glow / today ring and the note mark
+   stays visible inside it. */
+button.bc-day { transition: background-color 0.15s ease, box-shadow 0.15s ease; }
+.bc-day.bc-sel {
+  background: rgba(240, 234, 255, 0.1);
+  box-shadow: inset 0 0 0 1.5px rgba(240, 234, 255, 0.55), 0 0 14px rgba(155, 123, 255, 0.25);
+}
+.bc-sel:not(.bc-has):not(.bc-today) .bc-disc { color: #fff; font-weight: 700; }
 
 /* Turning the page */
 .bc-in-next { animation: bc-in-next 0.28s ease-out; }
@@ -322,7 +333,7 @@ body.bc-sheet-open { overflow: hidden; }
   .bc-in-next, .bc-in-prev,
   .bc-sheet-panel, .bc-sheet-scrim,
   .bc-sheet-out .bc-sheet-panel, .bc-sheet-out .bc-sheet-scrim { animation: none; }
-  .bc-disc { transition: none; }
+  .bc-disc, button.bc-day { transition: none; }
 }
 
 @media (max-width: 350px) {
@@ -425,7 +436,9 @@ body.bc-sheet-open { overflow: hidden; }
 .bw-label.is-dream { color: var(--moon); }
 .bw-label.is-today { color: #fff; font-weight: 800; }
 
-/* The middle ("moon"): the chosen day's dream. */
+/* The middle ("moon"): the chosen day's dream, with "See more" as the one clear way in.
+   Sized to stay inside the dark core (half the wheel wide; the column is 0.44 of it): about 165px tall at most at
+   390px wide (picture 38 + when 12 + title 2 lines + symbols + button 30 + switcher 22). */
 .bw-center {
   position: absolute;
   left: 50%;
@@ -433,58 +446,155 @@ body.bc-sheet-open { overflow: hidden; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   width: calc(var(--size) * 0.44);
   transform: translate(-50%, -50%);
   text-align: center;
 }
-.bw-open { display: flex; flex-direction: column; align-items: center; gap: 3px; color: inherit; text-decoration: none; }
-.bw-center-pic { position: relative; display: block; width: 46px; height: 46px; margin-bottom: 2px; }
+.bw-open {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.bw-center-pic { position: relative; display: block; width: 38px; height: 38px; margin-bottom: 1px; }
 .bw-center-img {
   display: block;
-  width: 46px;
-  height: 46px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   object-fit: cover;
-  box-shadow: 0 0 0 1.5px rgba(255, 217, 138, 0.7), 0 0 16px rgba(155, 123, 255, 0.55);
+  box-shadow: 0 0 0 1.5px rgba(255, 217, 138, 0.7), 0 0 14px rgba(155, 123, 255, 0.55);
 }
-.bw-center-pic .video-mark { right: -6px; bottom: -4px; width: 20px; height: 20px; }
-.bw-center-pic .video-mark svg { width: 10px; height: 10px; }
+.bw-center-pic .video-mark { right: -7px; bottom: -4px; width: 18px; height: 18px; }
+.bw-center-pic .video-mark svg { width: 9px; height: 9px; }
 .bw-pic-fallback { background: radial-gradient(circle at 35% 30%, #c9b6ff, #3a2a78); }
-.bw-when { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); }
+.bw-when { font-size: 9.5px; line-height: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); }
 .bw-type-nightmare { color: var(--ember); }
 .bw-type-lucid, .bw-type-prophetic { color: var(--moon); }
 .bw-title {
   display: -webkit-box;
+  max-width: 100%;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.22;
   color: var(--text);
+  overflow-wrap: anywhere;
 }
-.bw-syms { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
-.bw-sym { padding: 1px 7px; border-radius: 999px; background: rgba(255, 217, 138, 0.12); color: var(--moon); font-size: 10px; font-weight: 600; }
-.bw-next, .bw-record {
+.bw-syms { display: flex; justify-content: center; gap: 4px; max-width: 100%; overflow: hidden; }
+.bw-sym {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 1px 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 217, 138, 0.12);
+  color: var(--moon);
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* "See more": the gold primary button that opens the dream in the middle. */
+.bw-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 30px;
+  margin-top: 2px;
+  padding: 0 9px 0 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe7b4, var(--moon) 55%, #f2c46e);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 0 0 1px rgba(255, 217, 138, 0.35), 0 4px 16px rgba(255, 217, 138, 0.32);
+  color: #24184f;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease;
+}
+.bw-cta svg { width: 13px; height: 13px; stroke-width: 2.4; }
+.bw-cta:active { transform: scale(0.95); }
+.bw-cta:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* Several dreams on the day: small dots (or "2/7") and a › under the button, quiet so it doesn't compete with it. */
+.bw-switch {
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 22px;
+  margin: 0;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-faint);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.bw-switch-in { display: inline-flex; align-items: center; gap: 4px; }
+.bw-switch svg { width: 11px; height: 11px; }
+.bw-switch:active { opacity: 0.6; }
+.bw-switch:focus-visible { outline: 1.5px solid rgba(240, 234, 255, 0.7); outline-offset: 1px; }
+.bw-dots { display: inline-flex; align-items: center; gap: 4px; }
+.bw-dots i { display: block; width: 5px; height: 5px; border-radius: 3px; background: rgba(240, 234, 255, 0.32); }
+.bw-dots i.is-on { width: 12px; background: var(--moon); box-shadow: 0 0 6px rgba(255, 217, 138, 0.6); }
+.bw-of { font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-dim); }
+
+.bw-record {
   display: inline-flex;
   align-items: center;
   gap: 3px;
   min-height: 26px;
   padding: 2px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 217, 138, 0.4);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
-  color: var(--text-dim);
+  color: var(--moon);
   font: inherit;
   font-size: 11px;
   font-weight: 600;
   text-decoration: none;
 }
-.bw-next svg, .bw-record svg { width: 12px; height: 12px; }
-.bw-record { color: var(--moon); border-color: rgba(255, 217, 138, 0.4); }
+.bw-record svg { width: 12px; height: 12px; }
 .bw-none { margin: 0; font-size: 13px; color: var(--text-dim); }
 .bw-center-empty .bw-when { margin: 0; }
+
+/* The chosen dream day on the ring: a soft pulsing ring, a hint that tapping it again opens the dream. */
+.bw-day.is-sel.is-dream::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border: 1.5px solid rgba(255, 217, 138, 0.8);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: bw-pulse 2.4s ease-out infinite;
+}
+@keyframes bw-pulse {
+  0% { transform: scale(0.9); opacity: 0.9; }
+  70%, 100% { transform: scale(1.45); opacity: 0; }
+}
+
+/* Narrow phones (wheel under ~330px): keep the middle to picture, title and the button. */
+@media (max-width: 359px) {
+  .bw-center .bw-when, .bw-syms { display: none; }
+  .bw-center-empty .bw-when { display: block; }
+  .bw-center-pic, .bw-center-img { width: 32px; height: 32px; }
+  .bw-title { font-size: 12px; }
+}
 /* A day with a day-journal note: a small ember mark on the dot's shoulder. */
 .bw-note {
   position: absolute;
@@ -499,7 +609,9 @@ body.bc-sheet-open { overflow: hidden; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bw-dot { transition: none; }
+  .bw-dot, .bw-cta { transition: none; }
+  /* No pulse: a still, slightly wider ring says the same thing. */
+  .bw-day.is-sel.is-dream::after { animation: none; transform: scale(1.12); opacity: 0.75; }
 }
 
 
@@ -563,3 +675,13 @@ body.bc-sheet-open { overflow: hidden; }
 }
 .bc-daycard-prompt { margin: 10px 0 0; font-size: 14px; line-height: 1.45; color: var(--text-dim); }
 .bc-daycard-btn { margin-top: 10px; width: 100%; }
+
+/* Grid only: the chosen day's dreams, as compact rows (the sheet's rows, smaller) */
+.bc-daycard-dreams { gap: 6px; margin-top: 12px; }
+.bc-dream-sm { gap: 10px; padding: 6px 8px 6px 6px; border-radius: 14px; }
+.bc-dream-sm .bc-thumb { width: 40px; height: 40px; border-radius: 10px; }
+.bc-dream-sm .bc-thumb .video-mark { right: 2px; bottom: 2px; width: 16px; height: 16px; }
+.bc-dream-sm .bc-thumb .video-mark svg { width: 8px; height: 8px; }
+.bc-dream-sm .bc-dream-body { gap: 4px; }
+.bc-dream-sm .bc-dream-title { font-size: 15px; }
+.bc-dream-sm .bc-chip { min-height: 21px; padding: 1px 8px; font-size: 11.5px; line-height: 17px; }

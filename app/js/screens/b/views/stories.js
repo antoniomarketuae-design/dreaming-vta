@@ -7,9 +7,16 @@ import { symbolsOf, dreamDay, dreamType, DREAM_TYPES } from '../../../symbols.js
 import { dreamArtURL } from '../../../dreamart.js';
 import { hasImage } from '../../../images.js';
 import { hasVideo, openVideoPlayer } from '../../../videos.js';
-import { esc, icons, relativeDay } from '../../../ui.js';
+import { esc, icons } from '../../../ui.js';
 
 const ART_PX = 420;      // picture size asked of dreamArtURL (CSS px)
+
+/** The exact date, e.g. "Mon 9 Nov 2026" (the team asked for dates, not "2 days ago"). */
+function exactDay(iso) {
+  const date = new Date(`${iso}T12:00:00`);
+  if (!iso || Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
 const SEGMENTS_MAX = 20; // up to this many dreams the progress line has one segment per dream, above it one bar
 
 let resumeId = null; // dream opened from a card: coming back to the view starts at that card again
@@ -22,7 +29,7 @@ function cardHTML(d, i, n) {
   const typeLabel = type === 'general' ? '' : DREAM_TYPES.find((t) => t.id === type)?.label || '';
   const syms = symbolsOf(d).slice(0, 3);
   const title = String(d.title || '').trim() || 'Untitled dream';
-  const when = relativeDay(dreamDay(d)) || 'No date';
+  const when = exactDay(dreamDay(d)) || 'No date';
   const video = hasVideo(d);
   return `
     <article class="bv-stories-card${type === 'nightmare' ? ' is-night' : ''}" data-bvs-i="${i}"

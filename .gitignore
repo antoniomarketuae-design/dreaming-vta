@@ -12,3 +12,6 @@ video/
 
 # Handoff notes between sessions/accounts: local only (names servers and paths; the repo is public)
 HANDOFF*.md
+
+# Owner's annotated screenshots and team voice notes: reference only, never public
+Pic fix/

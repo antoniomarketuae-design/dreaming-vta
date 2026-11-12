@@ -1,18 +1,20 @@
 // New layout: Insights tab. What keeps coming back in the dreams and what it may mean:
 //   1. your dream sky, all time (sky.js), on top: every dream a star, dreams that share a symbol joined into
-//      constellations; a constellation's "Read more" opens the symbol sheet, with the meaning in full,
-//   2. recurring symbols over the past 30 / 15 / 10 days (tap one for its meaning, in a bottom sheet),
-//   3. the dream types recorded (general / lucid / nightmare / prophetic, all time),
-//   4. the Symbols map analysis (#module/symbols-map, a Dreaming Plus feature),
-//   5. up to 5 questions to reflect on, from the last 10 dreams,
-//   6. a short survey that personalises Dreaming (answers saved at once in profile.survey).
-// Meanings come only from the user's own interpretations (symbols.js). Questions are the interpretations' own
-// "reflect" questions first, then gentle ones we word from patterns in the same dreams: open, never predictive or
-// diagnostic. The two sheets (symbol, survey) live on <body> and are removed when the screen goes away.
+//      constellations; a constellation's "Read more" opens the symbol's meaning,
+//   2. this month's moon cycle right below it (moon.js, the full card: tonight's moon, the next full moon, every
+//      night of the month with the nights you dreamed),
+//   3. recurring symbols over the past 30 / 15 / 10 days (tap one for its meaning),
+//   4. the dream types recorded (general / lucid / nightmare / prophetic, all time),
+//   5. the Symbols map analysis (#module/symbols-map, a Dreaming Plus feature),
+//   6. up to 5 questions to reflect on, from the last 10 dreams.
+// A symbol's meaning opens in the shared symbol sheet (symbolsheet.js): Dreaming's dream library first, the user's
+// own interpretation and dreams below it. Questions are the interpretations' own "reflect" questions first, then
+// gentle ones we word from patterns in the same dreams: open, never predictive or diagnostic.
+// The personalisation survey lives in the Profile tab now (#me/survey); old #insights/survey links go there.
 // The sky keeps its own state (listeners, the chosen star), so it is not one of the re-painted SECTIONS: it has its
 // own host and is drawn again only when the dreams change (see paintSky).
-import { listDreams, getDream, localDay, getProfile, setProfile, getSetting, setSetting, onChange } from '../../store.js';
-import { recurringSymbols, symbolsOf, NO_MEANING, dreamDay, DREAM_TYPES, dreamType, typeCounts } from '../../symbols.js';
+import { listDreams, getDream, localDay, getSetting, setSetting, onChange } from '../../store.js';
+import { recurringSymbols, symbolsOf, dreamDay, DREAM_TYPES, dreamType, typeCounts } from '../../symbols.js';
 import { MODULES } from '../../progress.js';
 import { TAGS } from '../../analyze.js';
 import { esc, icons, relativeDay } from '../../ui.js';
@@ -20,6 +22,8 @@ import { MODULE_INFO, MOD_ICONS } from '../module.js';
 import { hasFeature, openPaywall, getAccount } from '../../account.js';
 import { plusPill } from '../../paywall.js';
 import sky from './sky.js';
+import { moonCardHTML } from './moon.js';
+import { openSymbolSheet, closeSymbolSheet } from './symbolsheet.js';
 
 const DAY = 86400000;
 const PERIODS = [30, 15, 10];   // days, the first is the default
@@ -32,7 +36,7 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const dreamTitle = (d) => String(d?.title || '').trim() || 'Untitled dream';
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
 
-let state = null; // { root, cache, symbols, showAll, sheet, offs, navigate, skySig }
+let state = null; // { root, cache, symbols, showAll, offs, navigate, skySig }
 
 // ---- Period (remembered in settings) ----
 
@@ -47,7 +51,7 @@ const dreamsSince = (days) => {
   return listDreams().filter((d) => dreamDay(d) >= since);
 };
 
-/** Dream links (title + day) for the sheet and the questions. */
+/** Dream links (title + day) for the questions. */
 function dreamLinksHTML(ids) {
   const items = ids.map((id) => getDream(id)).filter(Boolean);
   if (!items.length) return '';
@@ -63,12 +67,9 @@ function dreamLinksHTML(ids) {
 function symbolsHTML() {
   const days = getDays();
   const dreams = dreamsSince(days);
-  // A symbol with no meaning in the period may still have one from an older interpretation.
-  const known = new Map(recurringSymbols({ days: 0 }).filter((s) => s.meaning).map((s) => [s.key, s]));
-  const list = recurringSymbols({ days }).map((s) => {
-    const k = s.meaning ? null : known.get(s.key);
-    return k ? { ...s, meaning: k.meaning, title: k.title, meaningFrom: k.meaningFrom } : s;
-  });
+  // The sparkle marks symbols that one of the user's interpretations explained (any time, not only in the period).
+  const known = new Set(recurringSymbols({ days: 0 }).filter((s) => s.meaning).map((s) => s.key));
+  const list = recurringSymbols({ days }).map((s) => ({ ...s, mine: Boolean(s.meaning) || known.has(s.key) }));
   state.symbols = list;
 
   const seg = `
@@ -101,10 +102,10 @@ function symbolsHTML() {
     const shown = state.showAll ? list : list.slice(0, SYMBOLS_SHOWN);
     const rows = shown.map((s) => `
       <li><button type="button" class="bi-sym${s.count > 1 ? ' bi-sym-again' : ''}" data-sym="${esc(s.key)}"
-        aria-label="${esc(s.name)}, in ${plural(s.count, 'dream')}${s.meaning ? ', meaning available' : ''}">
+        aria-label="${esc(s.name)}, in ${plural(s.count, 'dream')}${s.mine ? ', also explained in your interpretation' : ''}. What it can mean">
         <span class="bi-sym-top">
           <span class="bi-sym-name">${esc(s.name)}</span>
-          ${s.meaning ? `<span class="bi-sym-has" title="Meaning from your interpretation">${icons.sparkle}</span>` : ''}
+          ${s.mine ? `<span class="bi-sym-has" title="Also explained in your interpretation">${icons.sparkle}</span>` : ''}
           <span class="bi-sym-n">${s.count}</span>
           <span class="bi-sym-go">${icons.chevronRight}</span>
         </span>
@@ -117,7 +118,7 @@ function symbolsHTML() {
       <p class="bi-sum"><b>${plural(list.length, 'symbol')}</b> in ${plural(dreams.length, 'dream')}${again ? ` · ${again} more than once` : ''}</p>
       <ul class="bi-syms">${rows}</ul>
       ${more}
-      <p class="bi-hint">Tap a symbol to see what it may mean for you.</p>`;
+      <p class="bi-hint">Tap a symbol to read what it can mean.</p>`;
   }
 
   return `
@@ -128,34 +129,14 @@ function symbolsHTML() {
     </section>`;
 }
 
-/** `period` names where the count comes from: 'past 30 days', 'all time'. */
-function symbolSheetHTML(s, period) {
-  const from = s.meaningFrom ? getDream(s.meaningFrom) : null;
-  const as = str(s.title) && str(s.title).toLowerCase() !== s.name.toLowerCase() ? str(s.title) : '';
-  const meaning = s.meaning
-    ? `
-      <section class="bi-meaning">
-        <p class="bi-meaning-label">${icons.sparkle}<span>What it may mean for you</span></p>
-        <p class="bi-meaning-text">${esc(s.meaning)}</p>
-        ${from
-          ? `<a class="bi-meaning-from" href="#dream/${encodeURIComponent(from.id)}">
-              <span>From your interpretation of <b>“${esc(dreamTitle(from))}”</b>${as ? `, as “${esc(as)}”` : ''} · ${esc(relativeDay(dreamDay(from)))}</span>${icons.chevronRight}
-            </a>`
-          : '<p class="bi-meaning-src">From your interpretation of one of your dreams.</p>'}
-      </section>`
-    : `<section class="bi-meaning bi-meaning-none"><p class="bi-meaning-text">${esc(NO_MEANING)}</p></section>`;
-  return `
-    <p class="bi-sheet-kicker">Symbol · ${esc(period)}</p>
-    <h2 class="bi-sheet-title" id="bi-sheet-title" tabindex="-1">${esc(s.name)}</h2>
-    <p class="bi-sheet-lead">In ${plural(s.count, 'dream')}</p>
-    ${meaning}
-    <h3 class="bi-sheet-label">${s.count === 1 ? 'The dream' : 'Dreams'} with this symbol</h3>
-    ${dreamLinksHTML(s.dreamIds)}`;
-}
-
+/**
+ * A symbol's meaning in the shared sheet: the library first, then the user's own interpretation and dreams (counted
+ * over all the dreams, filled in by the sheet). Used by the recurring symbols and by the sky's "Read more".
+ */
 function openSymbol(key) {
-  const s = state?.symbols.find((x) => x.key === key);
-  if (s) openSheet('symbol', symbolSheetHTML(s, `past ${getDays()} days`));
+  if (!state || !key) return;
+  const s = state.symbols.find((x) => x.key === key) || recurringSymbols({ days: 0 }).find((x) => x.key === key);
+  openSymbolSheet({ key, name: s?.name, navigate: state.navigate });
 }
 
 // ---- 2. Your dream sky (all time) ----
@@ -163,12 +144,6 @@ function openSymbol(key) {
 /** What the sky is drawn from: which dreams, in which order, and when each last changed. */
 const skySignature = (dreams) => dreams
   .map((d) => `${d.id}:${d.updatedAt || d.createdAt || ''}:${d.interpretation?.status || ''}`).join('|');
-
-/** A constellation's "Read more" (or a symbol in a star's card): the symbol sheet, counted over all the dreams. */
-function openSkySymbol(key) {
-  const s = recurringSymbols({ days: 0 }).find((x) => x.key === key);
-  if (s) openSheet('symbol', symbolSheetHTML(s, 'all time'));
-}
 
 /** Draws the sky into its own host, and again only when the dreams change. No dreams: the card stays hidden. */
 function paintSky() {
@@ -195,13 +170,17 @@ function paintSky() {
   host.hidden = false;
   const el = host.querySelector('.bi-sky-host');
   try {
-    sky.render(el, { dreams, filtering: false, navigate: state.navigate, onSymbol: openSkySymbol });
+    sky.render(el, { dreams, filtering: false, navigate: state.navigate, onSymbol: openSymbol });
   } catch (err) {
     console.error(err);
     sky.destroy();
     el.innerHTML = '<p class="bi-hint">Your sky could not be drawn just now.</p>';
   }
 }
+
+// ---- Moon cycle, right under the sky (the full card from moon.js; shown even before the first dream) ----
+
+const moonHTML = () => moonCardHTML({ dreams: listDreams() });
 
 // ---- 3. Dream types ----
 
@@ -389,254 +368,10 @@ function reflectHTML() {
     </section>`;
 }
 
-// ---- 6. Survey for personalisation (profile.survey) ----
-
-const SURVEY = [
-  { id: 'recall', short: 'Remembering dreams', q: 'How often do you remember your dreams?',
-    options: [['most', 'Most mornings'], ['often', 'A few times a week'], ['sometimes', 'Now and then'], ['rarely', 'Hardly ever']] },
-  { id: 'waking', short: 'Waking up', q: 'How do you usually feel when you wake up?',
-    options: [['rested', 'Rested'], ['okay', 'Okay'], ['tired', 'Tired'], ['unsettled', 'Unsettled'], ['varies', 'It changes a lot']] },
-  { id: 'goal', short: 'What you want most', q: 'What do you most want from Dreaming?',
-    options: [['understand', 'Understand my dreams'], ['sleep', 'Sleep better'], ['lucid', 'Lucid dreaming'], ['nightmares', 'Fewer nightmares'], ['creativity', 'Creativity and ideas']] },
-  { id: 'stress', short: 'Stress lately', q: 'How stressful does life feel lately?',
-    options: [['calm', 'Calm'], ['little', 'A little'], ['quite', 'Quite a lot'], ['very', 'Very']] },
-  { id: 'comeTrue', short: 'Dreams coming true', q: 'Do your dreams ever seem to come true?',
-    hint: 'Some people notice a dream that later seems to match real events.',
-    options: [['often', 'Often'], ['sometimes', 'Sometimes'], ['once', 'Once or twice'], ['never', 'Never']] },
-  { id: 'recurring', short: 'Recurring dreams', q: 'Do you have dreams that keep coming back?',
-    options: [['often', 'Yes, often'], ['sometimes', 'Sometimes'], ['no', 'Not really']] },
-  { id: 'life', short: 'Life right now', q: 'What is going on in your life right now?', multi: true, exclusive: 'none',
-    options: [['work', 'Work or study'], ['relationships', 'Relationships'], ['health', 'Health'], ['family', 'Family'], ['change', 'A big change'], ['none', 'Nothing in particular']] },
-  { id: 'tone', short: 'Interpretation tone', q: 'How should interpretations speak to you?',
-    options: [['gentle', 'Gentle and warm'], ['direct', 'Clear and direct']] },
-];
-
-const surveyAnswers = () => {
-  const s = getProfile().survey;
-  return s && typeof s === 'object' ? s : {};
-};
-const validIds = (q, v) => (Array.isArray(v) ? v.filter((x) => q.options.some(([id]) => id === x)) : []);
-const isAnswered = (q, v) => (q.multi ? validIds(q, v).length > 0 : q.options.some(([id]) => id === v));
-const answeredCount = (a = surveyAnswers()) => SURVEY.filter((q) => isAnswered(q, a[q.id])).length;
-const firstUnanswered = (a = surveyAnswers()) => Math.max(0, SURVEY.findIndex((q) => !isAnswered(q, a[q.id])));
-const answerLabel = (q, v) => (q.multi
-  ? validIds(q, v).map((x) => q.options.find(([id]) => id === x)[1]).join(', ')
-  : q.options.find(([id]) => id === v)?.[1] || '');
-
-/** Saves one answer at once (an empty multi-choice removes it) and refreshes the card behind the sheet. */
-function saveAnswer(id, value) {
-  const survey = { ...surveyAnswers() };
-  if (value == null || (Array.isArray(value) && !value.length)) delete survey[id];
-  else survey[id] = value;
-  setProfile({ survey });
-  paint();
-}
-
-function surveyHTML() {
-  const n = SURVEY.length;
-  const done = answeredCount();
-  const all = done === n;
-  return `
-    <section class="bi-survey glass" aria-labelledby="bi-survey-title">
-      <div class="bi-survey-top">
-        <span class="bi-survey-icon">${all ? icons.check : icons.target}</span>
-        <div class="bi-survey-text">
-          <h2 class="bi-survey-title" id="bi-survey-title">Personalise Dreaming</h2>
-          <p class="bi-survey-lead">${all
-            ? 'Thank you. Your answers are saved on this phone, and you can change them anytime.'
-            : 'A few quick questions about you and your sleep, so Dreaming can suit you better.'}</p>
-        </div>
-      </div>
-      <div class="bi-progress" role="progressbar" aria-label="Questions answered" aria-valuemin="0" aria-valuemax="${n}" aria-valuenow="${done}">
-        <i style="width:${((done / n) * 100).toFixed(1)}%"></i>
-      </div>
-      <p class="bi-survey-count">${done} of ${n} answered</p>
-      <button type="button" class="btn${all ? ' btn-ghost' : ''}" data-survey="${all ? 'edit' : 'go'}">${all ? 'Edit answers' : done ? 'Continue' : 'Start'}</button>
-    </section>`;
-}
-
-function surveyStepHTML(i, editing) {
-  const q = SURVEY[i];
-  const n = SURVEY.length;
-  const v = surveyAnswers()[q.id];
-  const answered = isAnswered(q, v);
-  const picked = q.multi ? validIds(q, v) : [v];
-  const opts = q.options.map(([id, label]) => `
-    <button type="button" class="bi-sv-opt" data-opt="${id}" aria-pressed="${picked.includes(id)}">
-      <span>${esc(label)}</span><span class="bi-sv-tick">${icons.check}</span>
-    </button>`).join('');
-  return `
-    <div class="bi-sv${q.multi ? ' bi-sv-multi' : ''}">
-      <p class="bi-sv-step">Question ${i + 1} of ${n}</p>
-      <div class="bi-progress" aria-hidden="true"><i style="width:${(((i + 1) / n) * 100).toFixed(1)}%"></i></div>
-      <h2 class="bi-sv-q" id="bi-sheet-title" tabindex="-1">${esc(q.q)}</h2>
-      <p class="bi-sv-hint">${esc(q.hint || (q.multi ? 'Pick all that fit.' : 'Pick one.'))}</p>
-      <div class="bi-sv-opts" role="group" aria-labelledby="bi-sheet-title">${opts}</div>
-    </div>
-    <div class="bi-sv-foot">
-      <button type="button" class="btn btn-ghost bi-sv-back" data-sv="back"${!editing && i === 0 ? ' disabled' : ''}>Back</button>
-      ${editing ? '' : `<button type="button" class="bi-sv-skip" data-sv="skip"${answered ? ' hidden' : ''}>Skip</button>`}
-      <button type="button" class="btn bi-sv-next" data-sv="next"${!editing && !answered ? ' disabled' : ''}>${editing ? 'Done' : i === n - 1 ? 'Finish' : 'Next'}</button>
-    </div>`;
-}
-
-/** The end of the survey: a thank-you and every answer, each tappable to change it. */
-function surveySummaryHTML() {
-  const a = surveyAnswers();
-  const n = SURVEY.length;
-  const done = answeredCount(a);
-  const all = done === n;
-  const title = all ? 'Thank you' : done ? 'Thanks so far' : 'No answers yet';
-  const lead = all
-    ? 'Every question answered. Tap any answer to change it.'
-    : `${done} of ${n} answered. You can answer the rest now or whenever you like.`;
-  const rows = SURVEY.map((q, i) => {
-    const label = answerLabel(q, a[q.id]);
-    return `
-      <li><button type="button" class="bi-answer" data-edit="${i}">
-        <span class="bi-answer-q">${esc(q.short)}</span>
-        <span class="bi-answer-a${label ? '' : ' bi-answer-none'}">${esc(label || 'Not answered')}</span>${icons.chevronRight}
-      </button></li>`;
-  }).join('');
-  return `
-    <div class="bi-thanks">
-      <span class="bi-thanks-icon">${all ? icons.check : icons.sparkle}</span>
-      <h2 class="bi-sheet-title" id="bi-sheet-title" tabindex="-1">${title}</h2>
-      <p class="bi-sheet-lead">${esc(lead)}</p>
-    </div>
-    <ul class="bi-answers">${rows}</ul>
-    <div class="bi-sv-foot">
-      ${all ? '' : '<button type="button" class="btn btn-ghost" data-sv="rest">Answer the rest</button>'}
-      <button type="button" class="btn" data-close>Done</button>
-    </div>`;
-}
-
-/** Step-by-step survey sheet. `start`: a question index, 'summary', or nothing for the first unanswered one. */
-function openSurvey(start) {
-  const sheet = openSheet('survey', '');
-  let step = start === 'summary' || Number.isInteger(start) ? start : firstUnanswered();
-  let editing = false; // changing one answer from the summary: Back / Done return there
-  let timer = null;
-
-  const draw = (moved) => {
-    sheet.body.innerHTML = step === 'summary' ? surveySummaryHTML() : surveyStepHTML(step, editing);
-    if (moved) {
-      sheet.panel.scrollTop = 0;
-      try { sheet.body.querySelector('#bi-sheet-title')?.focus({ preventScroll: true }); } catch {}
-    }
-  };
-  const go = (to, edit = editing) => { clearTimeout(timer); step = to; editing = edit; draw(true); };
-  const after = (i) => (editing || i + 1 >= SURVEY.length ? 'summary' : i + 1);
-
-  sheet.onClick = (e) => {
-    const hit = (sel) => e.target.closest(sel);
-    let b;
-    if ((b = hit('[data-opt]')) && step !== 'summary') {
-      const q = SURVEY[step];
-      const id = b.dataset.opt;
-      clearTimeout(timer);
-      if (q.multi) {
-        let next = validIds(q, surveyAnswers()[q.id]);
-        if (next.includes(id)) next = next.filter((x) => x !== id);
-        else if (id === q.exclusive) next = [id];
-        else next = [...next.filter((x) => x !== q.exclusive), id];
-        saveAnswer(q.id, next);
-        draw(false);
-        return;
-      }
-      saveAnswer(q.id, id);
-      draw(false);
-      // A single choice moves on by itself after a moment (not from the last question: Finish stays a choice).
-      if (editing || step < SURVEY.length - 1) {
-        const at = step;
-        timer = setTimeout(() => { if (!sheet.closed && step === at) go(after(at)); }, 320);
-      }
-      return;
-    }
-    if ((b = hit('[data-sv]'))) {
-      const act = b.dataset.sv;
-      if (act === 'back') go(editing ? 'summary' : Math.max(0, step - 1));
-      else if (act === 'skip' || act === 'next') go(after(step));
-      else if (act === 'rest') go(firstUnanswered(), false);
-      return;
-    }
-    if ((b = hit('[data-edit]'))) go(Number(b.dataset.edit), true);
-  };
-  sheet.onClose = () => clearTimeout(timer);
-  draw(false);
-}
-
-// ---- Bottom sheet (shared by the symbol and the survey) ----
-
-function openSheet(kind, html) {
-  state?.sheet?.close(true);
-  const root = document.createElement('div');
-  root.className = `bi-sheet bi-sheet-${kind}`;
-  root.innerHTML = `
-    <div class="bi-sheet-backdrop" data-close></div>
-    <section class="bi-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="bi-sheet-title" tabindex="-1">
-      <div class="bi-sheet-grab" aria-hidden="true"></div>
-      <button type="button" class="icon-btn bi-sheet-x" data-close aria-label="Close">${icons.close}</button>
-      <div class="bi-sheet-body" data-body>${html}</div>
-    </section>`;
-  document.body.append(root);
-  document.body.classList.add('bi-lock');
-  const panel = root.querySelector('.bi-sheet-panel');
-  const before = document.activeElement;
-  requestAnimationFrame(() => root.classList.add('bi-in'));
-  try { panel.focus({ preventScroll: true }); } catch {}
-
-  const sheet = { root, panel, body: root.querySelector('[data-body]'), closed: false, onClick: null, onClose: null, close };
-
-  function close(now = false) {
-    if (sheet.closed) return;
-    sheet.closed = true;
-    if (state?.sheet === sheet) state.sheet = null;
-    document.removeEventListener('keydown', onKey);
-    document.body.classList.remove('bi-lock'); // only one sheet is ever open: a new one closes the old first
-    try { sheet.onClose?.(); } catch {}
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (now || reduce) root.remove();
-    else {
-      root.classList.remove('bi-in');
-      root.classList.add('bi-out');
-      setTimeout(() => root.remove(), 260);
-    }
-    if (!now) { try { if (before && document.contains(before)) before.focus({ preventScroll: true }); } catch {} }
-  }
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
-  document.addEventListener('keydown', onKey);
-  root.addEventListener('click', (e) => {
-    if (e.target.closest('[data-close]')) { close(); return; }
-    sheet.onClick?.(e);
-  });
-
-  // Swipe down to close (once the sheet is scrolled to the top).
-  let startY = null;
-  let dy = 0;
-  panel.addEventListener('touchstart', (e) => { startY = panel.scrollTop <= 0 ? e.touches[0].clientY : null; dy = 0; }, { passive: true });
-  panel.addEventListener('touchmove', (e) => {
-    if (startY == null) return;
-    dy = Math.max(0, e.touches[0].clientY - startY);
-    if (dy > 6) { panel.style.transition = 'none'; panel.style.transform = `translateY(${dy}px)`; }
-  }, { passive: true });
-  const release = () => {
-    if (startY == null) return;
-    panel.style.transition = '';
-    if (dy > 90) { panel.style.transform = 'translateY(110%)'; close(); } else panel.style.transform = '';
-    startY = null;
-  };
-  panel.addEventListener('touchend', release);
-  panel.addEventListener('touchcancel', release);
-
-  if (state) state.sheet = sheet;
-  return sheet;
-}
-
 // ---- Screen ----
 
-// In page order; the sky's own host goes right after the recurring symbols.
-const SECTIONS = { symbols: symbolsHTML, types: typesHTML, map: mapHTML, reflect: reflectHTML, survey: surveyHTML };
+// In page order, after the sky's own host (which comes first).
+const SECTIONS = { moon: moonHTML, symbols: symbolsHTML, types: typesHTML, map: mapHTML, reflect: reflectHTML };
 
 // Re-draws only the sections whose HTML changed (a background image finishing touches no section here), and keeps
 // any "From … dreams" lists that were open. The sky checks for itself whether the dreams changed.
@@ -673,15 +408,13 @@ function onRootClick(e) {
   if (hit('[data-map]')) {
     // A free user gets the paywall instead of the module.
     if (!hasFeature('symbols-map')) { e.preventDefault(); openPaywall({ feature: 'symbols-map' }); }
-    return;
   }
-  if ((b = hit('[data-survey]'))) openSurvey(b.dataset.survey === 'edit' ? 'summary' : undefined);
 }
 
 function teardown() {
   if (!state) return;
   for (const off of state.offs) { try { off(); } catch {} }
-  state.sheet?.close(true);
+  closeSymbolSheet();
   if (state.skySig != null) { try { sky.destroy(); } catch {} } // its listeners, its pending scroll
   state = null;
 }
@@ -691,9 +424,14 @@ export default {
   label: 'Insights',
   icon: icons.insights,
 
-  // #insights/survey opens the survey straight away (for links from other screens).
+  // The survey moved to the Profile tab: an old #insights/survey link goes to #me/survey (replacing this entry).
   render(el, ctx, param) {
     teardown();
+    if (param === 'survey') {
+      el.innerHTML = '';
+      location.replace('#me/survey');
+      return;
+    }
     el.innerHTML = `
       <div class="bi">
         <header class="bi-head">
@@ -705,7 +443,7 @@ export default {
       </div>`;
     const root = el.querySelector('.bi');
     const navigate = (hash) => { if (ctx?.navigate) ctx.navigate(hash); else location.hash = hash; };
-    state = { root, cache: {}, symbols: [], showAll: false, sheet: null, offs: [], navigate, skySig: null };
+    state = { root, cache: {}, symbols: [], showAll: false, offs: [], navigate, skySig: null };
     paint();
     root.addEventListener('click', onRootClick);
 
@@ -715,11 +453,6 @@ export default {
     window.addEventListener('dreaming:account', onAccount);
     state.offs.push(() => window.removeEventListener('dreaming:account', onAccount));
     getAccount().catch(() => {});
-
-    if (param === 'survey') {
-      try { history.replaceState(null, '', '#insights'); } catch {}
-      openSurvey();
-    }
   },
 
   destroy() {

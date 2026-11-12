@@ -1,15 +1,15 @@
 // Journal: every dream, with search, a filter sheet, quick chips and a List / Calendar switch.
 // Dreams are read through withDefaults(). They live only on this iPhone, and the screen says so honestly.
-// The new layout (js/layout.js) adds two things, and only there: more views in the switcher (Gallery of the dreams'
-// AI pictures, then Moons, Stories and Milky Way from js/screens/b/views), and each row's small chips show the dream's
-// main symbols instead of its tags. The current layout is unchanged.
+// The new layout (js/layout.js) differs, and only there: the switcher is List · Stories · Milky Way (the extra views
+// from js/screens/b/views; no Calendar view, since that layout has a Calendar tab), the list has no backup note (it is
+// on the Profile tab) and no "next technique" card, and each row's small chips show the dream's main symbols instead of
+// its tags. The current layout is unchanged.
 import { listDreams, withDefaults, localDay, SYMBOL_CATEGORIES, getSetting, setSetting } from '../store.js';
 import { TAGS } from '../analyze.js';
 import { nextTechnique } from '../progress.js';
 import { esc, icons, relativeDay } from '../ui.js';
 import { dreamArtURL } from '../dreamart.js';
 import { hasVideo } from '../videos.js';
-import { hasImage } from '../images.js';
 import { symbolsOf } from '../symbols.js';
 import { isNewLayout } from '../layout.js';
 import { EXTRA_VIEWS } from './b/views/index.js';
@@ -27,7 +27,7 @@ let filters = blankFilters();
 let cal = null; // { y, m (0-11), selected: 'YYYY-MM-DD' | null }
 let thumbJob = 0;
 let teardown = null;
-let newLayout = false; // read at each render: Gallery view + main-symbol chips
+let newLayout = false; // read at each render: the views on offer, the list's cards, main-symbol chips
 
 const pad = (n) => String(n).padStart(2, '0');
 const dayDate = (iso) => new Date(`${iso}T00:00:00`);
@@ -36,12 +36,13 @@ const cap = (s) => { const t = String(s ?? '').trim(); return t ? t[0].toUpperCa
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const arr = (v) => (Array.isArray(v) ? v : []);
 
-// 'gallery' and the extra views (b/views) exist only in the new layout; a saved one opens the list in the current one.
+// The extra views (b/views) exist only in the new layout, the Calendar view only in the current one; a saved view
+// that doesn't fit the layout opens the list.
 function getView() {
   let v = '';
   try { v = sessionStorage.getItem(VIEW_KEY) || ''; } catch {}
-  if (v === 'calendar') return 'calendar';
-  if (newLayout && (v === 'gallery' || EXTRA_VIEWS.some((x) => x.id === v))) return v;
+  if (!newLayout && v === 'calendar') return 'calendar';
+  if (newLayout && EXTRA_VIEWS.some((x) => x.id === v)) return v;
   return 'list';
 }
 function setView(v) {
@@ -263,54 +264,6 @@ function listHTML(shown, filtering) {
     <p class="jr-end-text">${end}</p>`;
 }
 
-// ---- Gallery (new layout): the dreams' AI pictures, newest first, by month ----
-
-function galleryTileHTML(e) {
-  const d = e.d;
-  const title = String(d.title || '').trim() || 'Untitled dream';
-  return `
-    <a class="jr-gal-tile" href="#dream/${encodeURIComponent(d.id)}" aria-label="${esc(`${title}, ${relativeDay(e.day)}${hasVideo(d) ? ', has a video' : ''}`)}">
-      <img class="jr-gal-img" data-id="${esc(d.id)}" src="${esc(d.image.url)}" alt="" width="120" height="120" loading="lazy" decoding="async">
-      ${hasVideo(d) ? `<span class="video-mark" aria-hidden="true">${icons.play}</span>` : ''}
-    </a>`;
-}
-
-function galleryEmptyHTML(newest) {
-  return `
-    <div class="jr-gal-empty glass">
-      <span class="jr-gal-empty-icon" aria-hidden="true">${icons.image}</span>
-      <p class="jr-gal-empty-title">Pictures you create from your dreams appear here.</p>
-      <p class="jr-gal-empty-hint">Open a dream and tap <b>Create AI image</b> to make one.</p>
-      ${newest ? `<a class="btn btn-ghost" href="#dream/${encodeURIComponent(newest.d.id)}">Open your latest dream</a>` : ''}
-    </div>`;
-}
-
-function galleryHTML(shown, filtering, all) {
-  const pictured = shown.filter((e) => hasImage(e.d));
-  if (!pictured.length) {
-    return filtering && all.some((e) => hasImage(e.d)) ? noMatchHTML('pictures') : galleryEmptyHTML(all[0]);
-  }
-  const groups = new Map();
-  for (const e of pictured) {
-    const key = e.day.slice(0, 7);
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(e);
-  }
-  const months = [...groups.entries()].map(([key, items]) => {
-    const [y, m] = key.split('-').map(Number);
-    const label = y && m ? monthName(y, m - 1) : 'Undated';
-    return `
-      <section class="jr-month">
-        <h2 class="section-title">${esc(label)} <span class="jr-count">${items.length}</span></h2>
-        <div class="jr-gal-grid">${items.map(galleryTileHTML).join('')}</div>
-      </section>`;
-  }).join('');
-  const end = filtering ? `${plural(pictured.length, 'picture')} found.` : `${plural(pictured.length, 'picture')} from your dreams.`;
-  return `${months}
-    <div class="jr-end" aria-hidden="true">${icons.sparkle}</div>
-    <p class="jr-end-text">${end}</p>`;
-}
-
 function weekdayInitials() {
   const monday = new Date(2024, 0, 1); // a Monday
   return Array.from({ length: 7 }, (_, i) => {
@@ -504,11 +457,11 @@ export default {
         </div>
         <div class="jr-active" hidden></div>
         <div class="jr-body"></div>
-        <div class="jr-seg${newLayout ? ' jr-seg-6' : ''}" role="group" aria-label="View">
-          <button type="button" data-view="list" aria-label="List" aria-pressed="${view === 'list'}">${icons.list}<span>List</span></button>
-          <button type="button" data-view="calendar" aria-label="Calendar" aria-pressed="${view === 'calendar'}">${icons.calendar}<span>Calendar</span></button>
-          ${newLayout ? `<button type="button" data-view="gallery" aria-label="Gallery" aria-pressed="${view === 'gallery'}">${icons.image}<span>Gallery</span></button>
-          ${EXTRA_VIEWS.map((x) => `<button type="button" data-view="${x.id}" aria-label="${esc(x.label)}" aria-pressed="${view === x.id}">${x.icon}<span>${esc(x.label)}</span></button>`).join('')}` : ''}
+        <div class="jr-seg${newLayout ? ' jr-seg-new' : ''}" role="group" aria-label="View">
+          <button type="button" data-view="list" aria-pressed="${view === 'list'}">${icons.list}<span>List</span></button>
+          ${newLayout
+            ? EXTRA_VIEWS.map((x) => `<button type="button" data-view="${x.id}" aria-pressed="${view === x.id}">${x.icon}<span>${esc(x.label)}</span></button>`).join('')
+            : `<button type="button" data-view="calendar" aria-pressed="${view === 'calendar'}">${icons.calendar}<span>Calendar</span></button>`}
         </div>
         <div class="jr-sheet" role="dialog" aria-modal="true" aria-labelledby="jr-sheet-title" hidden></div>
       </div>`;
@@ -541,7 +494,6 @@ export default {
         : '';
     };
 
-    // The new layout's extra views (Moons, Stories, Milky Way) show only their icon until chosen, so all six fit.
     const setViewTo = (next) => {
       const wasExtra = EXTRA_VIEWS.some((x) => x.id === view);
       view = next;
@@ -571,9 +523,8 @@ export default {
         return;
       }
       if (view === 'list') {
-        body.innerHTML = (filtering ? '' : noteHTML(entries.length) + nextHTML(entries.length)) + listHTML(current, filtering);
-      } else if (view === 'gallery') {
-        body.innerHTML = galleryHTML(current, filtering, entries);
+        const cards = filtering || newLayout ? '' : noteHTML(entries.length) + nextHTML(entries.length);
+        body.innerHTML = cards + listHTML(current, filtering);
       } else {
         const byDay = new Map();
         for (const e of current) {
@@ -718,20 +669,6 @@ export default {
         if (cal.selected) body.querySelector('.jr-daylist')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }
     });
-
-    // Gallery: a picture that can't load (offline, removed) shows the dream's painting instead.
-    // 'error' doesn't bubble, so this listens in the capture phase.
-    if (newLayout) {
-      root.addEventListener('error', (ev) => {
-        const img = ev.target;
-        if (!img?.classList?.contains('jr-gal-img') || img.dataset.fallback) return;
-        const d = byId.get(img.dataset.id);
-        img.dataset.fallback = '1';
-        let url = '';
-        try { url = d ? dreamArtURL({ ...d, image: null }, 120) || '' : ''; } catch {}
-        if (url) img.src = url;
-      }, true);
-    }
 
     // The title bar stays pinned; it gains a frosted backing once the list scrolls under it.
     const onScroll = () => head.classList.toggle('jr-stuck', window.scrollY > 6);

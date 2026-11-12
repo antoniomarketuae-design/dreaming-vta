@@ -12,6 +12,7 @@ import pg from 'pg';
 import { buildPrompt, generateImage } from './images.js';
 import { buildVideoPrompt, generateVideo, generateFilm, splitScenes } from './videos.js';
 import { publicVideoOptions, wordCount, maxSeconds, videoCost, estimateMinutes, isLength, clipsFor } from './video-options.js';
+import { loadLibrary, librarySize, findEntry, publicEntry } from './library.js';
 
 try { process.loadEnvFile(fileURLToPath(new URL('./.env', import.meta.url))); } catch {}
 
@@ -25,6 +26,9 @@ const HERE = fileURLToPath(new URL('.', import.meta.url));
 const IMAGE_DIR = process.env.IMAGE_DIR || join(HERE, 'images');
 const VIDEO_DIR = process.env.VIDEO_DIR || join(HERE, 'videos');
 const PLANS = JSON.parse(readFileSync(join(HERE, 'plans.json'), 'utf8'));
+// The symbol library (private: copied to the server only, never in the repo). See library.js.
+const LIBRARY_DIR = process.env.LIBRARY_DIR || join(HERE, 'library');
+console.log(`library: ${loadLibrary(LIBRARY_DIR)} entries from ${LIBRARY_DIR}`);
 
 if (ADMIN_KEY.length < 32) {
   console.error('ADMIN_KEY is missing or too short');
@@ -372,6 +376,17 @@ async function handle(req, res) {
   // Plans and prices for the subscriptions page (public).
   if (req.method === 'GET' && url.pathname === '/plans') {
     return send(200, { plans: PLANS.plans, prices: PLANS.prices, videos: publicVideoOptions(PLANS.videos), paymentsEnabled: Boolean(process.env.PAYMENTS_ENABLED) });
+  }
+
+  // General meaning of one symbol from the library (public, no account needed): ?name=Ocean
+  if (req.method === 'GET' && url.pathname === '/library/symbol') {
+    if (limited(`library:${ip}`, 600, 3600000)) throw httpError(429, 'Too many requests. Please wait a while.');
+    const name = String(url.searchParams.get('name') || '').slice(0, 80);
+    if (!name.trim()) throw httpError(400, 'Which symbol?');
+    if (!librarySize()) throw httpError(503, 'The library is not available right now.');
+    const e = findEntry(name);
+    if (!e) return send(404, { ok: false, error: 'not_found' });
+    return send(200, { ok: true, entry: publicEntry(e) });
   }
 
   // A phone registers once and keeps its id + secret token.
