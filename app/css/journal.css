@@ -712,8 +712,8 @@ body.jr-sq-open { overflow: hidden; }
 .jr-lstyle {
   display: flex;
   width: max-content;
-  margin: 2px 0 4px auto;
-  padding: 3px;
+  margin: 8px auto 0; /* centred under the filter row */
+  padding: 2px;
   border: 1px solid var(--glass-border);
   border-radius: 999px;
   background: rgba(22, 15, 56, 0.5);
@@ -721,19 +721,19 @@ body.jr-sq-open { overflow: hidden; }
 .jr-lstyle button {
   display: flex;
   align-items: center;
-  gap: 5px;
-  min-height: 32px;
-  padding: 0 12px;
+  gap: 4px;
+  min-height: 26px;
+  padding: 0 11px;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--text-dim);
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
 }
-.jr-lstyle button svg { width: 15px; height: 15px; }
+.jr-lstyle button svg { width: 13px; height: 13px; }
 .jr-lstyle button[aria-pressed="true"] { background: rgba(240, 234, 255, 0.9); color: #24184f; }
 
 .jr-msq {
@@ -885,7 +885,25 @@ body.jr-sq-open { overflow: hidden; }
 .jr-zs-dates { font-size: 13px; font-weight: 600; color: rgba(255, 217, 138, 0.85); }
 /* The current sign: today's date first, then the sign. */
 .jr-zs-today { font-size: 14px; font-weight: 600; color: var(--moon); }
-.jr-zs-n { flex: none; color: var(--text-faint); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.jr-zs-n {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 217, 138, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 217, 138, 0.08);
+  color: var(--moon);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.jr-zs-n span { font-size: 15px; line-height: 1; }
+.jr-zs-n:active { transform: scale(0.95); }
 
 /* The map: a zoomable window on the sign's sky (a Milky Way band, the constellation in thin gold, the dreams). */
 /* Open, like the Milky Way view: no frame; the sky melts into the page at its edges. Wider than the content column

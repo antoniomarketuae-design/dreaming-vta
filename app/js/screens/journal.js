@@ -18,6 +18,7 @@ import { isNewLayout } from '../layout.js';
 import { EXTRA_VIEWS } from './b/views/index.js';
 import { TYPE_LOOK, TYPE_IDS, RECURRING_LOOK, MORE_GLYPH, moodGlyph, hueRGB } from './b/types.js';
 import { zodiacSeasonsHTML, wireZodiacMaps } from './b/zodiacmap.js';
+import { seasonOf } from './b/zodiac.js';
 import { openDaySheet } from './b/calendar.js';
 
 const VIEW_KEY = 'dreaming.journal.view';
@@ -745,6 +746,67 @@ export default {
       if (sq) sq.textContent = label;
     };
 
+    // A sign season's dreams in a sheet (the "5 dreams" button on the map), styled like the calendar's day sheet.
+    let seasonSheet = null;
+    const closeSeasonSheet = () => {
+      if (!seasonSheet) return;
+      const el = seasonSheet;
+      seasonSheet = null;
+      document.body.classList.remove('bc-sheet-open');
+      window.removeEventListener('hashchange', closeSeasonSheet);
+      el.classList.add('bc-sheet-out');
+      setTimeout(() => el.remove(), 180);
+    };
+    const openSeasonSheet = (key) => {
+      closeSeasonSheet();
+      const items = current.filter((e) => seasonOf(e.day)?.key === key);
+      const season = items.length ? seasonOf(items[0].day) : null;
+      if (!season) return;
+      const range = (() => {
+        const opt = { day: 'numeric', month: 'short' };
+        const f = new Date(`${season.from}T12:00:00`).toLocaleDateString(undefined, opt);
+        const t = new Date(`${season.to}T12:00:00`).toLocaleDateString(undefined, { ...opt, year: 'numeric' });
+        return `${f} – ${t}`;
+      })();
+      const rows = items.map((e) => {
+        let url = '';
+        try { url = dreamArtURL(e.d, 104) || ''; } catch {}
+        const title = String(e.d.title || '').trim() || 'Untitled dream';
+        return `
+          <li><a class="bc-dream" href="#dream/${encodeURIComponent(e.d.id)}">
+            <span class="bc-thumb">${url ? `<img class="bc-thumb-img" src="${esc(url)}" alt="" width="52" height="52" decoding="async">` : '<span class="bc-thumb-img bc-thumb-fallback"></span>'}</span>
+            <span class="bc-dream-body">
+              <span class="bc-dream-title">${esc(title)}</span>
+              <span class="bc-chips"><span class="chip bc-chip">${esc(relativeDayWeekday(e.day))}</span></span>
+            </span>
+            <span class="bc-dream-go" aria-hidden="true">${icons.chevronRight}</span>
+          </a></li>`;
+      }).join('');
+      const el = document.createElement('div');
+      el.className = 'bc-sheet';
+      el.innerHTML = `
+        <div class="bc-sheet-scrim" data-ss-close></div>
+        <div class="bc-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="jr-ss-title">
+          <span class="bc-sheet-grab" aria-hidden="true"></span>
+          <div class="bc-sheet-head">
+            <div class="bc-sheet-titles">
+              <h2 class="bc-sheet-title" id="jr-ss-title">${season.sign.glyph} ${esc(season.sign.name)} season</h2>
+              <p class="bc-sheet-sub">${esc(range)} · ${plural(items.length, 'dream')}</p>
+            </div>
+            <button type="button" class="icon-btn bc-sheet-close" data-ss-close aria-label="Close">${icons.close}</button>
+          </div>
+          <div class="bc-sheet-scroll"><ul class="bc-dreams">${rows}</ul></div>
+        </div>`;
+      el.addEventListener('click', (ev) => {
+        if (ev.target.closest('[data-ss-close]')) closeSeasonSheet();
+      });
+      document.body.append(el);
+      document.body.classList.add('bc-sheet-open');
+      window.addEventListener('hashchange', closeSeasonSheet);
+      seasonSheet = el;
+      el.querySelector('.bc-sheet-close')?.focus({ preventScroll: true });
+    };
+
     // The filter square: grows out of the small square, tiles toggle in place, More hands over to the full sheet.
     const paintSquareTiles = () => {
       const grid = square?.querySelector('.jr-sq-grid');
@@ -849,6 +911,7 @@ export default {
       if (ev.key === 'Enter' && ev.target === input) input.blur();
       if (ev.key === 'Escape' && !sheet.hidden) closeSheet();
       if (ev.key === 'Escape' && square && !square.hidden) closeSquare();
+      if (ev.key === 'Escape') closeSeasonSheet();
     });
 
     root.addEventListener('click', (ev) => {
@@ -859,6 +922,8 @@ export default {
       if ((b = hit('.jr-seg [data-view]'))) {
         if (b.dataset.view === view) return;
         setViewTo(b.dataset.view);
+      } else if ((b = hit('[data-zseason]'))) {
+        openSeasonSheet(b.dataset.zseason);
       } else if ((b = hit('[data-zday]'))) {
         // A night with several dreams on the zodiac map: its sheet lists them all.
         ev.preventDefault();
@@ -969,6 +1034,7 @@ export default {
       try { extra?.destroy?.(); } catch {}
       extra = null;
       document.body.classList.remove('jr-sq-open');
+      closeSeasonSheet();
       unwireMaps?.();
       unwireMaps = null;
     };
