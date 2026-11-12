@@ -18,7 +18,7 @@ const MARGIN_Y = 0.12;   // ...and above and below it
 const BOX_MIN_AR = 0.75; // a tall figure gets side room so the whole sign fits a phone-shaped map
 const STRETCH_MIN = 0.85; // the figure's height may be squeezed to this to fit the map...
 const STRETCH_MAX = 1.3; // ...or stretched up to this to fill a tall map (stars stay round)
-const CTL_ROOM = 92;     // px kept clear at the map's bottom: the List · Stories · Milky Way buttons and, above them, Whole sign / Newest dreams
+const CTL_ROOM = 62;     // px kept clear at the map's bottom for the List · Stories · Milky Way buttons floating over it
 const NODE_MAX = 20;     // a night's circle at most (px): small, so a full month of dreams still reads
 const NODE_MIN = 12;     // ...and when zoomed right out
 const NODE_OPEN = 20;    // the size the map opens with (the whole sign mostly in view)
@@ -235,9 +235,6 @@ function seasonMapHTML(season, items) {
             ${badges}
           </div>
         </div>
-        <div class="jr-zm-ctl">
-          <button type="button" data-zm-act="toggle" class="jr-zm-toggle">Whole sign</button>
-        </div>
       </div>
     </section>`;
 }
@@ -273,7 +270,6 @@ function setupMap(el) {
   const scroller = el.querySelector('[data-zm-scroll]');
   const layer = el.querySelector('[data-zm-layer]');
   const badges = [...layer.querySelectorAll('[data-zn]')];
-  const toggle = el.querySelector('.jr-zm-toggle');
   const ar = Number(el.dataset.ar) || 1.4;
   if (!scroller || !layer) return null;
 
@@ -325,7 +321,6 @@ function setupMap(el) {
     scroller.scrollLeft = lx * w - fx;
     scroller.scrollTop = ly * h - fy;
     const whole = z <= 1.01;
-    toggle.textContent = whole ? 'Newest dreams' : 'Whole sign';
     el.classList.toggle('is-whole', whole);
   };
 
@@ -356,18 +351,10 @@ function setupMap(el) {
   const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(() => refit()) : null;
   watch?.observe(scroller);
 
-  const onClick = (ev) => {
-    const btn = ev.target.closest('[data-zm-act]');
-    if (!btn) return;
-    if (z <= 1.01) focusNewest();
-    else apply(1);
-  };
-  el.addEventListener('click', onClick);
-
   // Double tap on the sky (not on a dream): zoom in there, or back out when already close.
   let lastTap = 0;
   const onDbl = (ev) => {
-    if (ev.target.closest('[data-zn], [data-zm-act]')) return;
+    if (ev.target.closest('[data-zn]')) return;
     const now = Date.now();
     if (now - lastTap < 320) {
       const rect = scroller.getBoundingClientRect();
@@ -412,7 +399,6 @@ function setupMap(el) {
     refit,
     destroy() {
       watch?.disconnect();
-      el.removeEventListener('click', onClick);
       scroller.removeEventListener('click', onDbl);
       scroller.removeEventListener('touchstart', onStart);
       scroller.removeEventListener('touchmove', onMove);
