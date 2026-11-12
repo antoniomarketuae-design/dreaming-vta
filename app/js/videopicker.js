@@ -1,7 +1,7 @@
 // "Your dream video" sheet: the user picks the length (a longer dream unlocks longer videos), the quality and,
 // when the dream has an AI photo, whether the video starts from it. Shows the credits it takes and about how
 // long it will take, then starts the video (js/videos.js). It also says what is sent to the server, so tapping
-// "Create video" counts as agreeing (replaces a separate consent sheet). Shared by the dream page and the editor.
+// "Visualise as video" counts as agreeing (replaces a separate consent sheet). Shared by the dream page and the editor.
 // Touches document/storage only inside functions, never at import time.
 import { getDream, getSetting, setSetting } from './store.js';
 import { remaining } from './account.js';

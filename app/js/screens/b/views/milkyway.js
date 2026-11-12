@@ -49,28 +49,30 @@ const plural = (n, word) => `${n} ${n === 1 ? word : `${word}s`}`;
 const titleOf = (d) => String(d?.title || '').trim() || 'Untitled dream';
 const capital = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
-// relativeDay() from ui.js with one shared date formatter: formatting hundreds of dates one by one is slow.
+// relativeDay() from ui.js with the weekday ("2 days ago · Monday", "Mon, 2 Nov 2025"), with shared date formatters:
+// formatting hundreds of dates one by one is slow.
 function dayLabeller() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const cache = new Map();
   let fmt = null;
+  let wk = null;
   return (isoDay) => {
     if (!isoDay) return '';
     let out = cache.get(isoDay);
     if (out !== undefined) return out;
     const date = new Date(`${isoDay}T00:00:00`);
     const days = Math.round((today - date) / 86400000);
-    if (Number.isNaN(days)) out = '';
-    else if (days === 0) out = 'Today';
-    else if (days === 1) out = 'Yesterday';
-    else if (days > 1 && days < 7) out = `${days} days ago`;
-    else {
-      try {
-        fmt = fmt || new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    try {
+      if (Number.isNaN(days)) out = '';
+      else if (days >= 0 && days < 7) {
+        wk = wk || new Intl.DateTimeFormat(undefined, { weekday: 'long' });
+        out = `${days === 0 ? 'Today' : days === 1 ? 'Yesterday' : `${days} days ago`} · ${wk.format(date)}`;
+      } else {
+        fmt = fmt || new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
         out = fmt.format(date);
-      } catch { out = relativeDay(isoDay); }
-    }
+      }
+    } catch { out = relativeDay(isoDay); }
     cache.set(isoDay, out);
     return out;
   };

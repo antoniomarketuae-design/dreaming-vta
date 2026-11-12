@@ -1,9 +1,9 @@
 // Record a dream in two steps: a quiet composer (type or speak), then an editor with
 // Story · Details · Symbols · Lucidity tabs and Save. Also edits an existing dream.
 // Routes: #record (type) · #record/voice (speak) · #record/edit/<id> (editor on a saved dream).
-// Details → Picture: the free painted picture ("New picture") plus an AI image (js/images.js): "Create AI image" on a
+// Details → Picture: the free painted picture ("New picture") plus an AI image (js/images.js): "Visualise as image" on a
 // saved dream, or "Create an AI image when I save" for a new one (requested right after createDream).
-// Below it an AI video (js/videos.js, Dreaming Plus): "Create video" on a saved dream only; a new one is saved first.
+// Below it an AI video (js/videos.js, Dreaming Plus): "Visualise as video" on a saved dream only; a new one is saved first.
 import { createDream, updateDream, getDream, withDefaults, collection, getSetting, setSetting, SYMBOL_CATEGORIES } from '../store.js';
 import { TAGS, detectTags, suggestTitle } from '../analyze.js';
 import { esc, icons } from '../ui.js';
@@ -750,7 +750,7 @@ function mount(el, ctx, param) {
       <p class="rec-ai-note faint">AI images and videos: this dream's text is sent to Dreaming's server to create them. The rest of your journal stays on this iPhone.</p>`;
   }
 
-  /** Small label next to "Create AI image" / "Create video": 'PLUS', '4 left', … ('' when unknown). */
+  /** Small label next to "Visualise as image" / "Visualise as video": 'PLUS', '4 left', … ('' when unknown). */
   const pill = (b) => (b ? `<span class="rec-ai-badge${b === 'PLUS' ? ' rec-ai-badge-plus' : ''}">${esc(b)}</span>` : '');
 
   // --- AI image (same rules and limits as the dream page) ---
@@ -771,7 +771,7 @@ function mount(el, ctx, param) {
           <div class="rec-ai-row">
             <span class="rec-ai-thumb rec-ai-thumb-empty" aria-hidden="true">${icons.sparkle}</span>
             <p class="rec-ai-text">Turn this dream into a lifelike AI image.</p>
-            <button type="button" class="rec-ai-btn" data-act="ai-plus">${icons.sparkle}<span>AI image</span>${aiBadge()}</button>
+            <button type="button" class="rec-ai-btn" data-act="ai-plus">${icons.sparkle}<span>Visualise as image</span>${aiBadge()}</button>
           </div>`;
       }
       const on = aiOnSave();
@@ -801,7 +801,7 @@ function mount(el, ctx, param) {
     const text = failed ? esc(dream.imageJob.error || "The image didn't work this time.")
       : has ? 'Your AI image is shown for this dream across the app.'
         : 'Turn this dream into a lifelike AI image.';
-    const label = failed ? 'Try again' : has ? 'New image' : 'Create AI image';
+    const label = failed ? 'Try again' : has ? 'New image' : 'Visualise as image';
     const act = imagesBlocked() ? 'ai-plus' : 'ai-create';
     return `
       <div class="rec-ai-row">
@@ -889,7 +889,7 @@ function mount(el, ctx, param) {
     const text = failed ? esc(dream.videoJob.error || "The video didn't work this time.")
       : has ? 'Your dream video is ready. Tap the picture to watch it.'
         : 'Turn this dream into a short AI video.';
-    const label = failed ? 'Try again' : has ? 'New video' : 'Create video';
+    const label = failed ? 'Try again' : has ? 'New video' : 'Visualise as video';
     return `
       <div class="rec-ai-row">
         ${thumb}

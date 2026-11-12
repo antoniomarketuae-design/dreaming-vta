@@ -1,7 +1,12 @@
 {
-  "version": 22,
+  "version": 23,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 23,
+      "date": "2026-11-12",
+      "text": "Dream types and Journal filters are now small squares in one big square. On a dream page, tap a square to pick General, Lucid, Nightmare or Prophetic. In the Journal, the small square next to search opens all the filters as squares. The Journal list can show each month as a square of dream squares, each with its day and weekday (switch Squares / Rows to compare). Dates now say the weekday too, e.g. '3 days ago · Monday'. The picture buttons are now 'Visualise as image' and 'Visualise as video'. Also fixed: Journal filters didn't respond to taps."
+    },
     {
       "version": 22,
       "date": "2026-11-12",

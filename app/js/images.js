@@ -44,7 +44,7 @@ export const imagesAllowed = () => hasFeature('images') || (remaining('images') 
 /** Known to be out of free images (the paywall opens without asking the server). */
 export const imagesBlocked = () => !hasFeature('images') && remaining('images') === 0;
 
-/** Small label for "Create AI image" buttons: 'PLUS', '1 free left', '28 left', or '' when unknown. */
+/** Small label for "Visualise as image" buttons: 'PLUS', '1 free left', '28 left', or '' when unknown. */
 export function imageBadge() {
   const left = remaining('images');
   if (hasFeature('images')) return left == null ? '' : `${left} left`;
@@ -145,7 +145,7 @@ export async function requestImage(dream) {
 /**
  * What the screens call. Opens the paywall without asking the server when the free images are used up,
  * sends the request, starts checking for the result and reports problems through `toast`.
- * auto: started by Analyze or Save rather than a tap on "Create AI image": a limit then shows a toast, not the paywall.
+ * auto: started by Analyze or Save rather than a tap on "Visualise as image": a limit then shows a toast, not the paywall.
  * Resolves to the updated dream, or null when nothing was started.
  */
 export async function createImage(dream, { toast, auto = false } = {}) {
