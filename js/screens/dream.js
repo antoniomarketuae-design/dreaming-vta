@@ -2,21 +2,24 @@
 // and an "Analyze" button that asks for the interpretation (beta). Sleep times are edited right here;
 // everything else is edited in the editor (#record/edit/<id>).
 // Routes: #dream/<id> · #dream/<id>/analyze (opens and starts Analyze) · #dream/<id>/edit (old link → editor).
-// AI images (js/images.js): "Create AI image" / "New image" on the picture, and Analyze also asks for one when the
+// AI images (js/images.js): "Visualise as image" / "New image" on the picture, and Analyze also asks for one when the
 // plan allows it; the interpretation card opens with that picture.
-// AI videos (js/videos.js, Plus): "Create video" / "New video" on the picture. A finished video plays muted and
+// AI videos (js/videos.js, Plus): "Visualise as video" / "New video" on the picture. A finished video plays muted and
 // looping on the picture (tap → full-screen player with sound); the interpretation card links to it too.
 // New layout only (js/layout.js; the page root gets .dream--new):
-// - the dream type (general / lucid / nightmare / prophetic) is one glowing chip under the title, with its own sky
-//   glyph and colour; tapping it opens a bottom sheet of four cards (a radiogroup) that saves through setDreamType;
+// - the dream type is a square under the title holding four small square tiles (general / lucid / nightmare /
+//   prophetic, glyphs and colours from b/types.js); the chosen one glows in its colour, and its full name, one line and
+//   "Recurring" sit to the right. One tap (or the arrow keys: a radiogroup with one tab stop) saves via setDreamType;
 // - Story · Details · Sleep are three round glowing icon buttons with labels under them (same tablist / tab logic);
-// - "Your day before" in Story: the day-journal note of the day before the dream, with words both share.
+// - "Your day before" in Story: the day-journal note of the day before the dream, with words both share;
+// - the date line also names the weekday ("09/11/2026 · 3 days ago · Monday").
 // The current (classic) layout keeps the nightmare / lucid badges and the plain text tabs.
 import { getDream, updateDream, deleteDream, withDefaults, SYMBOL_CATEGORIES, setSetting, getDayNote, setDayNote, localDay } from '../store.js';
 import { isNewLayout } from '../layout.js';
-import { DREAM_TYPES, dreamType, setDreamType, dreamDay } from '../symbols.js';
+import { dreamType, setDreamType, dreamDay } from '../symbols.js';
+import { TYPE_LOOK, TYPE_IDS, RECURRING_LOOK, glyph } from './b/types.js';
 import { TAGS } from '../analyze.js';
-import { esc, formatDate, relativeDay, icons } from '../ui.js';
+import { esc, formatDate, relativeDay, relativeDayWeekday, icons } from '../ui.js';
 import { dreamArtURL } from '../dreamart.js';
 import { isEnabled, isPending, isStale, requestInterpretation, sendFeedback, startPolling } from '../interpret.js';
 import { hasFeature, remaining, openPaywall, handleLimit, getAccount } from '../account.js';
@@ -94,47 +97,13 @@ function stopPreview(layer) {
   } catch {}
 }
 
-// ---- New layout: sky glyphs for the dream types and the three section buttons ----
+// ---- New layout: the dream type (looks shared with the Journal in b/types.js) and the three section buttons ----
 
-/** A small glyph in the app's icon style (24-unit box, 1.8 stroke, round ends — like icons in ui.js). */
-const glyph = (body) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${body}</svg>`;
-
-/** Each type's name, one line for the sheet, the toast's words, and its glyph. Its colour is .dream-tone-<id>. */
-const TYPE_LOOK = {
-  // A crescent moon cradling a small star (lilac)
-  general: {
-    name: 'General dream', line: 'An everyday dream', as: 'a general dream',
-    glyph: glyph('<path d="M4 14.5A8 8 0 0 0 14.5 4a8 8 0 1 1-10.5 10.5z"/><path d="M8.5 6l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>'),
-  },
-  // A four-point star and a twinkle (gold)
-  lucid: {
-    name: 'Lucid dream', line: 'You knew you were dreaming', as: 'a lucid dream',
-    glyph: glyph('<path d="M10 2.5Q11.2 8.8 17.5 10 11.2 11.2 10 17.5 8.8 11.2 2.5 10 8.8 8.8 10 2.5z"/><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/>'),
-  },
-  // A storm cloud with lightning (coral)
-  nightmare: {
-    name: 'Nightmare', line: 'Frightening or upsetting', as: 'a nightmare',
-    glyph: glyph('<path d="M17.5 15.5a4 4 0 0 0-.6-8h-.9A6.5 6.5 0 1 0 5.5 14.6"/><path d="M12.5 11l-3 5h4l-3 5"/>'),
-  },
-  // A watching eye with three rays (pale blue)
-  prophetic: {
-    name: 'Prophetic dream', line: 'Felt like a sign, or came true', as: 'a prophetic dream',
-    glyph: glyph('<path d="M2.5 13.5c2.4-4 5.6-6 9.5-6s7.1 2 9.5 6c-2.4 4-5.6 6-9.5 6s-7.1-2-9.5-6z"/><circle cx="12" cy="13.5" r="2.6"/><path d="M12 2.8v2M6.4 4.6l1.1 1.5M17.6 4.6l-1.1 1.5"/>'),
-  },
+/** The dream's type as one of the four squares (general when it is something types.js doesn't know). */
+const typeOf = (dream) => {
+  const t = dreamType(dream);
+  return TYPE_LOOK[t] ? t : 'general';
 };
-
-/** The look of a type id (a type added to DREAM_TYPES later still gets a name and the moon). */
-const lookOf = (type) => TYPE_LOOK[type] || {
-  ...TYPE_LOOK.general,
-  name: DREAM_TYPES.find((t) => t.id === type)?.label || 'Dream',
-  line: '',
-  as: 'this type',
-};
-
-/** The colour class for a type: .dream-tone-<id> in dream.css (general for a type it doesn't know). */
-const toneOf = (type) => `dream-tone-${TYPE_LOOK[type] ? type : 'general'}`;
-
-const CARET = glyph('<path d="m7 10 5 5 5-5"/>');
 
 /** Story (an open book), Details (sliders), Sleep (a moon with a "z"). */
 const TAB_GLYPHS = {
@@ -147,14 +116,19 @@ const str = (v) => (typeof v === 'string' ? v.trim() : '');
 const arr = (v) => (Array.isArray(v) ? v : []);
 const dayDate = (iso) => new Date(`${iso}T00:00:00`);
 
-/** Locale-based numeric date ("10.11.2026", "10/11/2026", ...) plus "Today"/"Yesterday"/"N days ago". */
-function whenLabel(iso) {
+/**
+ * Locale-based numeric date ("10.11.2026", "10/11/2026", ...) plus "Today"/"Yesterday"/"N days ago".
+ * `weekday` (new layout): "09/11/2026 · 3 days ago · Monday" within the last week, else "02/11/2026 · Monday".
+ */
+function whenLabel(iso, weekday = false) {
   if (!iso) return '';
   const d = dayDate(iso);
   if (Number.isNaN(d.getTime())) return '';
   const num = d.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
   const rel = relativeDay(iso);
-  return rel && rel !== formatDate(iso) ? `${num} · ${rel}` : num;
+  const recent = rel && rel !== formatDate(iso); // today … 6 days ago
+  if (weekday) return `${num} · ${recent ? relativeDayWeekday(iso) : d.toLocaleDateString(undefined, { weekday: 'long' })}`;
+  return recent ? `${num} · ${rel}` : num;
 }
 
 const longDate = (iso) => {
@@ -277,8 +251,6 @@ export default {
     let perspKey = 'psychology';
     let savedTimer = null;
     let clock = null;          // ticks the "1:23" of a video being made
-    let typeSheet = null;      // new layout: { el, onKey } while the dream-type sheet is open
-    let typeTimer = null;      // closes that sheet a moment after a choice, so the check is seen moving
 
     cleanup?.();
     // Image, video and account changes can arrive while this page is open (or after leaving and coming back).
@@ -293,8 +265,6 @@ export default {
       clearTimeout(savedTimer);
       stopClock();
       stopPreview(root.querySelector('[data-hero-video]'));
-      clearTimeout(typeTimer);
-      closeTypeSheet(true); // also lets the page scroll again
       window.removeEventListener('dreaming:image', onImageEvent);
       window.removeEventListener('dreaming:video', onVideoEvent);
       window.removeEventListener('dreaming:account', onAccountEvent);
@@ -332,8 +302,8 @@ export default {
       const src = artSrc(dream);
       const hue = TAGS[dream.tags?.[0]]?.hue ?? 260;
       const nightmare = dream.kind === 'nightmare';
-      // The new layout shows the type as a chip (opens the type sheet) instead of the nightmare / lucid badges,
-      // and the sections as three glowing icon buttons.
+      // The new layout shows the type as a square of four tiles instead of the nightmare / lucid badges ("Recurring"
+      // moves next to it), and the sections as three glowing icon buttons.
       const typed = isNewLayout();
       root.classList.toggle('dream--new', typed);
       const badges = [
@@ -355,10 +325,9 @@ export default {
           </div>
         </div>
 
-        <p class="dream-date">${esc(whenLabel(dream.date))}</p>
+        <p class="dream-date">${esc(whenLabel(dream.date, typed))}</p>
         <h1 class="dream-title">${esc(dream.title || 'Untitled dream')}</h1>
-        ${typed ? `<div class="dream-badges">${typeChipHTML(dream)}${badges}</div>`
-          : badges ? `<div class="dream-badges">${badges}</div>` : ''}
+        ${typed ? typeSquareHTML(dream) : badges ? `<div class="dream-badges">${badges}</div>` : ''}
 
         <div class="dream-tabs" role="tablist" aria-label="Dream sections">
           ${TABS.map(([k, label]) => `<button type="button" role="tab" class="dream-tab" id="dream-tab-${k}" data-act="tab" data-tab="${k}" aria-controls="dream-panel-${k}" aria-selected="${k === tab}">${typed ? `<span class="dream-tab-orb" aria-hidden="true">${TAB_GLYPHS[k]}</span><span class="dream-tab-label">${label}</span>` : label}</button>`).join('')}
@@ -452,7 +421,7 @@ export default {
       const has = hasImage(dream);
       return `
         <button type="button" class="dream-hero-btn" data-act="image">
-          ${has ? icons.shuffle : icons.sparkle}<span>${has ? 'New image' : 'Create AI image'}</span>
+          ${has ? icons.shuffle : icons.sparkle}<span>${has ? 'New image' : 'Visualise as image'}</span>
           ${heroBadge(imagesBlocked() ? 'PLUS' : imageBadge())}
         </button>`;
     }
@@ -460,7 +429,7 @@ export default {
     function videoBtnHTML(dream) {
       return `
         <button type="button" class="dream-hero-btn" data-act="video">
-          ${icons.film}<span>${hasVideo(dream) ? 'New video' : 'Create video'}</span>
+          ${icons.film}<span>${hasVideo(dream) ? 'New video' : 'Visualise as video'}</span>
           ${heroBadge(videoBadge())}
         </button>`;
     }
@@ -510,7 +479,7 @@ export default {
         </div>`;
     }
 
-    /** "Create AI image" / "New image" / "Try again". */
+    /** "Visualise as image" / "New image" / "Try again". */
     function onImage() {
       const dream = getDream(id);
       if (!dream || isPainting(dream)) return;
@@ -653,7 +622,7 @@ export default {
         </div>`;
     }
 
-    /** "Create video" / "New video" / "Try again". */
+    /** "Visualise as video" / "New video" / "Try again". */
     function onVideo() {
       const dream = getDream(id);
       if (!dream || isFilming(dream)) return;
@@ -733,142 +702,86 @@ export default {
         ${symbols}${feelings}${noticed}${empty}`;
     }
 
-    // ---- New layout: dream type (a chip + a bottom sheet of four cards) and the day before ----
+    // ---- New layout: dream type (a square of four tiles) and the day before ----
 
-    /** The glowing chip under the title, e.g. "☾ General dream ▾" (glyph and colour per type). */
-    function typeChipHTML(dream) {
-      const type = dreamType(dream);
-      const look = lookOf(type);
+    /** The type square under the title: four tiles (a radiogroup, one tab stop) and, to its right, what is chosen. */
+    function typeSquareHTML(dream) {
+      const cur = typeOf(dream);
       return `
-        <button type="button" class="dream-typechip ${toneOf(type)}" data-act="type-open"
-          aria-haspopup="dialog" aria-expanded="${Boolean(typeSheet)}" aria-label="Dream type: ${esc(look.name)}. Change type">
-          <span class="dream-typechip-glyph" aria-hidden="true">${look.glyph}</span>
-          <span class="dream-typechip-name">${esc(look.name)}</span>
-          <span class="dream-typechip-caret" aria-hidden="true">${CARET}</span>
-        </button>`;
-    }
-
-    function openTypeSheet() {
-      const dream = read();
-      if (!dream) return;
-      closeTypeSheet(true);
-      clearTimeout(typeTimer);
-      const cur = dreamType(dream);
-      const el = document.createElement('div');
-      el.className = 'dream-tsheet';
-      el.innerHTML = `
-        <div class="dream-tsheet-backdrop" data-act="type-close"></div>
-        <section class="dream-tsheet-panel" role="dialog" aria-modal="true" aria-labelledby="dream-tsheet-title" tabindex="-1">
-          <div class="dream-tsheet-grab" aria-hidden="true"></div>
-          <button type="button" class="icon-btn dream-tsheet-x" data-act="type-close" aria-label="Close">${icons.close}</button>
-          <p class="dream-tsheet-kicker">Dream type</p>
-          <h2 class="dream-tsheet-title" id="dream-tsheet-title">What kind of dream was it?</h2>
-          <div class="dream-tsheet-opts" role="radiogroup" aria-labelledby="dream-tsheet-title">
-            ${DREAM_TYPES.map((t) => {
-              const look = lookOf(t.id);
+        <div class="dream-typerow">
+          <div class="dream-typesq" role="radiogroup" aria-label="Dream type">
+            ${TYPE_IDS.map((t) => {
+              const look = TYPE_LOOK[t];
+              const on = t === cur;
               return `
-                <button type="button" class="dream-tsheet-opt ${toneOf(t.id)}" role="radio" data-act="type" data-type="${esc(t.id)}" aria-checked="${t.id === cur}">
-                  <span class="dream-tsheet-glyph" aria-hidden="true">${look.glyph}</span>
-                  <span class="dream-tsheet-text">
-                    <span class="dream-tsheet-name">${esc(look.name)}</span>
-                    ${look.line ? `<span class="dream-tsheet-line">${esc(look.line)}</span>` : ''}
-                  </span>
-                  <span class="dream-tsheet-check" aria-hidden="true">${icons.check}</span>
+                <button type="button" class="dream-typesq-tile" role="radio" data-act="type" data-type="${esc(t)}"
+                  aria-checked="${on}" tabindex="${on ? 0 : -1}" aria-label="${esc(`${look.name}. ${look.line}`)}" style="--tc: ${esc(look.rgb)}">
+                  <span class="dream-typesq-glyph" aria-hidden="true">${look.glyph}</span>
+                  <span class="dream-typesq-name" aria-hidden="true">${esc(look.short)}</span>
                 </button>`;
             }).join('')}
           </div>
-        </section>`;
-      root.append(el);
-      document.body.classList.add('dream-lock');
-      root.querySelector('[data-act="type-open"]')?.setAttribute('aria-expanded', 'true');
-      const panel = el.querySelector('.dream-tsheet-panel');
-      panel.getBoundingClientRect(); // lay it out below the screen first, so it slides up
-      requestAnimationFrame(() => el.classList.add('dream-tsheet-in'));
-      try { (el.querySelector('[aria-checked="true"]') || panel).focus({ preventScroll: true }); } catch {}
-
-      // Escape closes; arrow keys move between the cards; Tab stays inside the sheet.
-      const onKey = (e) => {
-        if (e.key === 'Escape') { e.preventDefault(); closeTypeSheet(); return; }
-        const opts = [...el.querySelectorAll('[data-act="type"]')];
-        if (e.key === 'Tab') {
-          const all = [...panel.querySelectorAll('button')];
-          const first = all[0];
-          const last = all[all.length - 1];
-          if (e.shiftKey && (document.activeElement === first || document.activeElement === panel)) { e.preventDefault(); last.focus(); }
-          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-          return;
-        }
-        const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
-        const at = opts.indexOf(document.activeElement);
-        if (!step || at < 0) return;
-        e.preventDefault();
-        opts[(at + step + opts.length) % opts.length].focus();
-      };
-      document.addEventListener('keydown', onKey);
-
-      // Swipe down to close (from the top of the sheet).
-      let startY = null;
-      let dy = 0;
-      panel.addEventListener('touchstart', (e) => { startY = panel.scrollTop <= 0 ? e.touches[0].clientY : null; dy = 0; }, { passive: true });
-      panel.addEventListener('touchmove', (e) => {
-        if (startY == null) return;
-        dy = Math.max(0, e.touches[0].clientY - startY);
-        if (dy > 6) { panel.style.transition = 'none'; panel.style.transform = `translateY(${dy}px)`; }
-      }, { passive: true });
-      const release = () => {
-        if (startY == null) return;
-        startY = null;
-        panel.style.transition = '';
-        panel.style.transform = ''; // slides out from where the finger left it, or springs back
-        if (dy > 80) closeTypeSheet();
-      };
-      panel.addEventListener('touchend', release);
-      panel.addEventListener('touchcancel', release);
-
-      typeSheet = { el, onKey };
+          <div class="dream-typeinfo" data-type-info>${typeInfoHTML(dream)}</div>
+        </div>`;
     }
 
-    /** `now`: remove at once, without the slide or giving focus back (leaving the page, or reopening). */
-    function closeTypeSheet(now = false) {
-      const s = typeSheet;
-      if (!s) return;
-      typeSheet = null;
-      document.removeEventListener('keydown', s.onKey);
-      document.body.classList.remove('dream-lock');
-      const opener = root.querySelector('[data-act="type-open"]');
-      opener?.setAttribute('aria-expanded', 'false');
-      if (now || reducedMotion()) s.el.remove();
-      else {
-        s.el.classList.remove('dream-tsheet-in');
-        s.el.classList.add('dream-tsheet-out');
-        setTimeout(() => s.el.remove(), 260);
-      }
-      if (!now) { try { opener?.focus({ preventScroll: true }); } catch {} }
+    /** Right of the square: the chosen type's full name and line, "Recurring" when it is, and the hint. */
+    function typeInfoHTML(dream) {
+      const look = TYPE_LOOK[typeOf(dream)];
+      return `
+        <p class="dream-typeinfo-kicker">Dream type</p>
+        <p class="dream-typeinfo-name" style="--tc: ${esc(look.rgb)}">${esc(look.name)}</p>
+        <p class="dream-typeinfo-line">${esc(look.line)}</p>
+        ${dream.recurring ? `
+          <span class="dream-typeinfo-rec" style="--tc: ${esc(RECURRING_LOOK.rgb)}">
+            <span class="dream-typeinfo-rec-glyph" aria-hidden="true">${RECURRING_LOOK.glyph}</span><span>${esc(RECURRING_LOOK.name)}</span>
+          </span>` : ''}
+        <p class="dream-typeinfo-hint">Tap a square to change</p>`;
     }
 
-    /** A card in the type sheet: save (setDreamType keeps kind / lucid in step), update the chip, then close. */
-    function chooseType(type) {
-      const before = dreamType(read());
-      if (type && type !== before) setDreamType(id, type);
+    /**
+     * A tile tapped (or reached with the arrow keys): save it (setDreamType keeps kind / lucid in step), then move the
+     * glow, tab stop and words in place, with a small pop. `focus`: keyboard use, so focus follows the choice.
+     */
+    function chooseType(type, focus = false) {
+      const before = typeOf(read());
+      if (!TYPE_LOOK[type] || type === before) return;
+      setDreamType(id, type);
       const fresh = read();
-      if (!fresh) { closeTypeSheet(); return; }
-      const now = dreamType(fresh);
-      for (const b of root.querySelectorAll('[data-act="type"]')) b.setAttribute('aria-checked', String(b.dataset.type === now));
+      if (!fresh) return;
+      const now = typeOf(fresh);
+      for (const tile of root.querySelectorAll('[data-act="type"]')) {
+        const on = tile.dataset.type === now;
+        tile.setAttribute('aria-checked', String(on));
+        tile.tabIndex = on ? 0 : -1;
+        tile.classList.remove('dream-typesq-pop');
+        if (!on) continue;
+        void tile.offsetWidth; // restart the pop when the same tile is chosen again later
+        tile.classList.add('dream-typesq-pop');
+        if (focus) tile.focus();
+      }
+      const info = root.querySelector('[data-type-info]');
+      if (info) {
+        info.innerHTML = typeInfoHTML(fresh);
+        info.classList.remove('dream-typeinfo-swap');
+        void info.offsetWidth;
+        info.classList.add('dream-typeinfo-swap');
+      }
       root.querySelector('.dream-hero')?.classList.toggle('dream-hero-nightmare', now === 'nightmare');
-      const changed = now !== before;
-      const chipEl = root.querySelector('[data-act="type-open"]');
-      if (chipEl && changed) chipEl.outerHTML = typeChipHTML(fresh);
       const details = root.querySelector('[data-panel="details"]');
       if (details) details.innerHTML = detailsHTML(fresh); // "Type" and "Lucid" rows follow kind / lucid
-      // Close (a beat later when it changed, so the check is seen moving); the chip then glows once.
-      const done = () => {
-        closeTypeSheet();
-        if (changed) root.querySelector('[data-act="type-open"]')?.classList.add('dream-typechip-pop');
-      };
-      clearTimeout(typeTimer);
-      if (!changed || reducedMotion()) done();
-      else typeTimer = setTimeout(done, 220);
-      if (changed) ctx.toast?.(`Marked as ${lookOf(now).as}`);
+      ctx.toast?.(`Marked as ${TYPE_LOOK[now].as}`);
+    }
+
+    /** Arrow keys in the type square: left / right step through the four, up / down jump a row; each one is chosen. */
+    function onTypeKey(e) {
+      const tile = e.target.closest?.('[data-act="type"]');
+      const step = tile ? { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 2, ArrowUp: -2 }[e.key] : 0;
+      if (!step) return;
+      e.preventDefault();
+      const tiles = [...root.querySelectorAll('[data-act="type"]')];
+      const next = tiles[(tiles.indexOf(tile) + step + tiles.length) % tiles.length];
+      if (next) chooseType(next.dataset.type, true);
     }
 
     /** The day before the dream (a dream recorded in the morning follows that day's events). */
@@ -1335,8 +1248,6 @@ export default {
       else if (act === 'share') share();
       else if (act === 'edit') ctx.navigate(`#record/edit/${encodeURIComponent(id)}`);
       else if (act === 'tab') selectTab(target.dataset.tab || 'story');
-      else if (act === 'type-open') openTypeSheet();
-      else if (act === 'type-close') closeTypeSheet();
       else if (act === 'type') chooseType(target.dataset.type);
       else if (act === 'day-edit') { editingDay = true; paintPanels(); root.querySelector('[data-day-input]')?.focus(); }
       else if (act === 'day-cancel') { editingDay = false; paintPanels(); }
@@ -1403,6 +1314,7 @@ export default {
 
     root.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && root.querySelector('[data-sheet]')) closeConsent();
+      else onTypeKey(e);
     });
 
     // An AI image that can't load (offline, removed): show the generated painting instead.

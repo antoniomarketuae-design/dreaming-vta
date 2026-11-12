@@ -31,6 +31,20 @@ export function relativeDay(isoDay) {
   return formatDate(isoDay);
 }
 
+/** relativeDay() with the weekday: "2 days ago · Monday", "Yesterday · Wednesday", "Mon, 2 Nov 2026" (new layout). */
+export function relativeDayWeekday(isoDay) {
+  if (!isoDay) return '';
+  const date = dayDate(isoDay);
+  if (Number.isNaN(date.getTime())) return relativeDay(isoDay);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.round((today - date) / 86400000);
+  if (days >= 0 && days < 7) return `${relativeDay(isoDay)} · ${date.toLocaleDateString(undefined, { weekday: 'long' })}`;
+  const opts = { weekday: 'short', day: 'numeric', month: 'short' };
+  if (date.getFullYear() !== today.getFullYear()) opts.year = 'numeric';
+  return date.toLocaleDateString(undefined, opts);
+}
+
 /** "Good morning" / "Good afternoon" / "Good evening" / "Good night" */
 export function greeting(date = new Date()) {
   const h = date.getHours();

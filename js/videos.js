@@ -129,7 +129,7 @@ export const videosAllowed = () => (remaining('videos') ?? (hasFeature('videos')
 /** Known not to be allowed (the paywall opens without asking the server). */
 export const videosBlocked = () => !hasFeature('videos') || remaining('videos') === 0;
 
-/** Small label for "Create video" buttons: 'PLUS', '44 credits', or '' when unknown. */
+/** Small label for "Visualise as video" buttons: 'PLUS', '44 credits', or '' when unknown. */
 export function videoBadge() {
   if (!hasFeature('videos')) return 'PLUS';
   const left = remaining('videos');

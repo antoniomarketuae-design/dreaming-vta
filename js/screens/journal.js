@@ -3,23 +3,29 @@
 // The new layout (js/layout.js) differs, and only there: the switcher is List · Stories · Milky Way (the extra views
 // from js/screens/b/views; no Calendar view, since that layout has a Calendar tab), the list has no backup note (it is
 // on the Profile tab) and no "next technique" card, and each row's small chips show the dream's main symbols instead of
-// its tags. The current layout is unchanged.
+// its tags. Its filters are "small squares in one big square": beside the search box, a small square shows the four
+// dream-type symbols (like an iPhone folder); tapping it opens the filter square, a 3×3 of tiles (the four dream types,
+// Recurring, the most common feelings, then symbols, and More for the full sheet with symbols and dates). Dream types
+// filter by dream.type (filters.types). The current layout is unchanged.
 import { listDreams, withDefaults, localDay, SYMBOL_CATEGORIES, getSetting, setSetting } from '../store.js';
 import { TAGS } from '../analyze.js';
 import { nextTechnique } from '../progress.js';
-import { esc, icons, relativeDay } from '../ui.js';
+import { esc, icons, relativeDay, relativeDayWeekday } from '../ui.js';
 import { dreamArtURL } from '../dreamart.js';
 import { hasVideo } from '../videos.js';
-import { symbolsOf } from '../symbols.js';
+import { symbolsOf, dreamType } from '../symbols.js';
 import { isNewLayout } from '../layout.js';
 import { EXTRA_VIEWS } from './b/views/index.js';
+import { TYPE_LOOK, TYPE_IDS, RECURRING_LOOK, MORE_GLYPH, moodGlyph, hueRGB } from './b/types.js';
 
 const VIEW_KEY = 'dreaming.journal.view';
 const NOTE_KEY = 'journalNoteHiddenAt'; // dream count when the "only on this iPhone" note was tucked away
 const NOTE_RETURNS_AFTER = 20;          // ...it comes back after this many more dreams, as a backup reminder
 const SYMBOL_LIMIT = 18;                // symbols shown in the filter sheet before "Show all"
+const LIST_STYLE_KEY = 'journalListStyle'; // new layout: 'squares' (default) or 'rows'
+const TILE_PX = 220;                    // picture size asked of dreamArtURL for a day square
 
-const blankFilters = () => ({ kind: 'all', lucid: false, recurring: false, emotions: [], symbols: [], from: '', to: '' });
+const blankFilters = () => ({ kind: 'all', types: [], lucid: false, recurring: false, emotions: [], symbols: [], from: '', to: '' });
 
 // Kept between visits so coming back from a dream returns to the same place.
 let query = '';
@@ -83,13 +89,14 @@ function prepare(raw) {
 const byNewest = (a, b) => b.day.localeCompare(a.day) || String(b.d.createdAt || '').localeCompare(String(a.d.createdAt || ''));
 
 function activeCount(f) {
-  return (f.kind !== 'all') + f.lucid + f.recurring + f.emotions.length + f.symbols.length + (f.from || f.to ? 1 : 0);
+  return (f.kind !== 'all') + f.types.length + f.lucid + f.recurring + f.emotions.length + f.symbols.length + (f.from || f.to ? 1 : 0);
 }
 
 function matches(e, q, f) {
   if (q && !e.hay.includes(q)) return false;
   if (f.kind === 'nightmare' && e.d.kind !== 'nightmare') return false;
   if (f.kind === 'dream' && e.d.kind === 'nightmare') return false;
+  if (f.types.length && !f.types.includes(dreamType(e.d))) return false;
   if (f.lucid && !e.d.lucid) return false;
   if (f.recurring && !e.d.recurring) return false;
   if (f.emotions.length && !f.emotions.some((k) => e.emotions.has(k))) return false;
@@ -121,6 +128,76 @@ function withSelected(opts, selected) {
 function toggleIn(field, key) {
   const list = filters[field];
   filters[field] = list.includes(key) ? list.filter((k) => k !== key) : [...list, key];
+}
+
+// ---- The filter square (new layout) ----
+
+const SQUARE_TILES = 9; // a 3×3, the last one is More
+
+/** The small square beside the search box: the four dream-type symbols in a 2×2, and a count when filters are on. */
+function folderHTML() {
+  return `
+    <button type="button" class="jr-folder" data-open-square aria-haspopup="dialog" aria-label="Filters">
+      <span class="jr-folder-grid" aria-hidden="true">${TYPE_IDS.map((t) => `<i style="--tc:${TYPE_LOOK[t].rgb}">${TYPE_LOOK[t].glyph}</i>`).join('')}</span>
+      <span class="jr-badge jr-folder-badge" hidden></span>
+    </button>`;
+}
+
+/** The tiles of the filter square: [{ id, label, glyph, rgb, n, on, more }]. */
+function squareTiles(entries, emotionOpts, symbolOpts) {
+  const f = filters;
+  const typeN = Object.fromEntries(TYPE_IDS.map((t) => [t, 0]));
+  let rec = 0;
+  for (const e of entries) {
+    const t = dreamType(e.d);
+    typeN[t] = (typeN[t] || 0) + 1;
+    if (e.d.recurring) rec += 1;
+  }
+  const tiles = TYPE_IDS.map((t) => ({
+    id: `type:${t}`, label: TYPE_LOOK[t].short, glyph: TYPE_LOOK[t].glyph, rgb: TYPE_LOOK[t].rgb, n: typeN[t], on: f.types.includes(t),
+  }));
+  tiles.push({ id: 'recurring', label: 'Recurring', glyph: RECURRING_LOOK.glyph, rgb: RECURRING_LOOK.rgb, n: rec, on: f.recurring });
+  for (const o of emotionOpts.slice(0, 3)) {
+    tiles.push({ id: `emotion:${o.key}`, label: cap(o.label), glyph: moodGlyph(o.key), rgb: hueRGB(hueFor(o.key)), n: o.n, on: f.emotions.includes(o.key) });
+  }
+  for (const o of symbolOpts) {
+    if (tiles.length >= SQUARE_TILES - 1) break;
+    tiles.push({ id: `symbol:${o.key}`, label: cap(o.label), glyph: icons.sparkle, rgb: hueRGB(hueFor(o.key)), n: o.n, on: f.symbols.includes(o.key) });
+  }
+  // More: lit when something only the full sheet shows is on (other feelings or symbols, a date range).
+  const shown = new Set(tiles.map((t) => t.id));
+  const hidden = f.emotions.some((k) => !shown.has(`emotion:${k}`)) || f.symbols.some((k) => !shown.has(`symbol:${k}`)) || Boolean(f.from || f.to);
+  tiles.push({ id: 'more', label: 'More', glyph: MORE_GLYPH, rgb: '240, 234, 255', on: hidden, more: true });
+  return tiles;
+}
+
+function tileHTML(t) {
+  const label = t.more
+    ? `More filters: feelings, symbols and dates${t.on ? ', some on' : ''}`
+    : `${t.label}, ${plural(t.n, 'dream')}`;
+  return `
+    <button type="button" class="jr-sq-tile${t.more ? ' jr-sq-more' : ''}" data-sq="${esc(t.id)}" style="--tc:${t.rgb}"
+      ${t.more ? '' : `aria-pressed="${t.on}"`} aria-label="${esc(label)}">
+      <span class="jr-sq-glyph">${t.glyph}</span>
+      <span class="jr-sq-name">${esc(t.label)}</span>
+      ${t.more ? (t.on ? '<span class="jr-sq-dot" aria-hidden="true"></span>' : '') : `<span class="jr-sq-n" aria-hidden="true">${t.n}</span>`}
+    </button>`;
+}
+
+function squareHTML(tiles) {
+  return `
+    <div class="jr-sq-scrim" data-sq-close></div>
+    <div class="jr-sq-box" role="dialog" aria-modal="true" aria-labelledby="jr-sq-title">
+      <div class="jr-sq-head">
+        <h2 class="jr-sq-title" id="jr-sq-title">Filters</h2>
+        <button type="button" class="icon-btn jr-sq-x" data-sq-close aria-label="Close filters">${icons.close}</button>
+      </div>
+      <div class="jr-sq-grid" role="group" aria-label="Show only">${tiles.map(tileHTML).join('')}</div>
+      <div class="jr-sq-foot">
+        <button type="button" class="btn btn-ghost" data-sq-clear>Clear</button>
+        <button type="button" class="btn" data-sq-close data-sq-count>Show dreams</button>
+      </div>
+    </div>`;
 }
 
 // ---- Pieces ----
@@ -220,7 +297,7 @@ function rowHTML(e) {
           ${d.lucid ? `<span class="star-mark" role="img" aria-label="Lucid">${icons.star}</span>` : ''}
         </div>
         <div class="jr-row-meta">
-          <span>${esc(relativeDay(e.day))}</span>
+          <span>${esc(newLayout ? relativeDayWeekday(e.day) : relativeDay(e.day))}</span>
           ${night ? '<span class="jr-kind">Nightmare</span>' : ''}
           ${d.recurring ? `<span class="jr-rec" role="img" aria-label="Recurring">${icons.repeat}</span>` : ''}
         </div>
@@ -228,6 +305,47 @@ function rowHTML(e) {
         ${chips ? `<div class="jr-row-chips">${chips}</div>` : ''}
       </div>
     </a>`;
+}
+
+const listStyle = () => (getSetting(LIST_STYLE_KEY, 'squares') === 'rows' ? 'rows' : 'squares');
+
+/** New layout: one dream as a small square: its picture behind, the day number and weekday, type glyph, title, symbols. */
+function dayTileHTML(e) {
+  const d = e.d;
+  const title = String(d.title || '').trim() || 'Untitled dream';
+  const date = new Date(`${e.day}T12:00:00`);
+  const ok = !Number.isNaN(date.getTime());
+  const num = ok ? date.getDate() : '';
+  const wk = ok ? date.toLocaleDateString(undefined, { weekday: 'short' }).replace('.', '') : '';
+  const type = dreamType(d);
+  const look = type !== 'general' ? TYPE_LOOK[type] : null;
+  const syms = mainSymbols(e).slice(0, 2);
+  const label = [title, ok ? date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '', look ? look.name : '',
+    d.recurring ? 'recurring' : '', hasVideo(d) ? 'has a video' : ''].filter(Boolean).join(', ');
+  return `
+    <a class="jr-tile${type === 'nightmare' ? ' jr-tile-night' : ''}" href="#dream/${encodeURIComponent(d.id)}" aria-label="${esc(label)}">
+      <img class="jr-tile-img" data-art="${esc(d.id)}" alt="" width="${TILE_PX}" height="${TILE_PX}" decoding="async">
+      <span class="jr-tile-shade" aria-hidden="true"></span>
+      <span class="jr-tile-day" aria-hidden="true"><b>${num}</b><small>${esc(wk)}</small></span>
+      <span class="jr-tile-marks" aria-hidden="true">
+        ${look ? `<i class="jr-tile-type" style="--tc:${look.rgb}">${look.glyph}</i>` : ''}
+        ${d.recurring ? `<i class="jr-tile-type" style="--tc:${RECURRING_LOOK.rgb}">${RECURRING_LOOK.glyph}</i>` : ''}
+        ${hasVideo(d) ? `<i class="jr-tile-type jr-tile-video">${icons.play}</i>` : ''}
+      </span>
+      <span class="jr-tile-body" aria-hidden="true">
+        <span class="jr-tile-title">${esc(title)}</span>
+        ${syms.length ? `<span class="jr-tile-syms">${syms.map((n) => `<span>${esc(n)}</span>`).join('')}</span>` : ''}
+      </span>
+    </a>`;
+}
+
+function styleSwitchHTML() {
+  const st = listStyle();
+  return `
+    <div class="jr-lstyle" role="group" aria-label="List look">
+      <button type="button" data-liststyle="squares" aria-pressed="${st === 'squares'}">${icons.widget}<span>Squares</span></button>
+      <button type="button" data-liststyle="rows" aria-pressed="${st === 'rows'}">${icons.list}<span>Rows</span></button>
+    </div>`;
 }
 
 function noMatchHTML(what = 'dreams') {
@@ -241,6 +359,7 @@ function noMatchHTML(what = 'dreams') {
 
 function listHTML(shown, filtering) {
   if (!shown.length) return noMatchHTML();
+  const squares = newLayout && listStyle() === 'squares';
   const groups = new Map();
   for (const e of shown) {
     const key = e.day.slice(0, 7);
@@ -250,6 +369,13 @@ function listHTML(shown, filtering) {
   const months = [...groups.entries()].map(([key, items]) => {
     const [y, m] = key.split('-').map(Number);
     const label = y && m ? monthName(y, m - 1) : 'Undated';
+    if (squares) {
+      return `
+      <section class="jr-month jr-msq" aria-label="${esc(`${label}, ${plural(items.length, 'dream')}`)}">
+        <h2 class="jr-msq-head"><span>${esc(label)}</span><span class="jr-msq-n">${plural(items.length, 'dream')}</span></h2>
+        <div class="jr-msq-grid">${items.map(dayTileHTML).join('')}</div>
+      </section>`;
+    }
     return `
       <section class="jr-month">
         <h2 class="section-title">${esc(label)} <span class="jr-count">${items.length}</span></h2>
@@ -259,7 +385,7 @@ function listHTML(shown, filtering) {
   const end = filtering
     ? `${plural(shown.length, 'dream')} found.`
     : 'You have reached your first recorded dream.';
-  return `${months}
+  return `${newLayout ? styleSwitchHTML() : ''}${months}
     <div class="jr-end" aria-hidden="true">${icons.sparkle}</div>
     <p class="jr-end-text">${end}</p>`;
 }
@@ -355,6 +481,16 @@ function sheetHTML(emotionOpts, symbolOpts, showAllSymbols) {
         <button type="button" class="icon-btn jr-sheet-close" data-close-sheet aria-label="Close filters">${icons.close}</button>
       </div>
       <div class="jr-sheet-scroll">
+        ${newLayout ? `
+        <section class="jr-sheet-sec">
+          <h3 class="jr-sheet-label">Dream type</h3>
+          <p class="jr-sheet-hint">A dream matches if it is any type you pick.</p>
+          <div class="jr-opts">${TYPE_IDS.map((t) => `<button type="button" class="jr-opt" data-ntype="${t}" aria-pressed="${f.types.includes(t)}">${TYPE_LOOK[t].glyph}<span>${esc(TYPE_LOOK[t].short)}</span></button>`).join('')}</div>
+        </section>
+        <section class="jr-sheet-sec">
+          <h3 class="jr-sheet-label">Only show</h3>
+          <div class="jr-opts">${flag('recurring', 'Recurring dreams', icons.repeat)}</div>
+        </section>` : `
         <section class="jr-sheet-sec">
           <h3 class="jr-sheet-label">Type</h3>
           <div class="jr-type" role="group" aria-label="Type">
@@ -364,7 +500,7 @@ function sheetHTML(emotionOpts, symbolOpts, showAllSymbols) {
         <section class="jr-sheet-sec">
           <h3 class="jr-sheet-label">Only show</h3>
           <div class="jr-opts">${flag('lucid', 'Lucid dreams', icons.star)}${flag('recurring', 'Recurring dreams', icons.repeat)}</div>
-        </section>
+        </section>`}
         <section class="jr-sheet-sec">
           <h3 class="jr-sheet-label">Emotions</h3>
           ${emo.length
@@ -395,7 +531,7 @@ function sheetHTML(emotionOpts, symbolOpts, showAllSymbols) {
 // Paints thumbnails a few at a time so a long journal still opens instantly.
 function fillThumbs(container, byId) {
   const job = ++thumbJob;
-  const imgs = [...container.querySelectorAll('img.jr-thumb[data-id]:not([src])')];
+  const imgs = [...container.querySelectorAll('img.jr-thumb[data-id]:not([src]), img.jr-tile-img[data-art]:not([src])')];
   let i = 0;
   const step = () => {
     if (job !== thumbJob || !container.isConnected) return;
@@ -403,7 +539,8 @@ function fillThumbs(container, byId) {
     while (i < imgs.length && performance.now() < end) {
       const img = imgs[i++];
       let url = '';
-      try { url = dreamArtURL(byId.get(img.dataset.id), 64) || ''; } catch {}
+      const tile = Boolean(img.dataset.art);
+      try { url = dreamArtURL(byId.get(tile ? img.dataset.art : img.dataset.id), tile ? TILE_PX : 64) || ''; } catch {}
       if (url) img.src = url;
     }
     if (i < imgs.length) requestAnimationFrame(step);
@@ -445,16 +582,19 @@ export default {
     el.innerHTML = `
       <div class="jr">
         ${headHTML()}
-        <div class="jr-search-wrap">
-          ${icons.search}
-          <input class="field jr-search" type="search" placeholder="Search your dreams" aria-label="Search dreams"
-            value="${esc(query)}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
-          <button type="button" class="jr-search-clear" data-clear-search aria-label="Clear search" ${query ? '' : 'hidden'}>${icons.close}</button>
+        <div class="jr-searchrow">
+          <div class="jr-search-wrap">
+            ${icons.search}
+            <input class="field jr-search" type="search" placeholder="Search your dreams" aria-label="Search dreams"
+              value="${esc(query)}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+            <button type="button" class="jr-search-clear" data-clear-search aria-label="Clear search" ${query ? '' : 'hidden'}>${icons.close}</button>
+          </div>
+          ${newLayout ? folderHTML() : ''}
         </div>
-        <div class="jr-filterbar">
+        ${newLayout ? '' : `<div class="jr-filterbar">
           <button type="button" class="jr-filter-btn" data-open-filters aria-haspopup="dialog">${icons.filter}<span>Filters</span><span class="jr-badge" hidden></span></button>
           <div class="jr-chips" role="group" aria-label="Quick filters"></div>
-        </div>
+        </div>`}
         <div class="jr-active" hidden></div>
         <div class="jr-body"></div>
         <div class="jr-seg${newLayout ? ' jr-seg-new' : ''}" role="group" aria-label="View">
@@ -464,14 +604,16 @@ export default {
             : `<button type="button" data-view="calendar" aria-pressed="${view === 'calendar'}">${icons.calendar}<span>Calendar</span></button>`}
         </div>
         <div class="jr-sheet" role="dialog" aria-modal="true" aria-labelledby="jr-sheet-title" hidden></div>
+        ${newLayout ? '<div class="jr-sq" hidden></div>' : ''}
       </div>`;
 
     const root = el.querySelector('.jr');
     const head = root.querySelector('.jr-head');
     const input = root.querySelector('.jr-search');
     const clearBtn = root.querySelector('.jr-search-clear');
-    const filterBtn = root.querySelector('.jr-filter-btn');
+    const filterBtn = root.querySelector('.jr-filter-btn, .jr-folder');
     const badge = root.querySelector('.jr-badge');
+    const square = root.querySelector('.jr-sq');
     const chipsEl = root.querySelector('.jr-chips');
     const activeEl = root.querySelector('.jr-active');
     const body = root.querySelector('.jr-body');
@@ -485,9 +627,11 @@ export default {
       badge.textContent = String(n);
       filterBtn.dataset.on = String(n > 0);
       filterBtn.setAttribute('aria-label', n ? `Filters, ${n} active` : 'Filters');
-      const left = chipsEl.scrollLeft;
-      chipsEl.innerHTML = quickChipsHTML(emotionOpts);
-      chipsEl.scrollLeft = left;
+      if (chipsEl) {
+        const left = chipsEl.scrollLeft;
+        chipsEl.innerHTML = quickChipsHTML(emotionOpts);
+        chipsEl.scrollLeft = left;
+      }
       activeEl.hidden = !n;
       activeEl.innerHTML = n
         ? `<span>${plural(n, 'filter')} on · ${current.length} of ${plural(entries.length, 'dream')}</span><button type="button" data-clear-filters>Clear</button>`
@@ -537,8 +681,49 @@ export default {
     };
 
     const updateSheetCount = () => {
+      const label = current.length ? `Show ${plural(current.length, 'dream')}` : 'No dreams match';
       const btn = sheet.querySelector('[data-sheet-count]');
-      if (btn) btn.textContent = current.length ? `Show ${plural(current.length, 'dream')}` : 'No dreams match';
+      if (btn) btn.textContent = label;
+      const sq = square?.querySelector('[data-sq-count]');
+      if (sq) sq.textContent = label;
+    };
+
+    // The filter square: grows out of the small square, tiles toggle in place, More hands over to the full sheet.
+    const paintSquareTiles = () => {
+      const grid = square?.querySelector('.jr-sq-grid');
+      if (grid) grid.innerHTML = squareTiles(entries, emotionOpts, symbolOpts).map(tileHTML).join('');
+    };
+    const openSquare = () => {
+      if (!square) return;
+      square.innerHTML = squareHTML(squareTiles(entries, emotionOpts, symbolOpts));
+      const box = square.querySelector('.jr-sq-box');
+      const from = filterBtn.getBoundingClientRect();
+      square.hidden = false;
+      // offsetLeft/Top ignore the starting scale; .jr-sq covers the viewport, so they are viewport coordinates.
+      box.style.transformOrigin = `${Math.round(from.left + from.width / 2 - box.offsetLeft)}px ${Math.round(from.top + from.height / 2 - box.offsetTop)}px`;
+      requestAnimationFrame(() => square.classList.add('jr-sq-in'));
+      document.body.classList.add('jr-sq-open');
+      updateSheetCount();
+      square.querySelector('.jr-sq-tile')?.focus({ preventScroll: true });
+    };
+    const closeSquare = ({ focus = true } = {}) => {
+      if (!square || square.hidden) return;
+      square.hidden = true;
+      square.classList.remove('jr-sq-in');
+      square.innerHTML = '';
+      document.body.classList.remove('jr-sq-open');
+      if (focus) filterBtn.focus({ preventScroll: true });
+    };
+    const toggleTile = (id) => {
+      if (id.startsWith('type:')) {
+        const t = id.slice(5);
+        filters.types = filters.types.includes(t) ? filters.types.filter((x) => x !== t) : [...filters.types, t];
+      } else if (id === 'recurring') filters.recurring = !filters.recurring;
+      else if (id.startsWith('emotion:')) toggleIn('emotions', id.slice(8));
+      else if (id.startsWith('symbol:')) toggleIn('symbols', id.slice(7));
+      refresh();
+      paintSquareTiles();
+      square.querySelector(`[data-sq="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
     };
 
     const refresh = () => {
@@ -568,7 +753,7 @@ export default {
       if (sheet.hidden) return;
       sheet.hidden = true;
       sheet.innerHTML = '';
-      filterBtn.focus({ preventScroll: true });
+      filterBtn?.focus({ preventScroll: true });
     };
 
     const resetSearch = () => {
@@ -605,14 +790,38 @@ export default {
     root.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter' && ev.target === input) input.blur();
       if (ev.key === 'Escape' && !sheet.hidden) closeSheet();
+      if (ev.key === 'Escape' && square && !square.hidden) closeSquare();
     });
 
     root.addEventListener('click', (ev) => {
       const hit = (sel) => ev.target.closest(sel);
       let b;
-      if ((b = hit('[data-view]'))) {
+      // Only the switcher's buttons: the page root carries data-view too (for styling), so a bare [data-view] would
+      // match every tap on the page.
+      if ((b = hit('.jr-seg [data-view]'))) {
         if (b.dataset.view === view) return;
         setViewTo(b.dataset.view);
+      } else if ((b = hit('[data-liststyle]'))) {
+        if (b.dataset.liststyle !== listStyle()) {
+          setSetting(LIST_STYLE_KEY, b.dataset.liststyle);
+          paintBody();
+          body.querySelector(`[data-liststyle="${b.dataset.liststyle}"]`)?.focus({ preventScroll: true });
+        }
+      } else if (hit('[data-open-square]')) {
+        openSquare();
+      } else if ((b = hit('[data-sq]'))) {
+        if (b.dataset.sq === 'more') { closeSquare({ focus: false }); openSheet(); } else toggleTile(b.dataset.sq);
+      } else if (hit('[data-sq-clear]')) {
+        filters = blankFilters();
+        refresh();
+        paintSquareTiles();
+      } else if (hit('[data-sq-close]')) {
+        closeSquare();
+      } else if ((b = hit('[data-ntype]'))) {
+        const t = b.dataset.ntype;
+        filters.types = filters.types.includes(t) ? filters.types.filter((x) => x !== t) : [...filters.types, t];
+        b.setAttribute('aria-pressed', String(filters.types.includes(t)));
+        refresh();
       } else if ((b = hit('[data-quick]'))) {
         const id = b.dataset.quick;
         if (id === 'nightmare') filters.kind = filters.kind === 'nightmare' ? 'all' : 'nightmare';
@@ -677,6 +886,7 @@ export default {
       window.removeEventListener('scroll', onScroll);
       try { extra?.destroy?.(); } catch {}
       extra = null;
+      document.body.classList.remove('jr-sq-open');
     };
     onScroll();
 
