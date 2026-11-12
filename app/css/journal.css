@@ -54,17 +54,18 @@
 .jr-head-search {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   border: 0;
-  border-radius: 50%;
-  background: rgba(240, 234, 255, 0.92);
-  color: #24184f;
-  box-shadow: 0 4px 18px rgba(155, 123, 255, 0.35);
+  background: none;
+  color: var(--text);
   cursor: pointer;
 }
-.jr-head-search svg { width: 20px; height: 20px; stroke-width: 2.2; }
+.jr-head-search svg { width: 22px; height: 22px; }
+/* New layout: a slimmer "+ Dream" so the page keeps more room for the dreams. */
+.jr-head-actions.is-new .jr-add { min-height: 34px; padding: 0 14px 0 10px; font-size: 14px; }
+.jr-head-actions.is-new .jr-add svg { width: 16px; height: 16px; }
 .jr-head-search:active { opacity: 0.8; }
 
 /* ---- Search ---- */
