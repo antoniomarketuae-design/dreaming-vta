@@ -224,7 +224,7 @@ function headHTML() {
   return `
     <header class="jr-head">
       <h1 class="screen-title">Journal</h1>
-      <span class="jr-head-actions">
+      <span class="jr-head-actions${newLayout ? ' is-new' : ''}">
         ${newLayout ? `<button type="button" class="jr-head-search" data-search-open aria-label="Search your dreams">${icons.search}</button>` : ''}
         <a class="jr-add" href="#record" aria-label="Record a new dream">${icons.plus}<span>Dream</span></a>
       </span>

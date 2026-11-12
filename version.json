@@ -1,7 +1,12 @@
 {
-  "version": 35,
+  "version": 36,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 36,
+      "date": "2026-11-12",
+      "text": "Journal: the magnifying glass is a plain icon again, and it and '+ Dream' are a little shorter, leaving more room for your dreams."
+    },
     {
       "version": 35,
       "date": "2026-11-12",
