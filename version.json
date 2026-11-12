@@ -1,7 +1,12 @@
 {
-  "version": 28,
+  "version": 29,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 29,
+      "date": "2026-11-12",
+      "text": "Example dreams are now clearly marked. If the app's built-in example dreams are in your journal, Home says so (they come with the app and are not yours or anyone else's) with a one-tap 'Remove the examples', and each one carries an 'Example' tag. Your dreams are only ever kept on your own phone."
+    },
     {
       "version": 28,
       "date": "2026-11-12",

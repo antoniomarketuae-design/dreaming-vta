@@ -4,7 +4,7 @@
 // dreams" adds 5 more each tap, in place · "What you dream about": one sentence on what keeps coming back, then up to 8 symbol
 // chips with counts (last 30 days); tapping one opens its meaning (symbolsheet.js). Repaints itself when dreams change.
 // (The dream wheel that was here in v15 is now the Calendar tab; the day journal lives in the Calendar too.)
-import { listDreams, localDay, getProfile, onChange } from '../../store.js';
+import { listDreams, localDay, getProfile, onChange, isSampleDream, removeSampleDreams } from '../../store.js';
 import { symbolsOf, recurringSymbols, dreamDay } from '../../symbols.js';
 import { esc, greeting, formatLongDate, icons } from '../../ui.js';
 import { moonCardHTML } from './moon.js';
@@ -116,7 +116,7 @@ function rowHTML(d) {
       <a class="glass bh-row" href="${dreamHref(d)}" aria-label="${esc(label)}">
         ${dateTile(day)}
         <span class="bh-row-body">
-          <span class="bh-row-title">${esc(titleOf(d))}</span>
+          <span class="bh-row-title">${esc(titleOf(d))}</span>${isSampleDream(d) ? '<span class="bh-example">Example</span>' : ''}
           ${syms.length
             ? `<span class="bh-chips">${syms.map((x) => `<span class="chip bh-chip">${esc(x.name)}</span>`).join('')}</span>`
             : '<span class="bh-row-none">No symbols yet</span>'}
@@ -137,10 +137,23 @@ function moreHTML(total) {
   return more || less ? `<div class="bh-more-row" data-more-row>${more}${less}</div>` : '';
 }
 
+/** When the built-in example dreams are in the journal: say so plainly, with a one-tap way to remove them. */
+function examplesHTML(dreams) {
+  const n = dreams.filter(isSampleDream).length;
+  if (!n) return '';
+  return `
+    <div class="glass bh-examples" role="note">
+      <p><b>${n} example ${n === 1 ? 'dream is' : 'dreams are'}</b> in your journal. They come with the app to show how it works,
+        so they aren't yours or anyone else's. Your dreams stay only on this phone.</p>
+      <button type="button" class="btn btn-ghost bh-examples-btn" data-unsample>Remove the examples</button>
+    </div>`;
+}
+
 function recentHTML(dreams) {
   return `
     <section class="bh-section" aria-labelledby="bh-recent-title">
       <h2 class="bh-h2" id="bh-recent-title">Recent dreams</h2>
+      ${examplesHTML(dreams)}
       <ul class="bh-list">${dreams.slice(0, shown).map(rowHTML).join('')}</ul>
       ${moreHTML(dreams.length)}
     </section>`;
@@ -284,6 +297,14 @@ export default {
       let b;
       if ((b = e.target.closest('[data-more]'))) loadMore(b);
       else if (e.target.closest('[data-less]')) showLess();
+      else if (e.target.closest('[data-unsample]')) {
+        const n = listDreams().filter(isSampleDream).length;
+        if (n && confirm(`Remove the ${n} example ${n === 1 ? 'dream' : 'dreams'}? Your own dreams stay.`)) {
+          removeSampleDreams();
+          paint();
+          ctx?.toast?.(`${n} example ${n === 1 ? 'dream' : 'dreams'} removed`);
+        }
+      }
       else if ((b = e.target.closest('[data-sym]'))) openSymbol(b);
     });
 

@@ -302,7 +302,9 @@ export function addSampleDreams() {
 }
 
 const SAMPLE_TEXTS = new Set(SAMPLES.map((s) => s.text));
-const isSample = (d) => d?.sample === true || SAMPLE_TEXTS.has(String(d?.text || '').trim());
+/** True for the built-in example dreams (Settings → Add sample dreams): flagged, or older ones by their exact text. */
+export const isSampleDream = (d) => d?.sample === true || SAMPLE_TEXTS.has(String(d?.text || '').trim());
+const isSample = isSampleDream;
 
 /** How many of the built-in example dreams are in the journal. */
 export function countSampleDreams() {
