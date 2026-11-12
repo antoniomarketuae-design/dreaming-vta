@@ -1,7 +1,12 @@
 {
-  "version": 38,
+  "version": 39,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 39,
+      "date": "2026-11-12",
+      "text": "Journal map: today's date is always written in full, like '12 Thursday · November', on every phone size."
+    },
     {
       "version": 38,
       "date": "2026-11-12",

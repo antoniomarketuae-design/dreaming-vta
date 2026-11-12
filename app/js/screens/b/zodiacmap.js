@@ -30,11 +30,11 @@ const FALLBACK = {       // a soft rounded badge for a sign without a drawn shap
 };
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
-/** Today as "<b>12</b> Thursday · November" (the long weekday and month; the short forms on narrow screens via CSS). */
+/** Today as "<b>12</b> Thursday · November", always in full. */
 function todayHTML() {
   const d = new Date();
   const part = (o) => d.toLocaleDateString(undefined, o).replace('.', '');
-  return `<b class="jr-zs-num">${d.getDate()}</b><span class="jr-zs-wd"><span class="jr-zs-long">${esc(part({ weekday: 'long' }))} · ${esc(part({ month: 'long' }))}</span><span class="jr-zs-short">${esc(part({ weekday: 'short' }))} · ${esc(part({ month: 'short' }))}</span></span>`;
+  return `<b class="jr-zs-num">${d.getDate()}</b><span class="jr-zs-wd">${esc(part({ weekday: 'long' }))} · ${esc(part({ month: 'long' }))}</span>`;
 }
 const shapeOf = (id) => SHAPES[id] || FALLBACK;
 

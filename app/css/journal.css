@@ -888,11 +888,7 @@ body.jr-sq-open { overflow: hidden; }
 .jr-zs-today { display: inline-flex; align-items: baseline; gap: 6px; color: var(--moon); }
 .jr-zs-num { font-size: 22px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
 .jr-zs-wd { font-size: 14px; font-weight: 600; color: rgba(255, 217, 138, 0.9); }
-.jr-zs-short { display: none; }
-@media (max-width: 360px) {
-  .jr-zs-long { display: none; }
-  .jr-zs-short { display: inline; }
-}
+
 /* The count: small gold text you can tap (no pill), with room to tap. */
 .jr-zs-n {
   flex: none;
