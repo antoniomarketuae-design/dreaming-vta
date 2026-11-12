@@ -187,11 +187,12 @@ function seasonMapHTML(season, items) {
   return `
     <section class="jr-month jr-zs" aria-label="${esc(`${season.sign.name} season, ${seasonRange(season)}, ${plural(n, 'dream')}`)}">
       <h2 class="jr-zs-head${now ? ' is-now' : ''}">
-        <span class="jr-zs-glyph" aria-hidden="true">${season.sign.glyph}</span>
+        <span class="jr-zs-glyph" role="img" aria-label="${esc(`${season.sign.name} season`)}">${season.sign.glyph}</span>
         <span class="jr-zs-line">${now
-          ? `<b class="jr-zs-today">Today, ${esc(todayShort())}</b><span class="jr-zs-dot" aria-hidden="true">·</span><span class="jr-zs-name">${esc(season.sign.name)} season</span>`
-          : `<span class="jr-zs-name">${esc(season.sign.name)} season</span><span class="jr-zs-dot" aria-hidden="true">·</span><span class="jr-zs-dates">${esc(seasonMonths(season))}</span>`}</span>
-        <span class="jr-zs-n">${plural(n, 'dream')}</span>
+          ? `<b class="jr-zs-today">Today, ${esc(todayShort())}</b>`
+          : `<span class="jr-zs-dates">${esc(seasonMonths(season))}</span>`}</span>
+        <button type="button" class="jr-zs-n" data-zseason="${esc(season.key)}"
+          aria-label="${esc(`See the ${plural(n, 'dream')} of ${season.sign.name} season`)}">${plural(n, 'dream')}<span aria-hidden="true">›</span></button>
       </h2>
       <div class="jr-zm" data-zm data-ar="${ar.toFixed(4)}">
         <div class="jr-zm-scroll" data-zm-scroll>

@@ -1,7 +1,12 @@
 {
-  "version": 34,
+  "version": 35,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 35,
+      "date": "2026-11-12",
+      "text": "Journal map: the heading is just the sign's circle and 'Today, Thu, Nov 12'; the dreams count is now a button that lists that sign's dreams. The Map / Squares / Rows switch is centred under the filters and smaller, leaving more room for the map."
+    },
     {
       "version": 34,
       "date": "2026-11-12",
