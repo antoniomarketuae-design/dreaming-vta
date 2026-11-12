@@ -44,6 +44,7 @@ const SHELL = [
   'js/screens/b/signshapes.js',
   'js/screens/b/signshapes-a.js',
   'js/screens/b/signshapes-b.js',
+  'images/signs/scorpio.png',
   'js/screens/b/views/index.js',
   'css/bv-sky.css',
   'js/screens/b/sky.js',

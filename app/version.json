@@ -1,7 +1,12 @@
 {
-  "version": 39,
+  "version": 40,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 40,
+      "date": "2026-11-12",
+      "text": "Journal map: Scorpio dreams now use your scorpion drawing, glowing in the dream's colour, with the day and weekday written under it (pinch in for the month and the title). The heading row is a bit tighter so '12 Thursday · November' always fits in full."
+    },
     {
       "version": 39,
       "date": "2026-11-12",
