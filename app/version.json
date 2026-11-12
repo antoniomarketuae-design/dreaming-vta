@@ -1,7 +1,12 @@
 {
-  "version": 50,
+  "version": 51,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 51,
+      "date": "2026-11-12",
+      "text": "Behind the scenes: the app now tells the Dreaming server which version it is, so the team dashboard can show which versions people use. Nothing changes on your screen."
+    },
     {
       "version": 50,
       "date": "2026-11-12",

@@ -13,6 +13,7 @@ import { buildPrompt, generateImage } from './images.js';
 import { buildVideoPrompt, generateVideo, generateFilm, splitScenes } from './videos.js';
 import { publicVideoOptions, wordCount, maxSeconds, videoCost, estimateMinutes, isLength, clipsFor } from './video-options.js';
 import { loadLibrary, librarySize, findEntry, publicEntry } from './library.js';
+import { DASH_SCHEMA, createDashboard } from './dashboard.js';
 
 try { process.loadEnvFile(fileURLToPath(new URL('./.env', import.meta.url))); } catch {}
 
@@ -21,7 +22,7 @@ const ADMIN_KEY = process.env.ADMIN_KEY || '';
 const IP_SALT = process.env.IP_SALT || '';
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
 const KEEP_DAYS = Number(process.env.KEEP_DAYS) || 60;
-const VERSION = '2';
+const VERSION = '3';
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const IMAGE_DIR = process.env.IMAGE_DIR || join(HERE, 'images');
 const VIDEO_DIR = process.env.VIDEO_DIR || join(HERE, 'videos');
@@ -124,6 +125,11 @@ const SCHEMA = `
 // ---- Helpers ----
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
+const errorLog = [];
+function logError(where, message) {
+  errorLog.unshift({ at: new Date().toISOString(), where, message: String(message || '').slice(0, 300) });
+  if (errorLog.length > 50) errorLog.length = 50;
+}
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const newId = () => crypto.randomBytes(9).toString('base64url');
 const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -159,7 +165,7 @@ function corsHeaders(req) {
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Dream-Token, X-Device-Id, X-Device-Token',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Dream-Token, X-Device-Id, X-Device-Token, X-App-Version',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
   };
@@ -226,7 +232,11 @@ async function deviceOf(req) {
   if (!/^[\w-]{10,40}$/.test(id) || token.length < 20) return null;
   const { rows: [d] } = await pool.query('select * from devices where id = $1', [id]);
   if (!d || !safeEqual(sha256(token), d.token_hash)) return null;
-  pool.query('update devices set last_seen = now() where id = $1', [id]).catch(() => {});
+  const appVersion = String(req.headers['x-app-version'] || '').replace(/[^\w.-]/g, '').slice(0, 12) || null;
+  pool.query('update devices set last_seen = now(), app_version = coalesce($2, app_version) where id = $1', [id, appVersion]).catch(() => {});
+  pool.query('insert into activity (day, device_id) values (current_date, $1) on conflict do nothing', [id]).catch(() => {});
+  // Paused by the team (dashboard): 403, not 401, so the phone keeps its account instead of making a new one.
+  if (d.blocked) throw httpError(403, 'This account is paused. Please contact Dreaming support.');
   return d;
 }
 
@@ -298,6 +308,7 @@ async function runImage(id, prompt, deviceId) {
     );
   } catch (err) {
     console.error('image failed', id, err.message);
+    logError('image', `${id}: ${err.message}`);
     await pool.query(`update images set status = 'failed', error = $2, finished_at = now() where id = $1`, [id, err.message.slice(0, 500)]);
     // A failed image does not count against the month's allowance.
     await pool.query('update usage set images = greatest(images - 1, 0) where device_id = $1 and period = $2', [deviceId, period()]);
@@ -322,6 +333,7 @@ async function runVideo(id, { prompt, textPrompt, imagePath, seconds, quality, c
     );
   } catch (err) {
     console.error('video failed', id, err.message);
+    logError('video', `${id}: ${err.message}`);
     await pool.query(`update videos set status = 'failed', error = $2, finished_at = now() where id = $1`, [id, err.message.slice(0, 500)]);
     // A failed video does not count against the month's allowance: its credits come back.
     await pool.query('update usage set videos = greatest(videos - $3, 0) where device_id = $1 and period = $2', [deviceId, period(), credits]);
@@ -369,6 +381,8 @@ async function handle(req, res) {
   const parts = url.pathname.split('/').filter(Boolean);
   const ip = clientIp(req);
 
+  if (parts[0] === 'dashboard') return dashboard.handle(req, res, url, parts, ip);
+
   if (req.method === 'GET' && url.pathname === '/health') {
     return send(200, { ok: true, service: 'dreaming', version: VERSION });
   }
@@ -385,6 +399,11 @@ async function handle(req, res) {
     if (!name.trim()) throw httpError(400, 'Which symbol?');
     if (!librarySize()) throw httpError(503, 'The library is not available right now.');
     const e = findEntry(name);
+    pool.query(
+      `insert into library_hits (day, name, found, hits) values (current_date, $1, $2, 1)
+       on conflict (day, name) do update set hits = library_hits.hits + 1, found = excluded.found`,
+      [name.trim().toLowerCase().slice(0, 60), Boolean(e)],
+    ).catch(() => {});
     if (!e) return send(404, { ok: false, error: 'not_found' });
     return send(200, { ok: true, entry: publicEntry(e) });
   }
@@ -635,8 +654,17 @@ async function handle(req, res) {
       const uses = Math.min(Math.max(Number(body.uses) || 1, 1), 10000);
       const raw = crypto.randomBytes(6).toString('base64url').toUpperCase().replace(/[^A-Z0-9]/g, 'X');
       const code = `DREAM-${raw.slice(0, 4)}-${raw.slice(4, 8)}`;
-      await pool.query('insert into codes (code_hash, days, uses_left, note) values ($1, $2, $3, $4)', [sha256(code), days, uses, String(body.note || '').slice(0, 200)]);
+      await pool.query('insert into codes (code_hash, days, uses_left, uses_total, note, hint, created_by) values ($1, $2, $3, $3, $4, $5, $6)',
+        [sha256(code), days, uses, String(body.note || '').slice(0, 200), code.slice(-4), 'claude']);
       return send(201, { code, days, uses });
+    }
+
+    // A one-time link for a new dashboard member (used to make the Owner's first login): { email, name, role }.
+    if (req.method === 'POST' && parts[1] === 'staff-invite') {
+      const body = await readJson(req, 4096);
+      const out = await dashboard.createInvite({ email: body.email, name: body.name, role: String(body.role || 'owner'), createdBy: 'claude' });
+      await pool.query('insert into audit_log (staff_email, action, target, details) values ($1, $2, $3, $4)', ['claude', 'invited', out.email, { role: out.role }]);
+      return send(201, out);
     }
 
     if (req.method === 'GET' && parts[1] === 'accounts') {
@@ -700,10 +728,15 @@ async function handle(req, res) {
 
 // ---- Start ----
 
+const dashboard = createDashboard({
+  pool, plans: PLANS, imageDir: IMAGE_DIR, videoDir: VIDEO_DIR, librarySize, version: VERSION,
+  readJson, limited, errorLog, period,
+});
+
 const server = http.createServer((req, res) => {
   handle(req, res).catch((err) => {
     const status = err.status || 500;
-    if (status >= 500) console.error(err);
+    if (status >= 500) { console.error(err); logError(`${req.method} ${String(req.url).split('?')[0]}`, err.message); }
     if (!res.headersSent) {
       res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...corsHeaders(req) });
       res.end(JSON.stringify({ error: status >= 500 ? 'Server error' : err.message, ...(err.limit ? { limit: err.limit } : {}) }));
@@ -720,6 +753,7 @@ async function cleanup() {
 }
 
 await pool.query(SCHEMA);
+await pool.query(DASH_SCHEMA);
 await cleanup();
 setInterval(cleanup, 24 * 3600000).unref();
 

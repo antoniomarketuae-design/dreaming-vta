@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installs / updates the Dreaming inbox on the VPS. Safe to run again.
 # Usage (from the dev PC):  ssh root@VPS 'bash /root/dreaming-install.sh' < ~/.dreaming/admin.key
-# Expects server.js and package.json already copied to /opt/dreaming.
+# Expects server.js, dashboard.js, the dashboard/ folder and package.json already copied to /opt/dreaming.
 # Touches only: /opt/dreaming, the `dreaming` Postgres role + database, the PM2 process `dreaming-api`.
 set -euo pipefail
 

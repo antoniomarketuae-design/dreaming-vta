@@ -40,7 +40,8 @@ export async function getDevice() {
 
 export async function authHeaders() {
   const d = await getDevice();
-  return { 'X-Device-Id': d.id, 'X-Device-Token': d.token };
+  const v = globalThis.DREAMING_VERSION; // which app version this phone runs (the team dashboard shows it)
+  return { 'X-Device-Id': d.id, 'X-Device-Token': d.token, ...(v ? { 'X-App-Version': String(v) } : {}) };
 }
 
 /** Stores the account view the server sent (any response may carry one). */
