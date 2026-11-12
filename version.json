@@ -1,7 +1,12 @@
 {
-  "version": 30,
+  "version": 31,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 31,
+      "date": "2026-11-12",
+      "text": "Journal zodiac map: the top now says 'Today is' with the real date, then the sign season (older signs show their months). Dreams from the same night now share one creature with a small number on it; tap it to see all that night's dreams."
+    },
     {
       "version": 30,
       "date": "2026-11-12",
