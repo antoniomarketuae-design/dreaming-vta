@@ -1,7 +1,12 @@
 {
-  "version": 27,
+  "version": 28,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 28,
+      "date": "2026-11-12",
+      "text": "Fixed: the Journal could not open when the Squares look was chosen. If a look ever fails to draw, the Journal now opens in Rows instead of showing an error."
+    },
     {
       "version": 27,
       "date": "2026-11-12",
