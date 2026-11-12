@@ -14,14 +14,14 @@ import { esc } from '../../ui.js';
 import { localDay } from '../../store.js';
 
 const MARGIN = 0.16;     // room around a figure, in figure units
-const NODE_MAX = 44;     // a night's circle at most (px): small, the owner's choice
-const NODE_MIN = 22;     // ...and when zoomed right out
-const NODE_OPEN = 36;    // the size the map opens with (the whole sign mostly in view)
-const NODE_SPREAD = 52;  // nights are spread on the figure as if circles (+ date) were this wide at the whole-sign view
-const LABEL_ROOM = 24;   // px kept between neighbouring circles for the date under each
+const NODE_MAX = 20;     // a night's circle at most (px): small, so a full month of dreams still reads
+const NODE_MIN = 12;     // ...and when zoomed right out
+const NODE_OPEN = 20;    // the size the map opens with (the whole sign mostly in view)
+const NODE_SPREAD = 40;  // nights are spread on the figure as if circles (+ date) were this wide at the whole-sign view
+const LABEL_ROOM = 18;   // px kept between neighbouring circles for the date under each
 // Words by badge width: the day from 40 px, + weekday · month from 66 px, + the title from 92 px.
-// Words by the room between neighbouring circles (px): the number always, + the date from 52, + the title from 120.
-const WORDS = [[120, 'is-w3'], [52, 'is-w2'], [0, 'is-w1']];
+// Words by the room between neighbouring circles (px): the number always, + the date from 50, + the title from 100.
+const WORDS = [[100, 'is-w3'], [50, 'is-w2'], [0, 'is-w1']];
 const ZOOM_MAX = 8;
 const ART_PX = 160;      // picture size asked for a badge
 const FALLBACK = {       // a soft rounded badge for a sign without a drawn shape yet
