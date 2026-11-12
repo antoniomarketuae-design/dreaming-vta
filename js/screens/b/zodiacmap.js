@@ -142,6 +142,23 @@ function badgeHTML(night, season, x, y, newest) {
   const label = [many ? `${night.length} dreams: ${night.map((x) => String(x.d.title || '').trim() || 'Untitled dream').join('; ')}` : title, ok ? date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '',
     type !== 'general' ? look.name : '', moon ? `Moon in ${moon.name}` : ''].filter(Boolean).join(', ');
   const cid = `zc-${String(d.id).replace(/[^\w-]/g, '')}`;
+  const href = many ? '#journal' : `#dream/${encodeURIComponent(d.id)}`;
+  const extra = many ? ` data-zday="${esc(e.day)}" role="button"` : '';
+  const badges = `
+      ${moon ? `<span class="jr-zn-moon" aria-hidden="true" title="Moon in ${esc(moon.name)}">${moon.glyph}</span>` : ''}
+      ${many ? `<span class="jr-zn-count" aria-hidden="true">${night.length}</span>` : ''}`;
+  if (shape.art) {
+    // A sign drawn from a picture: its lines glow in the dream's colour; the words sit under it.
+    return `
+    <a class="jr-zn jr-zn-pic${newest ? ' is-newest' : ''}" href="${href}" data-zn${extra}
+      style="left:${x.toFixed(3)}%;top:${y.toFixed(3)}%;--tc:${look.rgb};--ratio:${shape.ratio.toFixed(4)}" aria-label="${esc(label)}">
+      <span class="jr-zn-glow" aria-hidden="true"><span class="jr-zn-art" style="-webkit-mask-image:url(${shape.art});mask-image:url(${shape.art})"></span></span>
+      <span class="jr-zn-cap" aria-hidden="true">
+        <b>${ok ? date.getDate() : ''}</b><small>${esc(wk)}<span class="jr-zn-mon"> · ${esc(mon)}</span></small>
+      </span>
+      <span class="jr-zn-sub" aria-hidden="true">${esc(title)}</span>${badges}
+    </a>`;
+  }
   return `
     <a class="jr-zn${newest ? ' is-newest' : ''}" href="${many ? `#journal` : `#dream/${encodeURIComponent(d.id)}`}" data-zn${many ? ` data-zday="${esc(e.day)}" role="button"` : ''}
       style="left:${x.toFixed(3)}%;top:${y.toFixed(3)}%;--tc:${look.rgb};--ratio:${(H / W).toFixed(4)}" aria-label="${esc(label)}">

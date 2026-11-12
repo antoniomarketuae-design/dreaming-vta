@@ -8,4 +8,11 @@
 import { SHAPES_A } from './signshapes-a.js';
 import { SHAPES_B } from './signshapes-b.js';
 
+// Signs drawn from a picture instead of a silhouette: { art: path from index.html, ratio: height / width }.
+// Scorpio: the owner's own line drawing (rights confirmed by the owner, 2026-11-12).
+const PICTURES = {
+  scorpio: { art: 'images/signs/scorpio.png', ratio: 400 / 600 },
+};
+
 export const SHAPES = { ...SHAPES_A, ...SHAPES_B };
+for (const [id, pic] of Object.entries(PICTURES)) SHAPES[id] = { ...SHAPES[id], ...pic };
