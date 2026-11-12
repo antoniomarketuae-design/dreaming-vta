@@ -1247,3 +1247,86 @@ body.jr-sq-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .jr-zn-pic.is-newest .jr-zn-glow { animation: none; }
 }
+
+/* ---- v41: the sign's emblem once, and each night as a small numbered circle ---- */
+
+/* The emblem: the sign's picture (or its symbol), big and softly glowing, near the map's top-left corner. */
+.jr-zm-emblem {
+  position: absolute;
+  top: 6px;
+  left: 14px;
+  z-index: 1;
+  width: 46%;
+  opacity: 0.5;
+  filter: drop-shadow(0 0 6px rgba(255, 217, 138, 0.6)) drop-shadow(0 0 18px rgba(255, 217, 138, 0.25));
+  pointer-events: none;
+}
+.jr-zm-emblem-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--moon);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: left top;
+  mask-position: left top;
+}
+.jr-zm-emblem-glyph {
+  width: auto;
+  aspect-ratio: auto;
+  color: var(--moon);
+  font-family: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols", system-ui, sans-serif;
+  font-size: 96px;
+  line-height: 1;
+  opacity: 0.35;
+}
+/* The sky (and the dreams) above the emblem, which shows through the faint Milky Way. */
+.jr-zm-scroll { z-index: 2; }
+
+/* A night: a small circle with its day number, its date under it. */
+.jr-zn-dot { height: var(--node); }
+.jr-zn-ring {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border: 2px solid rgb(var(--tc));
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(var(--tc), 0.35), rgba(14, 9, 38, 0.92) 70%);
+  box-shadow: 0 0 0 2px rgba(14, 9, 38, 0.6), 0 0 12px rgba(var(--tc), 0.55);
+  color: #fff8e6;
+  font-size: calc(var(--node) * 0.42);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.jr-zn-dot.is-newest .jr-zn-ring { animation: jr-zn-dot-glow 3.2s ease-in-out infinite; }
+@keyframes jr-zn-dot-glow {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(14, 9, 38, 0.6), 0 0 12px rgba(var(--tc), 0.55); }
+  50% { box-shadow: 0 0 0 2px rgba(14, 9, 38, 0.6), 0 0 22px rgba(var(--tc), 0.9); }
+}
+.jr-zn-dot:active .jr-zn-ring { transform: scale(0.92); }
+.jr-zn-date {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 50%;
+  display: none;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: rgba(14, 9, 38, 0.72);
+  transform: translateX(-50%);
+  color: rgba(255, 217, 138, 0.92);
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.is-w2 .jr-zn-date, .is-w3 .jr-zn-date { display: block; }
+.jr-zn-dot .jr-zn-sub { top: calc(100% + 19px); max-width: 110px; }
+.jr-zn-dot .jr-zn-count { left: auto; right: -6px; top: -6px; }
+@media (prefers-reduced-motion: reduce) {
+  .jr-zn-dot.is-newest .jr-zn-ring { animation: none; }
+}
