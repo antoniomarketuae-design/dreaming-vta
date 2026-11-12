@@ -1,7 +1,12 @@
 {
-  "version": 44,
+  "version": 45,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 45,
+      "date": "2026-11-12",
+      "text": "Journal map is bigger: the sign now fills the whole map, with less empty sky around it, so your dreams spread out more and are easier to tap."
+    },
     {
       "version": 44,
       "date": "2026-11-12",

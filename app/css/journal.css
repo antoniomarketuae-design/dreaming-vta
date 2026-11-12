@@ -920,11 +920,11 @@ body.jr-sq-open { overflow: hidden; }
   overflow: hidden;
 }
 .jr-zm-scroll {
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%),
-    linear-gradient(to bottom, transparent 0, #000 56px, #000 calc(100% - 56px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%),
+    linear-gradient(to bottom, transparent 0, #000 26px, #000 calc(100% - 26px), transparent 100%);
   -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(to right, transparent 0, #000 40px, #000 calc(100% - 40px), transparent 100%),
-    linear-gradient(to bottom, transparent 0, #000 56px, #000 calc(100% - 56px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%),
+    linear-gradient(to bottom, transparent 0, #000 26px, #000 calc(100% - 26px), transparent 100%);
   mask-composite: intersect;
 }
 .jr-zm-scroll {
@@ -1394,3 +1394,8 @@ body.jr-sq-open { overflow: hidden; }
 .jr-zm-hint { animation: jr-zm-hint-out 0.6s ease 4s forwards; }
 @keyframes jr-zm-hint-out { to { opacity: 0; visibility: hidden; } }
 @media (prefers-reduced-motion: reduce) { .jr-zm-hint { animation-duration: 0.01s; animation-delay: 6s; } }
+
+/* v45: the figure may be stretched in height to fill the map; its stars and the sky's dust stay round. */
+.jr-zm-sky circle { transform-box: fill-box; transform-origin: center; transform: scaleY(var(--unstretch, 1)); }
+/* The map reaches down to the List · Stories · Milky Way switch. */
+.jr-new .jr-zm { --jr-above: 190px; }

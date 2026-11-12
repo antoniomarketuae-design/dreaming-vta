@@ -13,7 +13,12 @@ import { dreamType } from '../../symbols.js';
 import { esc } from '../../ui.js';
 import { localDay } from '../../store.js';
 
-const MARGIN = 0.16;     // room around a figure, in figure units
+const MARGIN_X = 0.12;   // room left and right of a figure, in figure units
+const MARGIN_Y = 0.12;   // ...and above and below it
+const BOX_MIN_AR = 0.75; // a tall figure gets side room so the whole sign fits a phone-shaped map
+const STRETCH_MIN = 0.85; // the figure's height may be squeezed to this to fit the map...
+const STRETCH_MAX = 1.3; // ...or stretched up to this to fill a tall map (stars stay round)
+const CTL_ROOM = 44;     // px kept clear at the map's bottom for "Pinch to zoom" and the Whole sign switch
 const NODE_MAX = 20;     // a night's circle at most (px): small, so a full month of dreams still reads
 const NODE_MIN = 12;     // ...and when zoomed right out
 const NODE_OPEN = 20;    // the size the map opens with (the whole sign mostly in view)
@@ -186,14 +191,15 @@ function seasonMapHTML(season, items) {
   const fig = FIGURES[season.sign.id];
   const n = items.length;
   const now = seasonOf(localDay())?.key === season.key; // the sign the Sun is in today
-  const hb = fig.h + 2 * MARGIN;
-  const wb = Math.max(fig.w + 2 * MARGIN, hb * 1.05);
+  const hb = fig.h + 2 * MARGIN_Y;
+  const wb = Math.max(fig.w + 2 * MARGIN_X, hb * BOX_MIN_AR);
   const ox = (wb - fig.w) / 2;
+  const oy = MARGIN_Y;
   const ar = wb / hb;
   const VB = 1000;
   const VH = Math.round(VB / ar);
   const sx = (x) => ((ox + x) / wb) * VB;
-  const sy = (y) => ((MARGIN + y) / hb) * VH;
+  const sy = (y) => ((oy + y) / hb) * VH;
   const lines = fig.lines.map(([a, b]) => `M${sx(fig.stars[a][0]).toFixed(0)} ${sy(fig.stars[a][1]).toFixed(0)}L${sx(fig.stars[b][0]).toFixed(0)} ${sy(fig.stars[b][1]).toFixed(0)}`).join('');
   const stars = fig.stars.map(([x, y, mag]) => `<circle cx="${sx(x).toFixed(0)}" cy="${sy(y).toFixed(0)}" r="${Math.max(2.5, 7 - mag * 1.1).toFixed(1)}"/>`).join('');
   // Spread the dreams so that, fully zoomed out on a phone (~340 px wide), the small badges still don't pile up.
@@ -204,8 +210,8 @@ function seasonMapHTML(season, items) {
     byDay.get(e.day).push(e);
   }
   const nights = [...byDay.values()].reverse();
-  const spots = placeOnFigure(fig, nights.length, { minGap: ((NODE_SPREAD + 6) / 340) * wb, room: MARGIN * 0.7 });
-  const badges = nights.map((night, i) => badgeHTML(night, season, ((ox + spots[i][0]) / wb) * 100, ((MARGIN + spots[i][1]) / hb) * 100, i === nights.length - 1)).join('');
+  const spots = placeOnFigure(fig, nights.length, { minGap: ((NODE_SPREAD + 6) / 340) * wb, room: MARGIN_X * 0.35 }); // circles may leave the lines a little, never off the screen
+  const badges = nights.map((night, i) => badgeHTML(night, season, ((ox + spots[i][0]) / wb) * 100, ((oy + spots[i][1]) / hb) * 100, i === nights.length - 1)).join('');
   return `
     <section class="jr-month jr-zs" aria-label="${esc(`${season.sign.name} season, ${seasonRange(season)}, ${plural(n, 'dream')}`)}">
       <h2 class="jr-zs-head${now ? ' is-now' : ''}">
@@ -275,17 +281,24 @@ function setupMap(el) {
   // Badge centres as fractions of the layer; distances measured in layer widths.
   const pts = badges.map((b) => [parseFloat(b.style.left) / 100, parseFloat(b.style.top) / 100]);
   const scale = badges.map((b) => Number(b.style.getPropertyValue('--s')) || 1); // nights with several dreams are bigger
-  let dmin = Infinity;
-  for (let i = 0; i < pts.length; i += 1) {
-    for (let j = i + 1; j < pts.length; j += 1) {
-      dmin = Math.min(dmin, Math.hypot(pts[i][0] - pts[j][0], (pts[i][1] - pts[j][1]) / ar) / ((scale[i] + scale[j]) / 2));
-    }
-  }
-  if (!Number.isFinite(dmin)) dmin = 1;
 
   let z = 1;
   let vw = 0;
   let vh = 0;
+  let k = 1;    // the figure's height stretch: the whole sign fills the map's height (see STRETCH_*)
+  let dmin = 1; // the closest two circles, in layer widths, edge to edge for bigger circles
+  /** After vw / vh are known: the stretch, and the closest circles with it. */
+  const measure = () => {
+    k = Math.min(STRETCH_MAX, Math.max(STRETCH_MIN, ((vh - CTL_ROOM) * ar) / vw));
+    layer.style.setProperty('--unstretch', (1 / k).toFixed(4));
+    dmin = Infinity;
+    for (let i = 0; i < pts.length; i += 1) {
+      for (let j = i + 1; j < pts.length; j += 1) {
+        dmin = Math.min(dmin, Math.hypot(pts[i][0] - pts[j][0], ((pts[i][1] - pts[j][1]) * k) / ar) / ((scale[i] + scale[j]) / 2));
+      }
+    }
+    if (!Number.isFinite(dmin)) dmin = 1;
+  };
   // Room between the two closest circles (px) at a zoom; a circle leaves LABEL_ROOM of it for the date underneath.
   const roomAt = (zoom) => dmin * vw * zoom;
   const nodeAt = (zoom) => Math.max(NODE_MIN, Math.min(NODE_MAX, roomAt(zoom) - LABEL_ROOM));
@@ -294,15 +307,16 @@ function setupMap(el) {
   /** Zoom to `next`, keeping the point under (fx, fy) (viewport px) where it is. */
   const apply = (next, fx = vw / 2, fy = vh / 2) => {
     const oldW = layer.offsetWidth || vw;
-    const oldH = layer.offsetHeight || vw / ar;
+    const oldH = layer.offsetHeight || (vw / ar) * k;
     const lx = (scroller.scrollLeft + fx) / oldW;
     const ly = (scroller.scrollTop + fy) / oldH;
     z = Math.min(ZOOM_MAX, Math.max(1, next));
     const w = vw * z;
-    const h = w / ar;
+    const h = (w / ar) * k;
     layer.style.width = `${w}px`;
     layer.style.height = `${h}px`;
-    layer.style.marginTop = h < vh ? `${(vh - h) / 2}px` : '0px';
+    // Centred in the map, but never over the bottom row (hint, Whole sign).
+    layer.style.marginTop = h < vh ? `${Math.max(0, Math.min((vh - h) / 2, vh - h - CTL_ROOM))}px` : '0px';
     const node = nodeAt(z);
     layer.style.setProperty('--node', `${node.toFixed(1)}px`);
     const words = WORDS.find(([at]) => roomAt(z) >= at)?.[1] || '';
@@ -332,12 +346,13 @@ function setupMap(el) {
     const wasWhole = z <= 1.01;
     vw = w;
     vh = scroller.clientHeight;
+    measure();
     if (wasWhole && !first) apply(1); else focusNewest();
   };
 
   vw = scroller.clientWidth;
   vh = scroller.clientHeight;
-  if (vw) focusNewest();
+  if (vw) { measure(); focusNewest(); }
   // Measure again whenever the map gets (or changes) its width, e.g. when it was drawn before the page was laid out.
   const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(() => refit()) : null;
   watch?.observe(scroller);
