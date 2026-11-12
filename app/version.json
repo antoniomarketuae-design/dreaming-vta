@@ -1,7 +1,12 @@
 {
-  "version": 41,
+  "version": 42,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 42,
+      "date": "2026-11-12",
+      "text": "Journal: the scorpion emblem is purple again, the 'General' filter is gone, and choosing a filter no longer pops up an extra line or moves the map. The top is packed tighter: filters right under the title, the Map / Squares / Rows switch attached below them, and the date row right under it."
+    },
     {
       "version": 41,
       "date": "2026-11-12",
