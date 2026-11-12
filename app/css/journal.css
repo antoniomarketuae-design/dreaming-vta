@@ -865,47 +865,105 @@ body.jr-sq-open { overflow: hidden; }
 .jr-zs-dates { font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 217, 138, 0.8); }
 .jr-zs-n { flex: none; color: var(--text-faint); font-size: 12.5px; font-weight: 600; }
 
-/* The constellation itself: no box, just the sky. */
-.jr-zs-fig { position: relative; width: 100%; max-height: 420px; margin: 0 auto; }
-.jr-zs-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.jr-zs-glow { fill: none; stroke: rgba(255, 217, 138, 0.16); stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; filter: blur(3px); }
-.jr-zs-line { fill: none; stroke: rgba(255, 217, 138, 0.55); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.jr-zs-dots circle { fill: #fff6dc; opacity: 0.85; }
-
-.jr-zs-star {
+/* The map: a zoomable window on the sign's sky (a Milky Way band, the constellation in thin gold, the dreams). */
+.jr-zm {
+  position: relative;
+  height: min(380px, 104vw);
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 26px;
+  background: radial-gradient(120% 90% at 50% 40%, rgba(40, 26, 92, 0.55), rgba(10, 6, 30, 0.75));
+  box-shadow: inset 0 0 0 1px rgba(255, 217, 138, 0.14), inset 0 0 40px rgba(0, 0, 0, 0.45);
+}
+.jr-zm-scroll {
   position: absolute;
-  width: var(--star);
-  height: var(--star);
+  inset: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
+  scrollbar-width: none;
+}
+.jr-zm-scroll::-webkit-scrollbar { display: none; }
+.jr-zm-layer { position: relative; width: 100%; aspect-ratio: 1.4; --node: 60px; }
+.jr-zm-sky { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.jr-zm-mw path { fill: none; stroke-linecap: round; }
+.jr-zm-mw-haze { stroke: rgba(150, 120, 240, 0.045); }
+.jr-zm-mw-core { stroke: rgba(255, 240, 222, 0.045); }
+.jr-zm-mw-lane { stroke: rgba(10, 6, 30, 0.12); stroke-dasharray: 90 30 160 40 60 24; }
+.jr-zm-mw .jr-zm-dust { fill: rgba(240, 234, 255, 0.55); stroke: none; }
+.jr-zm-mw .jr-zm-dust-big { fill: #fff6dc; stroke: none; opacity: 0.85; }
+.jr-zm-glow { fill: none; stroke: rgba(255, 217, 138, 0.18); stroke-width: 7px; stroke-linecap: round; stroke-linejoin: round; }
+.jr-zm-line { fill: none; stroke: rgba(255, 217, 138, 0.6); stroke-width: 1.4px; stroke-linecap: round; stroke-linejoin: round; }
+.jr-zm-stars circle { fill: #fff6dc; }
+
+/* A dream: a badge shaped like the sign's creature, picture faintly inside, words on its body. */
+.jr-zn {
+  position: absolute;
+  width: var(--node);
+  height: calc(var(--node) * var(--ratio));
   transform: translate(-50%, -50%);
   color: var(--text);
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
+  transition: width 0.2s ease, height 0.2s ease;
 }
-.jr-zs-pic {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  border: 2px solid rgba(var(--tc), 0.9);
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #c9b6ff, #3a2a78);
-  box-shadow: 0 0 0 3px rgba(14, 9, 38, 0.6), 0 0 16px rgba(var(--tc), 0.6), 0 0 34px rgba(var(--tc), 0.25);
-  transition: transform 0.15s ease;
+.jr-zn-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 8px rgba(var(--tc), 0.45)); }
+.jr-zn-fill { fill: rgba(30, 20, 72, 0.92); }
+.jr-zn-img { opacity: 0.5; }
+.jr-zn-shade { fill: rgba(12, 8, 32, 0.45); }
+.jr-zn-lines { fill: none; stroke: rgba(255, 217, 138, 0.45); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.jr-zn-edge { fill: none; stroke: rgb(var(--tc)); stroke-width: 2.6; stroke-linejoin: round; }
+.jr-zn:active .jr-zn-svg { transform: scale(0.95); }
+.jr-zn.is-newest .jr-zn-svg { animation: jr-zn-glow 3.2s ease-in-out infinite; }
+@keyframes jr-zn-glow {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(var(--tc), 0.45)); }
+  50% { filter: drop-shadow(0 0 16px rgba(var(--tc), 0.85)); }
 }
-.jr-zs-img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.jr-zs-img:not([src]) { visibility: hidden; }
-.jr-zs-star:active .jr-zs-pic { transform: scale(0.92); }
-.jr-zs-star.is-newest .jr-zs-pic { animation: jr-zs-twinkle 3.2s ease-in-out infinite; }
-@keyframes jr-zs-twinkle {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(14, 9, 38, 0.6), 0 0 16px rgba(var(--tc), 0.6), 0 0 34px rgba(var(--tc), 0.25); }
-  50% { box-shadow: 0 0 0 3px rgba(14, 9, 38, 0.6), 0 0 24px rgba(var(--tc), 0.85), 0 0 50px rgba(var(--tc), 0.4); }
-}
-/* The Moon's sign that night: a tiny badge on the star's shoulder. */
-.jr-zs-moon {
+.jr-zn-text {
   position: absolute;
-  right: -5px;
-  bottom: -3px;
-  display: grid;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  overflow: hidden;
+  text-align: center;
+  line-height: 1;
+  pointer-events: none;
+}
+.is-detail .jr-zn-text { display: flex; }
+.jr-zn-text b { font-size: calc(var(--node) * 0.155); font-weight: 700; line-height: 1; color: var(--moon); text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7); }
+.jr-zn-text small {
+  margin-top: 1px;
+  font-size: calc(var(--node) * 0.07);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 217, 138, 0.9);
+  white-space: nowrap;
+}
+.jr-zn-text em {
+  display: -webkit-box;
+  max-width: 100%;
+  margin-top: 1px;
+  overflow: hidden;
+  font-size: calc(var(--node) * 0.076);
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.08;
+  color: var(--text);
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.8);
+}
+/* The Moon's sign that night, on the badge's shoulder (only when the words show). */
+.jr-zn-moon {
+  position: absolute;
+  right: 2%;
+  top: -4%;
+  display: none;
   place-items: center;
   width: 18px;
   height: 18px;
@@ -917,24 +975,123 @@ body.jr-sq-open { overflow: hidden; }
   font-size: 10.5px;
   line-height: 1;
 }
-.jr-zs-day {
+.is-detail .jr-zn-moon { display: grid; }
+
+/* Zoom buttons, bottom right, over the map. */
+.jr-zm-ctl {
   position: absolute;
-  top: calc(100% + 4px);
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 1px 6px;
-  border-radius: 7px;
-  background: rgba(14, 9, 38, 0.7);
-  color: rgba(255, 217, 138, 0.85);
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 6px;
 }
-.jr-zs-day b { color: var(--moon); font-size: 11px; }
+.jr-zm-ctl button {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 217, 138, 0.35);
+  border-radius: 999px;
+  background: rgba(14, 9, 38, 0.78);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--moon);
+  font: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+.jr-zm-ctl .jr-zm-toggle { font-size: 12.5px; letter-spacing: 0.02em; }
+/* "Pinch to zoom", bottom left, until the first pinch on this map. */
+.jr-zm-hint {
+  position: absolute;
+  left: 12px;
+  bottom: 16px;
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(14, 9, 38, 0.7);
+  color: var(--text-dim);
+  font-size: 11.5px;
+  font-weight: 600;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.jr-zm.is-pinched .jr-zm-hint { opacity: 0; }
+.jr-zm-ctl button:active { transform: scale(0.94); }
 
 @media (prefers-reduced-motion: reduce) {
-  .jr-zs-star.is-newest .jr-zs-pic { animation: none; }
-  .jr-zs-pic { transition: none; }
+  .jr-zn { transition: none; }
+  .jr-zn.is-newest .jr-zn-svg { animation: none; }
+}
+
+
+/* ---- New layout: a magnifying glass and a full row of filter squares (the search field opens on demand) ---- */
+
+.jr-searchrow-new { gap: 6px; }
+.jr-searchrow-new:not(.is-search) .jr-search-wrap,
+.jr-searchrow-new:not(.is-search) .jr-search-cancel,
+.jr-searchrow-new.is-search .jr-search-btn,
+.jr-searchrow-new.is-search .jr-fstrip { display: none; }
+.jr-search-btn,
+.jr-fs-tile {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 58px;
+  padding: 0;
+  border-radius: 16px;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.jr-search-btn {
+  width: 40px;
+  border: 1px solid var(--glass-border);
+  background: rgba(22, 15, 56, 0.55);
+  color: var(--text-dim);
+}
+.jr-search-btn svg { width: 21px; height: 21px; }
+.jr-search-cancel {
+  flex: none;
+  min-height: 44px;
+  padding: 0 4px 0 6px;
+  border: 0;
+  background: none;
+  color: var(--moon);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.jr-fstrip { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 5px; }
+.jr-fs-tile {
+  min-width: 0;
+  border: 1px solid rgba(var(--tc), 0.24);
+  background: linear-gradient(160deg, rgba(var(--tc), 0.12), rgba(255, 255, 255, 0.02)), rgba(22, 15, 56, 0.5);
+  color: var(--text-dim);
+}
+.jr-fs-tile:active, .jr-search-btn:active { transform: scale(0.94); }
+.jr-fs-glyph { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 9px; color: rgb(var(--tc)); }
+.jr-fs-glyph svg { width: 21px; height: 21px; }
+.jr-fs-name { max-width: 100%; overflow: hidden; padding: 0 1px; font-size: 8.6px; font-weight: 700; letter-spacing: -0.015em; white-space: nowrap; text-overflow: clip; }
+.jr-fs-tile[aria-pressed="true"] {
+  border-color: rgba(var(--tc), 0.9);
+  background: linear-gradient(160deg, rgba(var(--tc), 0.34), rgba(var(--tc), 0.1)), rgba(22, 15, 56, 0.6);
+  color: var(--text);
+  box-shadow: 0 0 14px rgba(var(--tc), 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.jr-fs-all { border-style: dashed; }
+.jr-fs-badge { position: absolute; top: -6px; right: -5px; box-shadow: 0 0 0 2px #1b1440; }
+
+@media (max-width: 360px) {
+  .jr-fs-name { font-size: 7.8px; }
+  .jr-fstrip { gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jr-search-btn, .jr-fs-tile { transition: none; }
 }

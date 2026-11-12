@@ -1,7 +1,12 @@
 {
-  "version": 26,
+  "version": 27,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 27,
+      "date": "2026-11-12",
+      "text": "Zodiac map: each sign season is now a sky map with the Milky Way behind it, and every dream is drawn as that sign's creature (a scorpion for Scorpio, a crab for Cancer...) with its date, weekday, month and title inside. The map opens close on your newest dreams; pinch with two fingers to zoom, or tap 'Whole sign'. Journal: search is now a small magnifying glass, and the row is filled with bigger filter squares. Home: 'Show less' after 'Load more'. Settings: 'Remove example dreams' if example dreams were added."
+    },
     {
       "version": 26,
       "date": "2026-11-12",
