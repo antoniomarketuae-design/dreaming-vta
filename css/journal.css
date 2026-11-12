@@ -1053,8 +1053,8 @@ body.jr-sq-open { overflow: hidden; }
 /* Zoom buttons, bottom right, over the map. */
 .jr-zm-ctl {
   position: absolute;
-  right: 22px;
-  bottom: 14px;
+  right: 18px;
+  bottom: 10px;
   display: flex;
   gap: 6px;
 }
@@ -1074,12 +1074,12 @@ body.jr-sq-open { overflow: hidden; }
   line-height: 1;
   cursor: pointer;
 }
-.jr-zm-ctl .jr-zm-toggle { font-size: 12.5px; letter-spacing: 0.02em; }
+.jr-zm-ctl .jr-zm-toggle { height: 26px; padding: 0 10px; font-size: 11px; letter-spacing: 0.02em; }
 /* "Pinch to zoom", bottom left, until the first pinch on this map. */
 .jr-zm-hint {
   position: absolute;
-  left: 22px;
-  bottom: 20px;
+  left: 18px;
+  bottom: 14px;
   margin: 0;
   padding: 4px 10px;
   border-radius: 999px;
@@ -1346,9 +1346,11 @@ body.jr-sq-open { overflow: hidden; }
 /* ---- v44: more room for the map ---- */
 /* The title row (Journal · search · + Dream) right at the top. */
 .jr-new .jr-head { padding-top: calc(env(safe-area-inset-top) + 4px); padding-bottom: 3px; }
-.jr-new .jr-head .screen-title { font-size: 26px; line-height: 1.1; }
-.jr-new .jr-head-actions.is-new .jr-add { min-height: 30px; }
-.jr-new .jr-head-search { width: 30px; height: 30px; }
+.jr-new .jr-head .screen-title { font-size: 29px; line-height: 1.1; }
+.jr-new .jr-head-actions.is-new .jr-add { min-height: 35px; padding: 0 15px 0 11px; font-size: 15.5px; }
+.jr-new .jr-head-actions.is-new .jr-add svg { width: 18px; height: 18px; }
+.jr-new .jr-head-search { width: 36px; height: 36px; }
+.jr-new .jr-head-search svg { width: 25px; height: 25px; }
 /* A slimmer filter bar. */
 .jr-new .jr-fstrip { gap: 3px; padding: 3px; border-radius: 15px; }
 .jr-new .jr-fstrip .jr-fs-tile { height: 40px; gap: 1px; border-radius: 11px; }
@@ -1398,4 +1400,4 @@ body.jr-sq-open { overflow: hidden; }
 /* v45: the figure may be stretched in height to fill the map; its stars and the sky's dust stay round. */
 .jr-zm-sky circle { transform-box: fill-box; transform-origin: center; transform: scaleY(var(--unstretch, 1)); }
 /* The map reaches down to the List · Stories · Milky Way switch. */
-.jr-new .jr-zm { --jr-above: 190px; }
+.jr-new .jr-zm { --jr-above: 194px; }

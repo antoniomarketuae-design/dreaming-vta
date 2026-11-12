@@ -1,7 +1,12 @@
 {
-  "version": 45,
+  "version": 46,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 46,
+      "date": "2026-11-12",
+      "text": "The bottom bar (Home, Journal, Insights, Calendar, Profile) is a bit bigger again, the Journal title, magnifying glass and '+ Dream' are a little bigger, and the map's 'Newest dreams' / 'Whole sign' button is smaller."
+    },
     {
       "version": 45,
       "date": "2026-11-12",
