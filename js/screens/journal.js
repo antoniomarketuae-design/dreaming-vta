@@ -330,7 +330,9 @@ function rowHTML(e) {
 }
 
 const LIST_STYLES = ['zodiac', 'squares', 'rows'];
+let styleOverride = null; // 'rows' for one paint when the chosen look failed to draw
 const listStyle = () => {
+  if (styleOverride) return styleOverride;
   const v = getSetting(LIST_STYLE_KEY, 'zodiac');
   return LIST_STYLES.includes(v) ? v : 'zodiac';
 };
@@ -721,11 +723,22 @@ export default {
           body.innerHTML = cards + listHTML(current, filtering);
           if (newLayout && listStyle() === 'zodiac') unwireMaps = wireZodiacMaps(body);
         } catch (err) {
-          // A look that fails to draw (Zodiac, Squares) must never block the journal: fall back to plain rows.
+          // A look that fails to draw (Map, Squares) must never block the journal: show rows this time, keep the
+          // chosen look (so it can be tapped again), and say what went wrong so it can be reported.
           console.error(err);
           if (!newLayout || listStyle() === 'rows') throw err;
-          setSetting(LIST_STYLE_KEY, 'rows');
-          body.innerHTML = cards + listHTML(current, filtering);
+          const failed = listStyle();
+          const where = String(err?.stack || '').split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 2).join(' | ');
+          styleOverride = 'rows';
+          try {
+            body.innerHTML = cards + listHTML(current, filtering);
+          } finally {
+            styleOverride = null;
+          }
+          for (const btn of body.querySelectorAll('[data-liststyle]')) btn.setAttribute('aria-pressed', String(btn.dataset.liststyle === failed));
+          body.querySelector('.jr-lstyle')?.insertAdjacentHTML('afterend', `
+            <p class="jr-lookfail" role="status">The ${failed === 'zodiac' ? 'Map' : 'Squares'} look hit a problem on this phone, so here are your dreams as rows.
+              Please send us a screenshot of this: <code>${esc(String(err?.message || err))}${where ? ` — ${esc(where.slice(0, 220))}` : ''}</code></p>`);
         }
       } else {
         const byDay = new Map();
