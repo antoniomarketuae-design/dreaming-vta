@@ -1,7 +1,12 @@
 {
-  "version": 32,
+  "version": 33,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 33,
+      "date": "2026-11-12",
+      "text": "Journal: the 'Zodiac' look is now called 'Map' (Map / Squares / Rows)."
+    },
     {
       "version": 32,
       "date": "2026-11-12",
