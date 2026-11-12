@@ -1,7 +1,12 @@
 {
-  "version": 31,
+  "version": 32,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 32,
+      "date": "2026-11-12",
+      "text": "Journal: the magnifying glass now sits next to '+ Dream' at the same size, and the filter squares get the whole row."
+    },
     {
       "version": 31,
       "date": "2026-11-12",

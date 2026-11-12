@@ -49,6 +49,23 @@
 }
 .jr-add svg { width: 18px; height: 18px; stroke-width: 2.2; }
 .jr-add:active { opacity: 0.8; }
+/* New layout: the magnifying glass beside "+ Dream", the same height and look. */
+.jr-head-actions { display: flex; align-items: center; gap: 8px; }
+.jr-head-search {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(240, 234, 255, 0.92);
+  color: #24184f;
+  box-shadow: 0 4px 18px rgba(155, 123, 255, 0.35);
+  cursor: pointer;
+}
+.jr-head-search svg { width: 20px; height: 20px; stroke-width: 2.2; }
+.jr-head-search:active { opacity: 0.8; }
 
 /* ---- Search ---- */
 

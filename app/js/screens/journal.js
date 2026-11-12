@@ -223,7 +223,10 @@ function headHTML() {
   return `
     <header class="jr-head">
       <h1 class="screen-title">Journal</h1>
-      <a class="jr-add" href="#record" aria-label="Record a new dream">${icons.plus}<span>Dream</span></a>
+      <span class="jr-head-actions">
+        ${newLayout ? `<button type="button" class="jr-head-search" data-search-open aria-label="Search your dreams">${icons.search}</button>` : ''}
+        <a class="jr-add" href="#record" aria-label="Record a new dream">${icons.plus}<span>Dream</span></a>
+      </span>
     </header>`;
 }
 
@@ -617,7 +620,6 @@ export default {
       <div class="jr">
         ${headHTML()}
         <div class="jr-searchrow${newLayout ? ` jr-searchrow-new${searchOpen || query ? ' is-search' : ''}` : ''}">
-          ${newLayout ? `<button type="button" class="jr-search-btn" data-search-open aria-label="Search your dreams">${icons.search}</button>` : ''}
           <div class="jr-search-wrap">
             ${icons.search}
             <input class="field jr-search" type="search" placeholder="Search your dreams" aria-label="Search dreams"
