@@ -126,13 +126,15 @@ function rowHTML(d) {
     </li>`;
 }
 
+/** "Load more dreams" while some are hidden, and "Show less" once more than the first ones show. */
 function moreHTML(total) {
   const left = total - shown;
-  if (left <= 0) return '';
-  return `
-    <button type="button" class="btn btn-ghost bh-more" data-more>
-      <span>Load more dreams</span><span class="bh-more-n">${left} left</span>
-    </button>`;
+  const more = left > 0 ? `
+      <button type="button" class="btn btn-ghost bh-more" data-more>
+        <span>Load more dreams</span><span class="bh-more-n">${left} left</span>
+      </button>` : '';
+  const less = shown > FIRST ? `<button type="button" class="btn btn-ghost bh-less" data-less>Show less</button>` : '';
+  return more || less ? `<div class="bh-more-row" data-more-row>${more}${less}</div>` : '';
 }
 
 function recentHTML(dreams) {
@@ -262,20 +264,26 @@ export default {
       shown = Math.min(dreams.length, shown + STEP);
       list.insertAdjacentHTML('beforeend', dreams.slice(from, shown).map(rowHTML).join(''));
       for (const li of [...list.children].slice(from)) li.classList.add('bh-new');
+      const row = root.querySelector('[data-more-row]');
       const html = moreHTML(dreams.length).trim();
-      if (html) {
-        btn.outerHTML = html;
-        root.querySelector('[data-more]')?.focus({ preventScroll: true });
-      } else {
-        btn.remove();
-        list.children[from]?.querySelector('a')?.focus({ preventScroll: true });
-      }
+      if (row) row.outerHTML = html;
+      (root.querySelector('[data-more]') || list.children[from]?.querySelector('a'))?.focus({ preventScroll: true });
+    };
+
+    // "Show less": back to the first dreams, keeping the "Recent dreams" heading in view.
+    const showLess = () => {
+      shown = FIRST;
+      paint();
+      const head = root.querySelector('#bh-recent-title');
+      if (head && head.getBoundingClientRect().top < 0) head.scrollIntoView({ block: 'start' });
+      root.querySelector('[data-more]')?.focus({ preventScroll: true });
     };
 
     // Listeners live on our own root (the screen element is shared with other screens).
     root.addEventListener('click', (e) => {
       let b;
       if ((b = e.target.closest('[data-more]'))) loadMore(b);
+      else if (e.target.closest('[data-less]')) showLess();
       else if ((b = e.target.closest('[data-sym]'))) openSymbol(b);
     });
 

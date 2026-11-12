@@ -17,7 +17,7 @@ import { symbolsOf, dreamType } from '../symbols.js';
 import { isNewLayout } from '../layout.js';
 import { EXTRA_VIEWS } from './b/views/index.js';
 import { TYPE_LOOK, TYPE_IDS, RECURRING_LOOK, MORE_GLYPH, moodGlyph, hueRGB } from './b/types.js';
-import { FIGURES, seasonOf, moonSign, placeOnFigure } from './b/zodiac.js';
+import { zodiacSeasonsHTML, wireZodiacMaps } from './b/zodiacmap.js';
 
 const VIEW_KEY = 'dreaming.journal.view';
 const NOTE_KEY = 'journalNoteHiddenAt'; // dream count when the "only on this iPhone" note was tucked away
@@ -26,7 +26,6 @@ const SYMBOL_LIMIT = 18;                // symbols shown in the filter sheet bef
 const LIST_STYLE_KEY = 'journalListStyle'; // new layout: 'zodiac' (default), 'squares' or 'rows'
 const TILE_PX = 200;                    // picture size asked of dreamArtURL for a day square
 const MONTH_FIRST = 6;                  // day squares shown per month before "Show all"
-const STAR_PX = 120;                    // picture size asked of dreamArtURL for a dream star
 
 const blankFilters = () => ({ kind: 'all', types: [], lucid: false, recurring: false, emotions: [], symbols: [], from: '', to: '' });
 
@@ -38,6 +37,7 @@ let thumbJob = 0;
 let teardown = null;
 let newLayout = false; // read at each render: the views on offer, the list's cards, main-symbol chips
 const openMonths = new Set(); // 'YYYY-MM' months unfolded in the squares list (kept while the app is open)
+let searchOpen = false;       // new layout: the search field replaces the filter row while open
 
 const pad = (n) => String(n).padStart(2, '0');
 const dayDate = (iso) => new Date(`${iso}T00:00:00`);
@@ -138,12 +138,24 @@ function toggleIn(field, key) {
 
 const SQUARE_TILES = 9; // a 3×3, the last one is More
 
-/** The small square beside the search box: the four dream-type symbols in a 2×2, and a count when filters are on. */
-function folderHTML() {
-  return `
-    <button type="button" class="jr-folder" data-open-square aria-haspopup="dialog" aria-label="Filters">
-      <span class="jr-folder-grid" aria-hidden="true">${TYPE_IDS.map((t) => `<i style="--tc:${TYPE_LOOK[t].rgb}">${TYPE_LOOK[t].glyph}</i>`).join('')}</span>
-      <span class="jr-badge jr-folder-badge" hidden></span>
+/** The filter row (new layout): the four dream types and Recurring as squares you tap, then All (the big square). */
+function stripHTML() {
+  const f = filters;
+  const n = activeCount(f);
+  const tiles = [
+    ...TYPE_IDS.map((t) => ({ id: `type:${t}`, label: TYPE_LOOK[t].short, glyph: TYPE_LOOK[t].glyph, rgb: TYPE_LOOK[t].rgb, on: f.types.includes(t) })),
+    { id: 'recurring', label: 'Recurring', glyph: RECURRING_LOOK.glyph, rgb: RECURRING_LOOK.rgb, on: f.recurring },
+  ];
+  // Filters only the big square shows (feelings, symbols, dates): counted on the All square.
+  const elsewhere = n - f.types.length - (f.recurring ? 1 : 0);
+  return `${tiles.map((t) => `
+    <button type="button" class="jr-fs-tile" data-sq="${esc(t.id)}" aria-pressed="${t.on}" style="--tc:${t.rgb}" aria-label="${esc(`Only ${t.label === 'Recurring' ? 'recurring dreams' : `${t.label.toLowerCase()} dreams`}`)}">
+      <span class="jr-fs-glyph" aria-hidden="true">${t.glyph}</span><span class="jr-fs-name" aria-hidden="true">${esc(t.label)}</span>
+    </button>`).join('')}
+    <button type="button" class="jr-fs-tile jr-fs-all" data-open-square aria-haspopup="dialog" style="--tc:255, 217, 138"
+      aria-label="${esc(n ? `All filters, ${n} on` : 'All filters: feelings, symbols and dates')}">
+      <span class="jr-fs-glyph" aria-hidden="true">${MORE_GLYPH}</span><span class="jr-fs-name" aria-hidden="true">All</span>
+      ${elsewhere > 0 ? `<span class="jr-badge jr-fs-badge" aria-hidden="true">${elsewhere}</span>` : ''}
     </button>`;
 }
 
@@ -317,120 +329,6 @@ const listStyle = () => {
   return LIST_STYLES.includes(v) ? v : 'zodiac';
 };
 
-// ---- The Zodiac look: each sign season drawn as its constellation, the dreams as stars on it ----
-
-const MARGIN = 0.13; // room around a figure (in figure units) so the dream stars aren't cut off
-
-/** Star size by how many dreams share the figure (CSS px), and whether their day labels still fit. */
-function starSize(n) {
-  if (n <= 5) return { px: 50, labels: true };
-  if (n <= 9) return { px: 42, labels: true };
-  if (n <= 14) return { px: 34, labels: false };
-  if (n <= 22) return { px: 28, labels: false };
-  return { px: 23, labels: false };
-}
-
-function seasonRange(season) {
-  const f = new Date(`${season.from}T12:00:00`);
-  const t = new Date(`${season.to}T12:00:00`);
-  const opt = { day: 'numeric', month: 'short' };
-  const thisYear = new Date().getFullYear();
-  const yr = f.getFullYear() !== thisYear || t.getFullYear() !== thisYear ? ` ${t.getFullYear()}` : '';
-  return `${f.toLocaleDateString(undefined, opt)} – ${t.toLocaleDateString(undefined, opt)}${yr}`;
-}
-
-/** One season as its constellation. `items`: that season's dreams, newest first (they are laid out oldest first). */
-function seasonHTML(season, items) {
-  const fig = FIGURES[season.sign.id];
-  const n = items.length;
-  const { px, labels } = starSize(n);
-  // A box around the figure, never taller than it is wide, so tall signs (Cancer, Libra) stay a sensible size.
-  const hb = fig.h + 2 * MARGIN;
-  const wb = Math.max(fig.w + 2 * MARGIN, hb);
-  const ox = (wb - fig.w) / 2;
-  const X = (x) => ((ox + x) / wb) * 100;
-  const Y = (y) => ((MARGIN + y) / hb) * 100;
-  const k = 1000;
-  const lines = fig.lines.map(([a, b]) => `M${Math.round((ox + fig.stars[a][0]) * k)} ${Math.round((MARGIN + fig.stars[a][1]) * k)}L${Math.round((ox + fig.stars[b][0]) * k)} ${Math.round((MARGIN + fig.stars[b][1]) * k)}`).join('');
-  const dots = fig.stars.map(([x, y, mag]) => `<circle cx="${Math.round((ox + x) * k)}" cy="${Math.round((MARGIN + y) * k)}" r="${Math.max(4, 11 - mag * 1.6).toFixed(1)}"/>`).join('');
-  const chrono = items.slice().reverse();
-  // Keep the pictures apart: their size plus a little air (and room for the day label), in figure units, assuming a
-  // phone-wide figure (~340 px); the box margin leaves room at the edges.
-  const spots = placeOnFigure(fig, n, { minGap: ((px + (labels ? 22 : 10)) / 340) * wb, room: MARGIN * 0.75 });
-  const stars = chrono.map((e, i) => {
-    const d = e.d;
-    const [x, y] = spots[i];
-    const date = new Date(`${e.day}T12:00:00`);
-    const ok = !Number.isNaN(date.getTime());
-    const wk = ok ? date.toLocaleDateString(undefined, { weekday: 'short' }).replace('.', '') : '';
-    const type = dreamType(d);
-    const look = TYPE_LOOK[type] || TYPE_LOOK.general;
-    const moon = moonSign(e.day);
-    const title = String(d.title || '').trim() || 'Untitled dream';
-    const label = [title, ok ? date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '',
-      type !== 'general' ? look.name : '', moon ? `Moon in ${moon.name}` : ''].filter(Boolean).join(', ');
-    return `
-      <a class="jr-zs-star${i === n - 1 ? ' is-newest' : ''}" href="#dream/${encodeURIComponent(d.id)}" style="left:${X(x).toFixed(2)}%;top:${Y(y).toFixed(2)}%;--tc:${look.rgb}" aria-label="${esc(label)}">
-        <span class="jr-zs-pic"><img class="jr-zs-img" data-art="${esc(d.id)}" data-px="${STAR_PX}" alt="" width="${STAR_PX}" height="${STAR_PX}" decoding="async"></span>
-        ${moon && px >= 34 ? `<span class="jr-zs-moon" aria-hidden="true" title="Moon in ${esc(moon.name)}">${moon.glyph}</span>` : ''}
-        ${labels && ok ? `<span class="jr-zs-day" aria-hidden="true"><b>${date.getDate()}</b> ${esc(wk)}</span>` : ''}
-      </a>`;
-  }).join('');
-  return `
-    <section class="jr-month jr-zs" aria-label="${esc(`${season.sign.name} season, ${seasonRange(season)}, ${plural(n, 'dream')}`)}">
-      <h2 class="jr-zs-head">
-        <span class="jr-zs-glyph" aria-hidden="true">${season.sign.glyph}</span>
-        <span class="jr-zs-titles"><span class="jr-zs-name">${esc(season.sign.name)}</span><span class="jr-zs-dates">${esc(seasonRange(season))}</span></span>
-        <span class="jr-zs-n">${plural(n, 'dream')}</span>
-      </h2>
-      <div class="jr-zs-fig" style="aspect-ratio:${(wb / hb).toFixed(3)};--star:${px}px">
-        <svg class="jr-zs-svg" viewBox="0 0 ${Math.round(wb * k)} ${Math.round(hb * k)}" preserveAspectRatio="none" aria-hidden="true">
-          <path class="jr-zs-glow" d="${lines}"/><path class="jr-zs-line" d="${lines}"/><g class="jr-zs-dots">${dots}</g>
-        </svg>
-        ${stars}
-      </div>
-    </section>`;
-}
-
-function zodiacHTML(shown) {
-  const groups = new Map();
-  for (const e of shown) {
-    const season = seasonOf(e.day);
-    const key = season ? season.key : 'undated';
-    if (!groups.has(key)) groups.set(key, { season, items: [] });
-    groups.get(key).items.push(e);
-  }
-  return [...groups.values()].map(({ season, items }) => (season ? seasonHTML(season, items) : `
-    <section class="jr-month"><h2 class="section-title">Undated <span class="jr-count">${items.length}</span></h2>
-      <div class="jr-rows">${items.map(rowHTML).join('')}</div></section>`)).join('');
-}
-
-/** New layout: one dream as a small square: its picture behind, the day number and weekday, type glyph, title, symbols. */
-function dayTileHTML(e) {
-  const d = e.d;
-  const title = String(d.title || '').trim() || 'Untitled dream';
-  const date = new Date(`${e.day}T12:00:00`);
-  const ok = !Number.isNaN(date.getTime());
-  const num = ok ? date.getDate() : '';
-  const wk = ok ? date.toLocaleDateString(undefined, { weekday: 'short' }).replace('.', '') : '';
-  const type = dreamType(d);
-  const look = type !== 'general' ? TYPE_LOOK[type] : null;
-  const label = [title, ok ? date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '', look ? look.name : '',
-    d.recurring ? 'recurring' : '', hasVideo(d) ? 'has a video' : ''].filter(Boolean).join(', ');
-  return `
-    <a class="jr-tile${type === 'nightmare' ? ' jr-tile-night' : ''}" href="#dream/${encodeURIComponent(d.id)}" aria-label="${esc(label)}">
-      <img class="jr-tile-img" data-art="${esc(d.id)}" alt="" width="${TILE_PX}" height="${TILE_PX}" decoding="async">
-      <span class="jr-tile-shade" aria-hidden="true"></span>
-      <span class="jr-tile-day" aria-hidden="true"><b>${num}</b><small>${esc(wk)}</small></span>
-      <span class="jr-tile-marks" aria-hidden="true">
-        ${look ? `<i class="jr-tile-type" style="--tc:${look.rgb}">${look.glyph}</i>` : ''}
-        ${d.recurring ? `<i class="jr-tile-type" style="--tc:${RECURRING_LOOK.rgb}">${RECURRING_LOOK.glyph}</i>` : ''}
-        ${hasVideo(d) ? `<i class="jr-tile-type jr-tile-video">${icons.play}</i>` : ''}
-      </span>
-      <span class="jr-tile-body" aria-hidden="true"><span class="jr-tile-title">${esc(title)}</span></span>
-    </a>`;
-}
-
 function styleSwitchHTML() {
   const st = listStyle();
   return `
@@ -460,7 +358,11 @@ function listHTML(shown, filtering) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(e);
   }
-  const months = zodiac ? zodiacHTML(shown) : [...groups.entries()].map(([key, items]) => {
+  const months = zodiac
+    ? zodiacSeasonsHTML(shown, (undated) => `
+      <section class="jr-month"><h2 class="section-title">Undated <span class="jr-count">${undated.length}</span></h2>
+        <div class="jr-rows">${undated.map(rowHTML).join('')}</div></section>`)
+    : [...groups.entries()].map(([key, items]) => {
     const [y, m] = key.split('-').map(Number);
     const label = y && m ? monthName(y, m - 1) : 'Undated';
     if (squares) {
@@ -634,7 +536,7 @@ function sheetHTML(emotionOpts, symbolOpts, showAllSymbols) {
 // Paints thumbnails a few at a time so a long journal still opens instantly.
 function fillThumbs(container, byId) {
   const job = ++thumbJob;
-  const imgs = [...container.querySelectorAll('img.jr-thumb[data-id]:not([src]), img[data-art]:not([src])')];
+  const imgs = [...container.querySelectorAll('img.jr-thumb[data-id]:not([src]), img[data-art]:not([src]), image[data-art]:not([href])')];
   let i = 0;
   const step = () => {
     if (job !== thumbJob || !container.isConnected) return;
@@ -644,7 +546,8 @@ function fillThumbs(container, byId) {
       let url = '';
       const tile = Boolean(img.dataset.art);
       try { url = dreamArtURL(byId.get(tile ? img.dataset.art : img.dataset.id), tile ? Number(img.dataset.px) || TILE_PX : 64) || ''; } catch {}
-      if (url) img.src = url;
+      if (url && img.tagName.toLowerCase() === 'image') img.setAttribute('href', url);
+      else if (url) img.src = url;
     }
     if (i < imgs.length) requestAnimationFrame(step);
   };
@@ -685,14 +588,16 @@ export default {
     el.innerHTML = `
       <div class="jr">
         ${headHTML()}
-        <div class="jr-searchrow">
+        <div class="jr-searchrow${newLayout ? ` jr-searchrow-new${searchOpen || query ? ' is-search' : ''}` : ''}">
+          ${newLayout ? `<button type="button" class="jr-search-btn" data-search-open aria-label="Search your dreams">${icons.search}</button>` : ''}
           <div class="jr-search-wrap">
             ${icons.search}
             <input class="field jr-search" type="search" placeholder="Search your dreams" aria-label="Search dreams"
               value="${esc(query)}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
             <button type="button" class="jr-search-clear" data-clear-search aria-label="Clear search" ${query ? '' : 'hidden'}>${icons.close}</button>
           </div>
-          ${newLayout ? folderHTML() : ''}
+          ${newLayout ? `<button type="button" class="jr-search-cancel" data-search-close>Cancel</button>
+          <div class="jr-fstrip" role="group" aria-label="Show only" data-fstrip>${stripHTML()}</div>` : ''}
         </div>
         ${newLayout ? '' : `<div class="jr-filterbar">
           <button type="button" class="jr-filter-btn" data-open-filters aria-haspopup="dialog">${icons.filter}<span>Filters</span><span class="jr-badge" hidden></span></button>
@@ -714,8 +619,11 @@ export default {
     const head = root.querySelector('.jr-head');
     const input = root.querySelector('.jr-search');
     const clearBtn = root.querySelector('.jr-search-clear');
-    const filterBtn = root.querySelector('.jr-filter-btn, .jr-folder');
-    const badge = root.querySelector('.jr-badge');
+    // The classic Filters button, or the new layout's All square (redrawn with the filter row, so looked up each time).
+    const filterBtnNow = () => root.querySelector('.jr-filter-btn, [data-open-square]');
+    const badge = root.querySelector('.jr-filter-btn .jr-badge');
+    const strip = root.querySelector('[data-fstrip]');
+    const searchRow = root.querySelector('.jr-searchrow');
     const square = root.querySelector('.jr-sq');
     const chipsEl = root.querySelector('.jr-chips');
     const activeEl = root.querySelector('.jr-active');
@@ -726,10 +634,14 @@ export default {
 
     const paintControls = () => {
       const n = activeCount(filters);
-      badge.hidden = !n;
-      badge.textContent = String(n);
-      filterBtn.dataset.on = String(n > 0);
-      filterBtn.setAttribute('aria-label', n ? `Filters, ${n} active` : 'Filters');
+      if (badge) {
+        const btn = filterBtnNow();
+        badge.hidden = !n;
+        badge.textContent = String(n);
+        btn.dataset.on = String(n > 0);
+        btn.setAttribute('aria-label', n ? `Filters, ${n} active` : 'Filters');
+      }
+      if (strip) strip.innerHTML = stripHTML();
       if (chipsEl) {
         const left = chipsEl.scrollLeft;
         chipsEl.innerHTML = quickChipsHTML(emotionOpts);
@@ -750,10 +662,13 @@ export default {
       if (wasExtra || EXTRA_VIEWS.some((x) => x.id === view)) window.scrollTo(0, 0);
     };
 
+    let unwireMaps = null;
     const paintBody = () => {
       const filtering = isFiltering();
       try { extra?.destroy?.(); } catch {}
       extra = null;
+      unwireMaps?.();
+      unwireMaps = null;
       root.dataset.view = view;
       const xv = EXTRA_VIEWS.find((x) => x.id === view);
       if (xv) {
@@ -772,6 +687,7 @@ export default {
       if (view === 'list') {
         const cards = filtering || newLayout ? '' : noteHTML(entries.length) + nextHTML(entries.length);
         body.innerHTML = cards + listHTML(current, filtering);
+        if (newLayout && listStyle() === 'zodiac') unwireMaps = wireZodiacMaps(body);
       } else {
         const byDay = new Map();
         for (const e of current) {
@@ -794,13 +710,13 @@ export default {
     // The filter square: grows out of the small square, tiles toggle in place, More hands over to the full sheet.
     const paintSquareTiles = () => {
       const grid = square?.querySelector('.jr-sq-grid');
-      if (grid) grid.innerHTML = squareTiles(entries, emotionOpts, symbolOpts).map(tileHTML).join('');
+      if (grid && !square.hidden) grid.innerHTML = squareTiles(entries, emotionOpts, symbolOpts).map(tileHTML).join('');
     };
     const openSquare = () => {
       if (!square) return;
       square.innerHTML = squareHTML(squareTiles(entries, emotionOpts, symbolOpts));
       const box = square.querySelector('.jr-sq-box');
-      const from = filterBtn.getBoundingClientRect();
+      const from = (filterBtnNow() || square).getBoundingClientRect();
       square.hidden = false;
       // offsetLeft/Top ignore the starting scale; .jr-sq covers the viewport, so they are viewport coordinates.
       box.style.transformOrigin = `${Math.round(from.left + from.width / 2 - box.offsetLeft)}px ${Math.round(from.top + from.height / 2 - box.offsetTop)}px`;
@@ -815,7 +731,7 @@ export default {
       square.classList.remove('jr-sq-in');
       square.innerHTML = '';
       document.body.classList.remove('jr-sq-open');
-      if (focus) filterBtn.focus({ preventScroll: true });
+      if (focus) filterBtnNow()?.focus({ preventScroll: true });
     };
     const toggleTile = (id) => {
       if (id.startsWith('type:')) {
@@ -826,7 +742,8 @@ export default {
       else if (id.startsWith('symbol:')) toggleIn('symbols', id.slice(7));
       refresh();
       paintSquareTiles();
-      square.querySelector(`[data-sq="${CSS.escape(id)}"]`)?.focus({ preventScroll: true });
+      const again = (square && !square.hidden ? square : root).querySelector(`[data-sq="${CSS.escape(id)}"]`);
+      again?.focus({ preventScroll: true });
     };
 
     const refresh = () => {
@@ -856,7 +773,7 @@ export default {
       if (sheet.hidden) return;
       sheet.hidden = true;
       sheet.innerHTML = '';
-      filterBtn?.focus({ preventScroll: true });
+      filterBtnNow()?.focus({ preventScroll: true });
     };
 
     const resetSearch = () => {
@@ -904,6 +821,15 @@ export default {
       if ((b = hit('.jr-seg [data-view]'))) {
         if (b.dataset.view === view) return;
         setViewTo(b.dataset.view);
+      } else if (hit('[data-search-open]')) {
+        searchOpen = true;
+        searchRow.classList.add('is-search');
+        input.focus();
+      } else if (hit('[data-search-close]')) {
+        searchOpen = false;
+        searchRow.classList.remove('is-search');
+        if (query) { resetSearch(); refresh(); }
+        root.querySelector('[data-search-open]')?.focus({ preventScroll: true });
       } else if ((b = hit('[data-month]'))) {
         const key = b.dataset.month;
         const opening = !openMonths.has(key);
@@ -1001,6 +927,8 @@ export default {
       try { extra?.destroy?.(); } catch {}
       extra = null;
       document.body.classList.remove('jr-sq-open');
+      unwireMaps?.();
+      unwireMaps = null;
     };
     onScroll();
 

@@ -5,7 +5,7 @@
 //   notifications · passcode · export · print (readable journal, print-ready) · account · personalise · about · redeem
 // Touches document/window/storage only inside render and event handlers, never at import time.
 import {
-  getStats, getSetting, setSetting, exportData, importData, addSampleDreams, clearAll, localDay,
+  getStats, getSetting, setSetting, exportData, importData, addSampleDreams, countSampleDreams, removeSampleDreams, clearAll, localDay,
   getProfile, setProfile, listDreams, withDefaults, SYMBOL_CATEGORIES,
 } from '../store.js';
 import { esc, formatDate, icons } from '../ui.js';
@@ -519,6 +519,7 @@ function mainPage(ctx) {
 
     <div class="glass prof-group">
       ${row({ icon: icons.star, hue: 48, label: 'Add sample dreams', value: '7 examples', data: 'data-samples', chevron: false })}
+      ${countSampleDreams() ? row({ icon: icons.trash, hue: 30, label: 'Remove example dreams', value: String(countSampleDreams()), data: 'data-unsample', chevron: false }) : ''}
       ${stats.total ? row({ icon: icons.trash, hue: 0, label: 'Delete all dreams', data: 'data-clear', danger: true, chevron: false }) : ''}
     </div>
 
@@ -777,6 +778,14 @@ function draw(el, ctx, param) {
     if (getStats().total && !confirm('Add 7 example dreams to your journal? You can delete them one by one later.')) return;
     addSampleDreams();
     ctx.toast('Sample dreams added');
+    redraw();
+  });
+
+  $('[data-unsample]')?.addEventListener('click', () => {
+    const n = countSampleDreams();
+    if (!n || !confirm(`Remove the ${n} example ${n === 1 ? 'dream' : 'dreams'}? Your own dreams stay.`)) return;
+    removeSampleDreams();
+    ctx.toast(`${n} example ${n === 1 ? 'dream' : 'dreams'} removed`);
     redraw();
   });
 

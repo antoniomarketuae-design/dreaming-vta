@@ -168,6 +168,18 @@
 .bh-new { animation: bh-rise 0.35s ease-out both; }
 @keyframes bh-rise { from { opacity: 0; transform: translateY(8px); } }
 
+.bh-more-row { display: flex; gap: 8px; margin-top: 12px; }
+.bh-more-row .btn { margin: 0; }
+.bh-more-row .bh-more { flex: 1 1 auto; width: auto; }
+.bh-less {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0 20px;
+  border-radius: 999px;
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+}
+.bh-more-row .bh-less:only-child { flex: 1 1 auto; }
 .bh-more {
   margin-top: 12px;
   border-radius: 999px;

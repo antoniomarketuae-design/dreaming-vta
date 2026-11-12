@@ -297,6 +297,21 @@ export function addSampleDreams() {
     const when = new Date();
     when.setDate(when.getDate() - s.daysAgo);
     when.setHours(7, 10 + s.daysAgo, 0, 0);
-    createDream({ text: s.text, lucid: s.lucid, recurring: s.recurring, createdAt: when.toISOString() });
+    createDream({ text: s.text, lucid: s.lucid, recurring: s.recurring, createdAt: when.toISOString(), sample: true });
   }
+}
+
+const SAMPLE_TEXTS = new Set(SAMPLES.map((s) => s.text));
+const isSample = (d) => d?.sample === true || SAMPLE_TEXTS.has(String(d?.text || '').trim());
+
+/** How many of the built-in example dreams are in the journal. */
+export function countSampleDreams() {
+  return listDreams().filter(isSample).length;
+}
+
+/** Removes only the built-in example dreams; returns how many went. */
+export function removeSampleDreams() {
+  const ids = listDreams().filter(isSample).map((d) => d.id);
+  for (const id of ids) deleteDream(id);
+  return ids.length;
 }
