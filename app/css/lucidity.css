@@ -301,7 +301,7 @@
 .luc-now {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 12px);
+  bottom: calc(var(--tabbar-h) + var(--tabbar-safe) + 12px);
   z-index: 9;
   width: calc(100% - 24px);
   max-width: 600px;

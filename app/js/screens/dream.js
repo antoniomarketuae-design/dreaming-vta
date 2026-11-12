@@ -699,6 +699,7 @@ export default {
 
       return `
         <div class="glass dream-text">${esc(dream.text) || '<span class="faint">No words written for this dream.</span>'}</div>
+        <button type="button" class="dream-more" data-act="more">${icons.plus}<span>${dream.text ? 'Remembered more? Add to this dream' : 'Write this dream'}</span></button>
         ${isNewLayout() ? dayBeforeHTML(dream) : ''}
         ${symbols}${feelings}${noticed}${empty}`;
     }
@@ -1263,6 +1264,7 @@ export default {
       if (act === 'back') goBack();
       else if (act === 'share') share();
       else if (act === 'edit') ctx.navigate(`#record/edit/${encodeURIComponent(id)}`);
+      else if (act === 'more') ctx.navigate(`#record/edit/${encodeURIComponent(id)}/more`);
       else if (act === 'tab') selectTab(target.dataset.tab || 'story');
       else if (act === 'type') chooseType(target.dataset.type);
       else if (act === 'day-edit') { editingDay = true; paintPanels(); root.querySelector('[data-day-input]')?.focus(); }

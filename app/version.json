@@ -1,7 +1,12 @@
 {
-  "version": 43,
+  "version": 44,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 44,
+      "date": "2026-11-12",
+      "text": "Journal: more room for the map. The closing line is gone, the map fills the screen, the Journal title row sits at the very top, the filter bar is slimmer, and the List / Stories / Milky Way switch sits right on a shorter tab bar that reaches the bottom edge. A night with several dreams is now a bigger circle with one coloured arc per dream (zoom in to see their titles). On a dream's page, a new 'Remembered more? Add to this dream' button opens it ready to add more."
+    },
     {
       "version": 43,
       "date": "2026-11-12",

@@ -311,8 +311,10 @@ function mount(el, ctx, param) {
   el.append(root);
   const goBack = () => (ctx.back ? ctx.back() : history.back());
 
-  const match = /^edit\/(.+)$/.exec(param || '');
+  // #record/edit/<id>/more: "Remembered more?" — the editor opens with the cursor at the end of the story.
+  const match = /^edit\/(.+?)(\/more)?$/.exec(param || '');
   const editId = match ? match[1] : null;
+  const addMore = Boolean(match?.[2]);
   const raw = editId ? getDream(editId) : null;
 
   if (editId && !raw) {
@@ -1323,6 +1325,17 @@ function mount(el, ctx, param) {
 
   if (st.step === 'compose') renderCompose();
   else renderEditor();
+  if (addMore) {
+    const area = root.querySelector('#rec-sbody');
+    if (area) {
+      if (area.value.trim() && !/\n\s*$/.test(area.value)) {
+        area.value = `${area.value.replace(/\s+$/, '')}\n\n`;
+        area.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      try { area.focus({ preventScroll: true }); area.setSelectionRange(area.value.length, area.value.length); } catch {}
+      requestAnimationFrame(() => area.scrollIntoView({ block: 'center' }));
+    }
+  }
 
   return () => {
     window.removeEventListener('dreaming:image', onImageEvent);

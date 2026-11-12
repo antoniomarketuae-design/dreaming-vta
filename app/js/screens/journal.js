@@ -427,7 +427,9 @@ function listHTML(shown, filtering) {
   const end = filtering
     ? `${plural(shown.length, 'dream')} found.`
     : 'You have reached your first recorded dream.';
-  return `${newLayout ? styleSwitchHTML() : ''}${months}
+  // The new layout ends with the last map: no closing line (the owner wants the room for the map).
+  if (newLayout) return `${styleSwitchHTML()}${months}`;
+  return `${months}
     <div class="jr-end" aria-hidden="true">${icons.sparkle}</div>
     <p class="jr-end-text">${end}</p>`;
 }

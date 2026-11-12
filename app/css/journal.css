@@ -396,7 +396,7 @@ button.jr-cell:active { background: rgba(255, 255, 255, 0.08); }
 .jr-legend { display: flex; justify-content: center; gap: 16px; margin-top: 10px; color: var(--text-faint); font-size: 12px; }
 .jr-legend span { display: inline-flex; align-items: center; gap: 6px; }
 
-.jr-daylist { scroll-margin-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 76px); }
+.jr-daylist { scroll-margin-bottom: calc(var(--tabbar-h) + var(--tabbar-safe) + 76px); }
 .jr-hint { margin: 16px 4px 0; font-size: 14px; text-align: center; }
 
 
@@ -405,7 +405,7 @@ button.jr-cell:active { background: rgba(255, 255, 255, 0.08); }
 .jr-seg {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 12px);
+  bottom: calc(var(--tabbar-h) + var(--tabbar-safe) + 12px);
   z-index: 9;
   display: flex;
   padding: 3px;
@@ -937,7 +937,7 @@ body.jr-sq-open { overflow: hidden; }
   scrollbar-width: none;
 }
 .jr-zm-scroll::-webkit-scrollbar { display: none; }
-.jr-zm-layer { position: relative; width: 100%; aspect-ratio: 1.4; --node: 60px; }
+.jr-zm-layer { position: relative; width: 100%; aspect-ratio: 1.4; --node: 20px; } /* the script sets --node */
 .jr-zm-sky { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; } /* the band runs past the figure and fades out */
 
 .jr-zm-mw path { fill: none; stroke-linecap: round; }
@@ -1342,3 +1342,55 @@ body.jr-sq-open { overflow: hidden; }
 .jr-new .jr-zm { margin-top: 0; }
 /* Hint and switch above the sky layer. */
 .jr-zm-hint, .jr-zm-ctl { z-index: 3; }
+
+/* ---- v44: more room for the map ---- */
+/* The title row (Journal · search · + Dream) right at the top. */
+.jr-new .jr-head { padding-top: calc(env(safe-area-inset-top) + 4px); padding-bottom: 3px; }
+.jr-new .jr-head .screen-title { font-size: 26px; line-height: 1.1; }
+.jr-new .jr-head-actions.is-new .jr-add { min-height: 30px; }
+.jr-new .jr-head-search { width: 30px; height: 30px; }
+/* A slimmer filter bar. */
+.jr-new .jr-fstrip { gap: 3px; padding: 3px; border-radius: 15px; }
+.jr-new .jr-fstrip .jr-fs-tile { height: 40px; gap: 1px; border-radius: 11px; }
+.jr-new .jr-fs-glyph { width: 20px; height: 20px; border-radius: 7px; }
+.jr-new .jr-fs-glyph svg { width: 17px; height: 17px; }
+/* The List · Stories · Milky Way switch sits on the tab bar, joined to it. */
+.jr-seg-new {
+  bottom: calc(var(--tabbar-h) + var(--tabbar-safe) - 1px);
+  padding: 2px 2px 1px;
+  border-color: rgba(255, 255, 255, 0.08);
+  border-bottom-color: transparent;
+  border-radius: 16px 16px 0 0;
+  background: rgba(18, 13, 46, 0.62);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.25);
+}
+.jr-seg-new button { min-height: 30px; padding: 0 14px; font-size: 13px; }
+.jr-seg-new button svg { width: 15px; height: 15px; }
+.jr-new { padding-bottom: 30px; }
+/* The map fills the screen under the date row (the top rows and the bottom bars are counted out). */
+.jr-new .jr-zm {
+  height: max(min(400px, 108vw), calc(100vh - env(safe-area-inset-top) - var(--tabbar-h) - var(--tabbar-safe) - var(--jr-above, 196px)));
+  height: max(min(400px, 108vw), calc(100svh - env(safe-area-inset-top) - var(--tabbar-h) - var(--tabbar-safe) - var(--jr-above, 196px)));
+}
+
+/* A night with several dreams: a bigger circle, its ring split into one arc per dream (each in its type colour). */
+.jr-zn-dot.is-many { width: calc(var(--node) * var(--s, 1)); height: calc(var(--node) * var(--s, 1)); }
+.jr-zn-dot.is-many .jr-zn-ring { position: relative; border-color: transparent; font-size: max(9px, calc(var(--node) * var(--s, 1) * 0.42)); }
+.jr-zn-dot.is-many .jr-zn-ring::before {
+  content: "";
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 50%;
+  background: var(--arcs);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.6px), #000 calc(100% - 2.2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2.6px), #000 calc(100% - 2.2px));
+  pointer-events: none;
+}
+.jr-zn-dot.is-many .jr-zn-sub { white-space: normal; text-align: center; line-height: 1.25; }
+.jr-zn-dot.is-many .jr-zn-sub i { display: block; overflow: hidden; font-style: normal; white-space: nowrap; text-overflow: ellipsis; }
+/* "Pinch to zoom" fades by itself after a few seconds (it could cover a dream near the bottom-left). */
+.jr-zm-hint { animation: jr-zm-hint-out 0.6s ease 4s forwards; }
+@keyframes jr-zm-hint-out { to { opacity: 0; visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .jr-zm-hint { animation-duration: 0.01s; animation-delay: 6s; } }
