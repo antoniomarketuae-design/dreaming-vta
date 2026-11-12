@@ -1,7 +1,12 @@
 {
-  "version": 29,
+  "version": 30,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 30,
+      "date": "2026-11-12",
+      "text": "Zodiac map opens further out, so you see the whole sign with every dream on it, and each creature always shows its day and weekday (pinch in for the month and the dream's title). The search is just a magnifying glass now, and the filter squares sit together in one rounded shape."
+    },
     {
       "version": 29,
       "date": "2026-11-12",

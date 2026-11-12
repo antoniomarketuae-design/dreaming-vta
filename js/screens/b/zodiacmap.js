@@ -14,8 +14,11 @@ import { esc } from '../../ui.js';
 
 const MARGIN = 0.16;     // room around a figure, in figure units
 const NODE_MAX = 118;    // badge width when zoomed in (px)
-const NODE_MIN = 26;     // ...and when zoomed right out
-const DETAIL_AT = 86;    // badge width from which the words show
+const NODE_MIN = 40;     // ...and when zoomed right out
+const NODE_OPEN = 78;    // badge width the map opens with (the owner: not too close; the whole sign mostly in view)
+const NODE_SPREAD = 74;  // the dreams are spread on the figure as if badges were this wide at the whole-sign view
+// Words by badge width: the day from 40 px, + weekday · month from 66 px, + the title from 92 px.
+const WORDS = [[92, 'is-w3'], [66, 'is-w2'], [40, 'is-w1']];
 const ZOOM_MAX = 8;
 const ART_PX = 160;      // picture size asked for a badge
 const FALLBACK = {       // a soft rounded badge for a sign without a drawn shape yet
@@ -130,7 +133,7 @@ function badgeHTML(e, season, x, y, newest) {
       <span class="jr-zn-text" aria-hidden="true"
         style="left:${((tx / W) * 100).toFixed(2)}%;top:${((ty / H) * 100).toFixed(2)}%;width:${((tw / W) * 100).toFixed(2)}%;height:${((th / H) * 100).toFixed(2)}%">
         <b>${ok ? date.getDate() : ''}</b>
-        <small>${esc(wk)} · ${esc(mon)}</small>
+        <small>${esc(wk)}<span class="jr-zn-mon"> · ${esc(mon)}</span></small>
         <em>${esc(title)}</em>
       </span>
       ${moon ? `<span class="jr-zn-moon" aria-hidden="true" title="Moon in ${esc(moon.name)}">${moon.glyph}</span>` : ''}
@@ -153,7 +156,7 @@ function seasonMapHTML(season, items) {
   const stars = fig.stars.map(([x, y, mag]) => `<circle cx="${sx(x).toFixed(0)}" cy="${sy(y).toFixed(0)}" r="${Math.max(2.5, 7 - mag * 1.1).toFixed(1)}"/>`).join('');
   // Spread the dreams so that, fully zoomed out on a phone (~340 px wide), the small badges still don't pile up.
   const chrono = items.slice().reverse();
-  const spots = placeOnFigure(fig, n, { minGap: ((NODE_MIN + 8) / 340) * wb, room: MARGIN * 0.7 });
+  const spots = placeOnFigure(fig, n, { minGap: ((NODE_SPREAD + 6) / 340) * wb, room: MARGIN * 0.7 });
   const badges = chrono.map((e, i) => badgeHTML(e, season, ((ox + spots[i][0]) / wb) * 100, ((MARGIN + spots[i][1]) / hb) * 100, i === n - 1)).join('');
   return `
     <section class="jr-month jr-zs" aria-label="${esc(`${season.sign.name} season, ${seasonRange(season)}, ${plural(n, 'dream')}`)}">
@@ -231,7 +234,7 @@ function setupMap(el) {
   let vw = 0;
   let vh = 0;
   const nodeAt = (zoom) => Math.max(NODE_MIN, Math.min(NODE_MAX, 0.9 * dmin * vw * zoom));
-  const fullZoom = () => Math.min(ZOOM_MAX, Math.max(1, NODE_MAX / Math.max(1e-6, 0.9 * dmin * vw)));
+  const openZoom = () => Math.min(ZOOM_MAX, Math.max(1, NODE_OPEN / Math.max(1e-6, 0.9 * dmin * vw)));
 
   /** Zoom to `next`, keeping the point under (fx, fy) (viewport px) where it is. */
   const apply = (next, fx = vw / 2, fy = vh / 2) => {
@@ -247,7 +250,10 @@ function setupMap(el) {
     layer.style.marginTop = h < vh ? `${(vh - h) / 2}px` : '0px';
     const node = nodeAt(z);
     layer.style.setProperty('--node', `${node.toFixed(1)}px`);
-    layer.classList.toggle('is-detail', node >= DETAIL_AT);
+    const words = WORDS.find(([at]) => node >= at)?.[1] || '';
+    layer.classList.remove('is-w1', 'is-w2', 'is-w3');
+    if (words) layer.classList.add(words);
+    layer.classList.toggle('is-detail', Boolean(words));
     scroller.scrollLeft = lx * w - fx;
     scroller.scrollTop = ly * h - fy;
     const whole = z <= 1.01;
@@ -255,9 +261,9 @@ function setupMap(el) {
     el.classList.toggle('is-whole', whole);
   };
 
-  /** Open on the newest dream, zoomed so the badges are full size. */
+  /** Open on the newest dream, zoomed only enough for the badges to show their date. */
   const focusNewest = () => {
-    apply(fullZoom());
+    apply(openZoom());
     const i = pts.length - 1; // badges are in time order: the last is the newest
     if (i < 0) return;
     scroller.scrollLeft = pts[i][0] * layer.offsetWidth - vw / 2;
