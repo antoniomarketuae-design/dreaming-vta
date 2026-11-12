@@ -18,6 +18,7 @@ import { getDream, updateDream, deleteDream, withDefaults, SYMBOL_CATEGORIES, se
 import { isNewLayout } from '../layout.js';
 import { dreamType, setDreamType, dreamDay } from '../symbols.js';
 import { TYPE_LOOK, TYPE_IDS, RECURRING_LOOK, glyph } from './b/types.js';
+import { moonSign, sunSign } from './b/zodiac.js';
 import { TAGS } from '../analyze.js';
 import { esc, formatDate, relativeDay, relativeDayWeekday, icons } from '../ui.js';
 import { dreamArtURL } from '../dreamart.js';
@@ -725,7 +726,8 @@ export default {
         </div>`;
     }
 
-    /** Right of the square: the chosen type's full name and line, "Recurring" when it is, and the hint. */
+    /** Right of the square: the chosen type's full name and line, "Recurring" when it is, the night's Moon sign and
+     *  the Sun sign (js/screens/b/zodiac.js), and the hint. */
     function typeInfoHTML(dream) {
       const look = TYPE_LOOK[typeOf(dream)];
       return `
@@ -736,7 +738,21 @@ export default {
           <span class="dream-typeinfo-rec" style="--tc: ${esc(RECURRING_LOOK.rgb)}">
             <span class="dream-typeinfo-rec-glyph" aria-hidden="true">${RECURRING_LOOK.glyph}</span><span>${esc(RECURRING_LOOK.name)}</span>
           </span>` : ''}
+        ${skyHTML(dream)}
         <p class="dream-typeinfo-hint">Tap a square to change</p>`;
+    }
+
+    /** "☾ Moon in Cancer · ☉ Scorpio": where the Moon and the Sun were that night (the Moon's sign is an estimate). */
+    function skyHTML(dream) {
+      const day = dreamDay(dream);
+      const moon = moonSign(day);
+      const sun = sunSign(day);
+      if (!moon || !sun) return '';
+      return `
+        <p class="dream-typeinfo-sky" aria-label="${esc(`That night the Moon was in ${moon.name}; Sun sign ${sun.name}`)}">
+          <span><i aria-hidden="true">☾</i>Moon in <b><em>${moon.glyph}</em> ${esc(moon.name)}</b></span>
+          <span><i aria-hidden="true">☉</i>Sun in <b><em>${sun.glyph}</em> ${esc(sun.name)}</b></span>
+        </p>`;
     }
 
     /**

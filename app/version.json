@@ -1,7 +1,12 @@
 {
-  "version": 25,
+  "version": 26,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 26,
+      "date": "2026-11-12",
+      "text": "Journal: a new Zodiac look (first in the Zodiac / Squares / Rows switch). Your dreams are grouped by sign season, like Scorpio 23 Oct to 21 Nov, and each group takes the shape of its real constellation, with every dream a glowing star you can tap. Each star shows which sign the Moon was in that night, and the dream page now says 'Moon in … · Sun in …'."
+    },
     {
       "version": 25,
       "date": "2026-11-12",
