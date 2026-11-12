@@ -1,7 +1,12 @@
 {
-  "version": 24,
+  "version": 25,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 25,
+      "date": "2026-11-12",
+      "text": "Home: recent dreams are a bit smaller, the 5 newest show first and 'Load more dreams' adds 5 more. Each date tile now shows the weekday too, like 'WED 11 NOV'."
+    },
     {
       "version": 24,
       "date": "2026-11-12",

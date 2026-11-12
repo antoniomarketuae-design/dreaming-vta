@@ -1,7 +1,7 @@
 // New layout: Home tab, as the owner's mind map (video/DREAMS APP.pdf, "HOME TAB") and the team's review:
-// date (with a greeting) · this month's moon cycle (compact card, moon.js) · record dream button · recent dreams, big
-// and easy to spot: name, date (a moon-gold date tile on the left) and symbols, the 3 newest first, "Load more dreams"
-// adds 3 more each tap, in place · "What you dream about": one sentence on what keeps coming back, then up to 8 symbol
+// date (with a greeting) · this month's moon cycle (compact card, moon.js) · record dream button · recent dreams, compact
+// rows: name, date (a moon-gold tile on the left: weekday, day, month) and symbols, the 5 newest first, "Load more
+// dreams" adds 5 more each tap, in place · "What you dream about": one sentence on what keeps coming back, then up to 8 symbol
 // chips with counts (last 30 days); tapping one opens its meaning (symbolsheet.js). Repaints itself when dreams change.
 // (The dream wheel that was here in v15 is now the Calendar tab; the day journal lives in the Calendar too.)
 import { listDreams, localDay, getProfile, onChange } from '../../store.js';
@@ -10,8 +10,8 @@ import { esc, greeting, formatLongDate, icons } from '../../ui.js';
 import { moonCardHTML } from './moon.js';
 import { openSymbolSheet, closeSymbolSheet } from './symbolsheet.js';
 
-const FIRST = 3;     // dreams shown at first
-const STEP = 3;      // ...and how many more each "Load more" adds
+const FIRST = 5;     // dreams shown at first
+const STEP = 5;      // ...and how many more each "Load more" adds
 const TOP_SYMBOLS = 8;
 
 // Screen state. Reset each time Home opens; kept while it repaints for data changes.
@@ -84,16 +84,18 @@ const actionHTML = () => `
 
 // ---------- 4. recent dreams + Load more ----------
 
-/** The date tile: day number, short month, and the year when it isn't this year. */
+/** The date tile: weekday, day number and short month (the year too when it isn't this year). */
 function dateTile(day) {
   const date = new Date(`${day}T12:00:00`);
   if (Number.isNaN(date.getTime())) return '<span class="bh-tile" aria-hidden="true"></span>';
   const month = date.toLocaleDateString(undefined, { month: 'short' }).replace('.', '');
-  const year = date.getFullYear() !== new Date().getFullYear() ? `<span class="bh-tile-y">${date.getFullYear()}</span>` : '';
+  const weekday = date.toLocaleDateString(undefined, { weekday: 'short' }).replace('.', '');
+  const year = date.getFullYear() !== new Date().getFullYear() ? ` <span class="bh-tile-y">’${String(date.getFullYear()).slice(2)}</span>` : '';
   return `
     <span class="bh-tile${day === localDay() ? ' bh-tile-today' : ''}" aria-hidden="true">
+      <span class="bh-tile-w">${esc(weekday)}</span>
       <span class="bh-tile-d">${date.getDate()}</span>
-      <span class="bh-tile-m">${esc(month)}</span>${year}
+      <span class="bh-tile-m">${esc(month)}${year}</span>
     </span>`;
 }
 
