@@ -1400,3 +1400,137 @@ body.jr-sq-open { overflow: hidden; }
 .jr-zm-sky circle { transform-box: fill-box; transform-origin: center; transform: scaleY(var(--unstretch, 1)); }
 /* The map reaches down to the List · Stories · Milky Way switch. */
 .jr-new .jr-zm { --jr-above: 202px; }
+
+/* ---- v48: Map · Squares · Rows and List · Stories · Milky Way as round glowing buttons (like Story · Details · Sleep) ---- */
+.jr-new .jr-orbs {
+  --orb: 34px;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  width: min(252px, 100%);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* A faint line through the middle of the circles. */
+.jr-new .jr-orbs::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--orb) / 2);
+  left: 16.6%;
+  right: 16.6%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(222, 212, 255, 0.04), rgba(222, 212, 255, 0.22) 50%, rgba(222, 212, 255, 0.04));
+  pointer-events: none;
+}
+.jr-orbs .jr-orb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--text-faint);
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.jr-orbs .jr-orb[aria-pressed="true"] { background: none; color: var(--moon); }
+.jr-orbs .jr-orb:focus-visible { outline: none; }
+.jr-orbs .jr-orb:focus-visible .jr-orb-i { outline: 2px solid var(--moon); outline-offset: 3px; }
+.jr-orb-i {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--orb);
+  height: var(--orb);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(155, 123, 255, 0.16), rgba(155, 123, 255, 0) 70%),
+    rgba(24, 17, 60, 0.92);
+  color: var(--text-dim);
+  transition: color 0.25s ease, border-color 0.25s ease, box-shadow 0.3s ease, background 0.3s ease, transform 0.15s ease;
+}
+.jr-orbs .jr-orb-i svg { width: calc(var(--orb) * 0.47); height: calc(var(--orb) * 0.47); transition: filter 0.3s ease; }
+.jr-orb-l {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+  transition: color 0.25s ease;
+}
+.jr-orbs .jr-orb[aria-pressed="true"] .jr-orb-i {
+  border-color: rgba(255, 217, 138, 0.55);
+  background:
+    radial-gradient(circle at 50% 40%, rgba(255, 217, 138, 0.3), rgba(255, 217, 138, 0.06) 70%),
+    rgba(40, 28, 72, 0.95);
+  box-shadow: 0 0 0 3px rgba(255, 217, 138, 0.07), 0 0 18px rgba(255, 217, 138, 0.34);
+  color: var(--moon);
+}
+.jr-orbs .jr-orb[aria-pressed="true"] .jr-orb-i svg { filter: drop-shadow(0 0 5px rgba(255, 217, 138, 0.6)); }
+.jr-orbs .jr-orb[aria-pressed="true"] .jr-orb-l { color: var(--moon); }
+.jr-orbs .jr-orb:active .jr-orb-i { transform: scale(0.94); }
+
+/* Map · Squares · Rows under the filters. */
+.jr-new .jr-lstyle.jr-orbs { margin: 6px auto 0; }
+/* List · Stories · Milky Way floating just above the bottom bar (labels on a soft dark pill to read over anything). */
+.jr-seg-new.jr-orbs {
+  --orb: 36px;
+  position: fixed; /* .jr-orbs is relative; this one floats */
+  bottom: calc(var(--tabbar-h) + var(--tabbar-safe) + 6px);
+  width: min(222px, calc(100% - 100px)); /* room on the left for "Pinch to zoom" */
+  max-width: none;
+  overflow: visible;
+}
+.jr-seg-new.jr-orbs .jr-orb-l { padding: 0 6px; border-radius: 6px; background: rgba(14, 9, 38, 0.62); }
+.jr-seg-new.jr-orbs .jr-orb-i { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4); }
+.jr-seg-new.jr-orbs .jr-orb[aria-pressed="true"] .jr-orb-i { box-shadow: 0 0 0 3px rgba(255, 217, 138, 0.07), 0 0 18px rgba(255, 217, 138, 0.34), 0 4px 14px rgba(0, 0, 0, 0.4); }
+/* "Pinch to zoom" just left of List, on the circles' line; fades after a few seconds or the first pinch. */
+.jr-seg-hint {
+  position: absolute;
+  top: 0;
+  right: 100%;
+  display: grid;
+  place-items: center;
+  width: max-content;
+  height: var(--orb);
+  max-width: max(42px, calc(50vw - 119px));
+  margin: 0 4px 0 0;
+  padding: 2px 5px;
+  border-radius: 9px;
+  background: rgba(14, 9, 38, 0.7);
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  pointer-events: none;
+  animation: jr-zm-hint-out 0.6s ease 4s forwards;
+}
+.jr-seg-hint[hidden] { display: none; }
+.jr.is-pinched .jr-seg-hint { opacity: 0; transition: opacity 0.4s ease; }
+/* The map reaches down to the bottom bar; the round buttons float over its sky. "Newest dreams" sits above them. */
+.jr-new .jr-zm { --jr-above: 184px; }
+.jr-new .jr-zm-ctl { bottom: 62px; }
+@media (prefers-reduced-motion: reduce) {
+  .jr-orb-i, .jr-orbs .jr-orb-i svg, .jr-orb-l { transition: none; }
+  .jr-orbs .jr-orb:active .jr-orb-i { transform: none; }
+  .jr-seg-hint { animation-duration: 0.01s; animation-delay: 6s; }
+}

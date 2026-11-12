@@ -860,14 +860,14 @@ function mount(el, ctx, param) {
         return `
           <div class="rec-ai-row">
             <span class="rec-ai-thumb rec-ai-thumb-empty" aria-hidden="true">${icons.film}</span>
-            <p class="rec-ai-text">Turn this dream into a short AI video.</p>
-            <button type="button" class="rec-ai-btn" data-act="vid-plus">${icons.film}<span>AI video</span>${pill(videoBadge())}</button>
+            <p class="rec-ai-text">Visualise this dream as a short video.</p>
+            <button type="button" class="rec-ai-btn" data-act="vid-plus">${icons.film}<span>Visualise as video</span>${pill(videoBadge())}</button>
           </div>`;
       }
       return `
         <div class="rec-ai-row">
           <span class="rec-ai-thumb rec-ai-thumb-empty" aria-hidden="true">${icons.film}</span>
-          <p class="rec-ai-text">Turn this dream into a short AI video. ${pill(videoBadge())}<span class="rec-ai-sub faint">Save the dream first to make a video.</span></p>
+          <p class="rec-ai-text">Visualise this dream as a short video. ${pill(videoBadge())}<span class="rec-ai-sub faint">Save the dream first to make a video.</span></p>
         </div>`;
     }
     const dream = getDream(editId);
@@ -890,7 +890,7 @@ function mount(el, ctx, param) {
       : `<span class="rec-ai-thumb rec-ai-thumb-empty" aria-hidden="true">${icons.film}</span>`;
     const text = failed ? esc(dream.videoJob.error || "The video didn't work this time.")
       : has ? 'Your dream video is ready. Tap the picture to watch it.'
-        : 'Turn this dream into a short AI video.';
+        : 'Visualise this dream as a short video.';
     const label = failed ? 'Try again' : has ? 'New video' : 'Visualise as video';
     return `
       <div class="rec-ai-row">

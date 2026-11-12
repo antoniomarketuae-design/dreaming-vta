@@ -366,13 +366,18 @@ function dayTileHTML(e) {
     </a>`;
 }
 
+/** A round glowing button with its label under it, like the dream page's Story · Details · Sleep. */
+function orbHTML(attr, value, icon, label, on) {
+  return `<button type="button" class="jr-orb" data-${attr}="${esc(value)}" aria-pressed="${on}"><span class="jr-orb-i" aria-hidden="true">${icon}</span><span class="jr-orb-l">${esc(label)}</span></button>`;
+}
+
 function styleSwitchHTML() {
   const st = listStyle();
   return `
-    <div class="jr-lstyle" role="group" aria-label="List look">
-      <button type="button" data-liststyle="zodiac" aria-pressed="${st === 'zodiac'}">${icons.zodiac}<span>Map</span></button>
-      <button type="button" data-liststyle="squares" aria-pressed="${st === 'squares'}">${icons.widget}<span>Squares</span></button>
-      <button type="button" data-liststyle="rows" aria-pressed="${st === 'rows'}">${icons.list}<span>Rows</span></button>
+    <div class="jr-lstyle jr-orbs" role="group" aria-label="List look">
+      ${orbHTML('liststyle', 'zodiac', icons.zodiac, 'Map', st === 'zodiac')}
+      ${orbHTML('liststyle', 'squares', icons.widget, 'Squares', st === 'squares')}
+      ${orbHTML('liststyle', 'rows', icons.list, 'Rows', st === 'rows')}
     </div>`;
 }
 
@@ -643,11 +648,12 @@ export default {
         </div>`}
         <div class="jr-active" hidden></div>
         <div class="jr-body"></div>
-        <div class="jr-seg${newLayout ? ' jr-seg-new' : ''}" role="group" aria-label="View">
-          <button type="button" data-view="list" aria-pressed="${view === 'list'}">${icons.list}<span>List</span></button>
+        <div class="jr-seg${newLayout ? ' jr-seg-new jr-orbs' : ''}" role="group" aria-label="View">
           ${newLayout
-            ? EXTRA_VIEWS.map((x) => `<button type="button" data-view="${x.id}" aria-pressed="${view === x.id}">${x.icon}<span>${esc(x.label)}</span></button>`).join('')
-            : `<button type="button" data-view="calendar" aria-pressed="${view === 'calendar'}">${icons.calendar}<span>Calendar</span></button>`}
+            ? `${orbHTML('view', 'list', icons.list, 'List', view === 'list')}${EXTRA_VIEWS.map((x) => orbHTML('view', x.id, x.icon, x.label, view === x.id)).join('')}
+              <p class="jr-seg-hint" aria-hidden="true" hidden>Pinch to zoom</p>`
+            : `<button type="button" data-view="list" aria-pressed="${view === 'list'}">${icons.list}<span>List</span></button>
+              <button type="button" data-view="calendar" aria-pressed="${view === 'calendar'}">${icons.calendar}<span>Calendar</span></button>`}
         </div>
         <div class="jr-sheet" role="dialog" aria-modal="true" aria-labelledby="jr-sheet-title" hidden></div>
         ${newLayout ? '<div class="jr-sq" hidden></div>' : ''}
@@ -701,6 +707,7 @@ export default {
     };
 
     let unwireMaps = null;
+    let hintShown = false; // "Pinch to zoom" shows once per visit to the Journal
     const paintBody = () => {
       const filtering = isFiltering();
       try { extra?.destroy?.(); } catch {}
@@ -708,6 +715,8 @@ export default {
       unwireMaps?.();
       unwireMaps = null;
       root.dataset.view = view;
+      const pinchHint = root.querySelector('.jr-seg-hint');
+      if (pinchHint) pinchHint.hidden = true;
       const xv = EXTRA_VIEWS.find((x) => x.id === view);
       if (xv) {
         body.innerHTML = '<div class="jr-xview"></div>';
@@ -726,7 +735,10 @@ export default {
         const cards = filtering || newLayout ? '' : noteHTML(entries.length) + nextHTML(entries.length);
         try {
           body.innerHTML = cards + listHTML(current, filtering);
-          if (newLayout && listStyle() === 'zodiac') unwireMaps = wireZodiacMaps(body);
+          if (newLayout && listStyle() === 'zodiac') {
+            unwireMaps = wireZodiacMaps(body);
+            if (pinchHint && !hintShown && body.querySelector('[data-zm]')) { pinchHint.hidden = false; hintShown = true; }
+          }
         } catch (err) {
           // A look that fails to draw (Map, Squares) must never block the journal: show rows this time, keep the
           // chosen look (so it can be tapped again), and say what went wrong so it can be reported.

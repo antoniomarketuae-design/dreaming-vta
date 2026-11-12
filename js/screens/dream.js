@@ -467,7 +467,7 @@ export default {
         return `
           <button type="button" class="dream-interp-imgrow dream-interp-upsell" data-act="image-plus">
             <span class="dream-interp-imgrow-ico" aria-hidden="true">${icons.image}</span>
-            <span class="dream-interp-imgrow-text">Add an AI image of this dream</span>
+            <span class="dream-interp-imgrow-text">Visualise as image</span>
             <span class="dream-interp-plus">PLUS</span>
           </button>`;
       }
@@ -475,7 +475,7 @@ export default {
       return `
         <div class="dream-interp-imgrow">
           <span class="dream-interp-imgrow-ico" aria-hidden="true">${icons.image}</span>
-          <span class="dream-interp-imgrow-text">Add an AI image of this dream${badge ? ` <span class="dream-interp-left">${esc(badge)}</span>` : ''}</span>
+          <span class="dream-interp-imgrow-text">Visualise as image${badge ? ` <span class="dream-interp-left">${esc(badge)}</span>` : ''}</span>
           <button type="button" class="dream-interp-imgbtn" data-act="image">Create</button>
         </div>`;
     }

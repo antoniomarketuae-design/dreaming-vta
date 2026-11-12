@@ -18,7 +18,7 @@ const MARGIN_Y = 0.12;   // ...and above and below it
 const BOX_MIN_AR = 0.75; // a tall figure gets side room so the whole sign fits a phone-shaped map
 const STRETCH_MIN = 0.85; // the figure's height may be squeezed to this to fit the map...
 const STRETCH_MAX = 1.3; // ...or stretched up to this to fill a tall map (stars stay round)
-const CTL_ROOM = 30;     // px kept clear at the map's bottom for "Pinch to zoom" and the Whole sign switch
+const CTL_ROOM = 92;     // px kept clear at the map's bottom: the List · Stories · Milky Way buttons and, above them, Whole sign / Newest dreams
 const NODE_MAX = 20;     // a night's circle at most (px): small, so a full month of dreams still reads
 const NODE_MIN = 12;     // ...and when zoomed right out
 const NODE_OPEN = 20;    // the size the map opens with (the whole sign mostly in view)
@@ -235,7 +235,6 @@ function seasonMapHTML(season, items) {
             ${badges}
           </div>
         </div>
-        <p class="jr-zm-hint" aria-hidden="true">Pinch to zoom</p>
         <div class="jr-zm-ctl">
           <button type="button" data-zm-act="toggle" class="jr-zm-toggle">Whole sign</button>
         </div>
@@ -375,11 +374,12 @@ function setupMap(el) {
       const fx = ev.clientX - rect.left;
       const fy = ev.clientY - rect.top;
       apply(z >= ZOOM_MAX * 0.7 ? 1 : z * 2, fx, fy);
-      el.classList.add('is-pinched');
+      pinched();
       lastTap = 0;
     } else lastTap = now;
   };
   scroller.addEventListener('click', onDbl);
+  const pinched = () => { el.classList.add('is-pinched'); el.closest('.jr')?.classList.add('is-pinched'); };
 
   // Pinch with two fingers zooms the map (not the page); one finger scrolls it as usual.
   let pinch = null;
@@ -397,7 +397,7 @@ function setupMap(el) {
     if (!pinch || ev.touches.length !== 2) return;
     ev.preventDefault();
     apply(pinch.z * (dist(ev.touches) / pinch.d), pinch.fx, pinch.fy);
-    el.classList.add('is-pinched'); // the hint has done its job
+    pinched(); // the "Pinch to zoom" hint has done its job
   };
   const onEnd = (ev) => { if (ev.touches.length < 2) pinch = null; };
   const stopGesture = (ev) => ev.preventDefault(); // Safari's own pinch would zoom the whole page
