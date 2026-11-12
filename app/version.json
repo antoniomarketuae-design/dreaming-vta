@@ -1,7 +1,12 @@
 {
-  "version": 47,
+  "version": 48,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 48,
+      "date": "2026-11-12",
+      "text": "Journal: Map / Squares / Rows and List / Stories / Milky Way are now round glowing buttons with their names underneath, like Story / Details / Sleep on a dream. 'Pinch to zoom' sits next to the List button so it no longer covers your dreams, and the map reaches down to the bottom bar. On a dream, 'Add an AI image of this dream' is now 'Visualise as image'."
+    },
     {
       "version": 47,
       "date": "2026-11-12",
