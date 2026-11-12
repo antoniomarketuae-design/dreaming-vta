@@ -329,6 +329,32 @@ const listStyle = () => {
   return LIST_STYLES.includes(v) ? v : 'zodiac';
 };
 
+/** New layout: one dream as a small square: its picture behind, the day number and weekday, type glyph, title, symbols. */
+function dayTileHTML(e) {
+  const d = e.d;
+  const title = String(d.title || '').trim() || 'Untitled dream';
+  const date = new Date(`${e.day}T12:00:00`);
+  const ok = !Number.isNaN(date.getTime());
+  const num = ok ? date.getDate() : '';
+  const wk = ok ? date.toLocaleDateString(undefined, { weekday: 'short' }).replace('.', '') : '';
+  const type = dreamType(d);
+  const look = type !== 'general' ? TYPE_LOOK[type] : null;
+  const label = [title, ok ? date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '', look ? look.name : '',
+    d.recurring ? 'recurring' : '', hasVideo(d) ? 'has a video' : ''].filter(Boolean).join(', ');
+  return `
+    <a class="jr-tile${type === 'nightmare' ? ' jr-tile-night' : ''}" href="#dream/${encodeURIComponent(d.id)}" aria-label="${esc(label)}">
+      <img class="jr-tile-img" data-art="${esc(d.id)}" alt="" width="${TILE_PX}" height="${TILE_PX}" decoding="async">
+      <span class="jr-tile-shade" aria-hidden="true"></span>
+      <span class="jr-tile-day" aria-hidden="true"><b>${num}</b><small>${esc(wk)}</small></span>
+      <span class="jr-tile-marks" aria-hidden="true">
+        ${look ? `<i class="jr-tile-type" style="--tc:${look.rgb}">${look.glyph}</i>` : ''}
+        ${d.recurring ? `<i class="jr-tile-type" style="--tc:${RECURRING_LOOK.rgb}">${RECURRING_LOOK.glyph}</i>` : ''}
+        ${hasVideo(d) ? `<i class="jr-tile-type jr-tile-video">${icons.play}</i>` : ''}
+      </span>
+      <span class="jr-tile-body" aria-hidden="true"><span class="jr-tile-title">${esc(title)}</span></span>
+    </a>`;
+}
+
 function styleSwitchHTML() {
   const st = listStyle();
   return `
@@ -686,8 +712,16 @@ export default {
       }
       if (view === 'list') {
         const cards = filtering || newLayout ? '' : noteHTML(entries.length) + nextHTML(entries.length);
-        body.innerHTML = cards + listHTML(current, filtering);
-        if (newLayout && listStyle() === 'zodiac') unwireMaps = wireZodiacMaps(body);
+        try {
+          body.innerHTML = cards + listHTML(current, filtering);
+          if (newLayout && listStyle() === 'zodiac') unwireMaps = wireZodiacMaps(body);
+        } catch (err) {
+          // A look that fails to draw (Zodiac, Squares) must never block the journal: fall back to plain rows.
+          console.error(err);
+          if (!newLayout || listStyle() === 'rows') throw err;
+          setSetting(LIST_STYLE_KEY, 'rows');
+          body.innerHTML = cards + listHTML(current, filtering);
+        }
       } else {
         const byDay = new Map();
         for (const e of current) {
