@@ -1,7 +1,12 @@
 {
-  "version": 36,
+  "version": 37,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 37,
+      "date": "2026-11-12",
+      "text": "Journal map: the heading row now runs edge to edge: the sign, today's date as a number with the weekday and month (like '12 Thursday · November'), and a small '5 dreams' you can tap."
+    },
     {
       "version": 36,
       "date": "2026-11-12",
