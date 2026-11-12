@@ -23,7 +23,8 @@ const NOTE_KEY = 'journalNoteHiddenAt'; // dream count when the "only on this iP
 const NOTE_RETURNS_AFTER = 20;          // ...it comes back after this many more dreams, as a backup reminder
 const SYMBOL_LIMIT = 18;                // symbols shown in the filter sheet before "Show all"
 const LIST_STYLE_KEY = 'journalListStyle'; // new layout: 'squares' (default) or 'rows'
-const TILE_PX = 220;                    // picture size asked of dreamArtURL for a day square
+const TILE_PX = 200;                    // picture size asked of dreamArtURL for a day square
+const MONTH_FIRST = 6;                  // day squares shown per month before "Show all"
 
 const blankFilters = () => ({ kind: 'all', types: [], lucid: false, recurring: false, emotions: [], symbols: [], from: '', to: '' });
 
@@ -34,6 +35,7 @@ let cal = null; // { y, m (0-11), selected: 'YYYY-MM-DD' | null }
 let thumbJob = 0;
 let teardown = null;
 let newLayout = false; // read at each render: the views on offer, the list's cards, main-symbol chips
+const openMonths = new Set(); // 'YYYY-MM' months unfolded in the squares list (kept while the app is open)
 
 const pad = (n) => String(n).padStart(2, '0');
 const dayDate = (iso) => new Date(`${iso}T00:00:00`);
@@ -319,7 +321,6 @@ function dayTileHTML(e) {
   const wk = ok ? date.toLocaleDateString(undefined, { weekday: 'short' }).replace('.', '') : '';
   const type = dreamType(d);
   const look = type !== 'general' ? TYPE_LOOK[type] : null;
-  const syms = mainSymbols(e).slice(0, 2);
   const label = [title, ok ? date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }) : '', look ? look.name : '',
     d.recurring ? 'recurring' : '', hasVideo(d) ? 'has a video' : ''].filter(Boolean).join(', ');
   return `
@@ -332,10 +333,7 @@ function dayTileHTML(e) {
         ${d.recurring ? `<i class="jr-tile-type" style="--tc:${RECURRING_LOOK.rgb}">${RECURRING_LOOK.glyph}</i>` : ''}
         ${hasVideo(d) ? `<i class="jr-tile-type jr-tile-video">${icons.play}</i>` : ''}
       </span>
-      <span class="jr-tile-body" aria-hidden="true">
-        <span class="jr-tile-title">${esc(title)}</span>
-        ${syms.length ? `<span class="jr-tile-syms">${syms.map((n) => `<span>${esc(n)}</span>`).join('')}</span>` : ''}
-      </span>
+      <span class="jr-tile-body" aria-hidden="true"><span class="jr-tile-title">${esc(title)}</span></span>
     </a>`;
 }
 
@@ -370,10 +368,19 @@ function listHTML(shown, filtering) {
     const [y, m] = key.split('-').map(Number);
     const label = y && m ? monthName(y, m - 1) : 'Undated';
     if (squares) {
+      // While searching or filtering every match shows; otherwise 6 per month until the month is unfolded.
+      const open = filtering || openMonths.has(key) || items.length <= MONTH_FIRST;
+      const shownItems = open ? items : items.slice(0, MONTH_FIRST);
+      const toggle = !filtering && items.length > MONTH_FIRST
+        ? `<button type="button" class="jr-msq-more" data-month="${esc(key)}" aria-expanded="${open}">${open
+          ? 'Show less'
+          : `Show all ${items.length}<span class="jr-msq-more-n">+${items.length - MONTH_FIRST}</span>`}${icons.chevronRight}</button>`
+        : '';
       return `
-      <section class="jr-month jr-msq" aria-label="${esc(`${label}, ${plural(items.length, 'dream')}`)}">
+      <section class="jr-month jr-msq${open ? ' is-open' : ''}" aria-label="${esc(`${label}, ${plural(items.length, 'dream')}`)}">
         <h2 class="jr-msq-head"><span>${esc(label)}</span><span class="jr-msq-n">${plural(items.length, 'dream')}</span></h2>
-        <div class="jr-msq-grid">${items.map(dayTileHTML).join('')}</div>
+        <div class="jr-msq-grid">${shownItems.map(dayTileHTML).join('')}</div>
+        ${toggle}
       </section>`;
     }
     return `
@@ -801,6 +808,17 @@ export default {
       if ((b = hit('.jr-seg [data-view]'))) {
         if (b.dataset.view === view) return;
         setViewTo(b.dataset.view);
+      } else if ((b = hit('[data-month]'))) {
+        const key = b.dataset.month;
+        const opening = !openMonths.has(key);
+        if (opening) openMonths.add(key); else openMonths.delete(key);
+        const sec = b.closest('.jr-msq');
+        const top = sec ? sec.getBoundingClientRect().top : 0;
+        paintBody();
+        const btn = body.querySelector(`[data-month="${CSS.escape(key)}"]`);
+        const again = btn?.closest('.jr-msq');
+        if (again && !opening) window.scrollBy(0, again.getBoundingClientRect().top - top);
+        btn?.focus({ preventScroll: true });
       } else if ((b = hit('[data-liststyle]'))) {
         if (b.dataset.liststyle !== listStyle()) {
           setSetting(LIST_STYLE_KEY, b.dataset.liststyle);

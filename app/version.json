@@ -1,7 +1,12 @@
 {
-  "version": 23,
+  "version": 24,
   "updated": "2026-11-12",
   "notes": [
+    {
+      "version": 24,
+      "date": "2026-11-12",
+      "text": "Journal squares are smaller: three across, the first 6 dreams of each month, and 'Show all' opens the rest (tap 'Show less' to fold them again). The day label is now one small line at the top, like '9 MON'."
+    },
     {
       "version": 23,
       "date": "2026-11-12",
