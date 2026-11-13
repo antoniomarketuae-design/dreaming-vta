@@ -15,7 +15,7 @@ const note = v.notes[0]?.text ?? '';
 const TRACKED = ['app', 'docs', 'server', 'tools', '.gitignore', '.gitattributes'];
 git('add', '--', ...TRACKED.filter((p) => require('fs').existsSync(path.join(ROOT, p))));
 try {
-  git('commit', '-m', `v${v.version}: ${note}`, '-m', 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>');
+  git('commit', '-m', `v${v.version}: ${note}`);
 } catch {
   console.log('(nothing new to save)');
 }

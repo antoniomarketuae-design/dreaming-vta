@@ -149,7 +149,7 @@ function toast(message, { action, onAction, sticky } = {}) {
   if (!sticky) toastTimer = setTimeout(() => { toastEl.hidden = true; }, 2600);
 }
 
-// ---- Updates: each time Claude publishes a change, version.json goes up by one ----
+// ---- Updates: each time C++ publishes a change, version.json goes up by one ----
 
 let announced = null;
 
