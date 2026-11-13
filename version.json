@@ -1,7 +1,12 @@
 {
-  "version": 53,
+  "version": 54,
   "updated": "2026-11-13",
   "notes": [
+    {
+      "version": 54,
+      "date": "2026-11-13",
+      "text": "Profile: the Reflect questions moved here from Insights. Insights is being rebuilt around readings of your dreams."
+    },
     {
       "version": 53,
       "date": "2026-11-13",
