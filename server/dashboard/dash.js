@@ -107,7 +107,7 @@ function authShell(inner) {
 function showLogin(message = '') {
   authShell(`
     <form data-form="login" novalidate>
-      <label class="field"><span>Email</span><input class="input" name="email" type="email" autocomplete="username" required></label>
+      <label class="field"><span>Your name or email</span><input class="input" name="email" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
       <label class="field"><span>Password</span><input class="input" name="password" type="password" autocomplete="current-password" required></label>
       <p class="err" data-err>${esc(message)}</p>
       <button class="btn btn-gold btn-wide" type="submit">Sign in</button>
@@ -130,7 +130,7 @@ async function showInvite(token) {
     <form data-form="accept" novalidate>
       <input type="hidden" name="token" value="${esc(token)}">
       <input class="sr" name="username" type="email" autocomplete="username" value="${esc(info.email)}" tabindex="-1" aria-hidden="true">
-      <label class="field"><span>Your name</span><input class="input" name="name" autocomplete="name" value="${esc(info.name || '')}" required></label>
+      <label class="field"><span>Your name (you can sign in with it, or with your email)</span><input class="input" name="name" autocomplete="name" value="${esc(info.name || '')}" required></label>
       <label class="field"><span>Choose a password (at least 10 characters)</span><input class="input" name="password" type="password" autocomplete="new-password" minlength="10" required></label>
       <label class="field"><span>Type it again</span><input class="input" name="again" type="password" autocomplete="new-password" minlength="10" required></label>
       <p class="err" data-err></p>

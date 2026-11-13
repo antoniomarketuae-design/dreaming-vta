@@ -253,16 +253,23 @@ export function createDashboard(ctx) {
     // -- Signing in --
     if (method === 'POST' && route === 'login') {
       const body = await readJson(req, 4096);
-      const email = cleanEmail(body.email);
+      // Email or name (names are unique, any case, and never contain "@").
+      const ident = String(body.email || '').trim().slice(0, 200);
       const pw = String(body.password || '');
-      if (limited(`dash-login:${ip}`, 20, 900000) || limited(`dash-login:${email}`, 10, 900000)) {
+      if (limited(`dash-login:${ip}`, 20, 900000) || limited(`dash-login:${ident.toLowerCase()}`, 10, 900000)) {
         throw httpError(429, 'Too many tries. Please wait 15 minutes.');
       }
-      const { rows: [s] } = await pool.query('select * from staff where email = $1', [email]);
+      let s;
+      if (ident.includes('@')) {
+        ({ rows: [s] } = await pool.query('select * from staff where email = $1', [cleanEmail(ident)]));
+      } else {
+        const { rows } = await pool.query('select * from staff where lower(name) = lower($1)', [ident]);
+        if (rows.length === 1) [s] = rows;
+      }
       const ok = await checkPassword(pw, s ? s.pass_hash : DUMMY_HASH);
       if (!s || !ok || s.disabled) {
-        await audit({ email: email || '(empty)' }, 'login-failed', null, null);
-        throw httpError(401, 'That email and password do not match.');
+        await audit({ email: ident || '(empty)' }, 'login-failed', null, null);
+        throw httpError(401, 'That name or email and password do not match.');
       }
       await startSession(res, s, req);
       await audit(s, 'login', null, null);
@@ -275,16 +282,20 @@ export function createDashboard(ctx) {
       const token = String(body.token || '');
       const pw = String(body.password || '');
       const name = String(body.name || '').trim().slice(0, 80);
+      if (name.includes('@')) throw httpError(400, 'Your name can\'t contain @ (it is also what you sign in with).');
       if (pw.length < 10) throw httpError(400, 'Choose a password of at least 10 characters.');
       const { rows: [inv] } = await pool.query(
         'select * from staff_invites where token_hash = $1 and used_at is null and expires_at > now()', [sha256(token)]);
       if (!inv) throw httpError(400, 'This invitation link is not valid any more. Ask the Owner for a new one.');
       const { rows: [taken] } = await pool.query('select 1 from staff where email = $1', [inv.email]);
       if (taken) throw httpError(409, 'That email already has a login.');
+      const finalName = name || inv.name || inv.email.split('@')[0];
+      const { rows: [dup] } = await pool.query('select 1 from staff where lower(name) = lower($1)', [finalName]);
+      if (dup) throw httpError(409, 'Another team member already uses that name. Please choose a different one.');
       const id = `st${crypto.randomBytes(9).toString('base64url')}`;
       await pool.query(
         'insert into staff (id, email, name, role, pass_hash, invited_by) values ($1, $2, $3, $4, $5, $6)',
-        [id, inv.email, name || inv.name || inv.email.split('@')[0], inv.role, await hashPassword(pw), inv.created_by],
+        [id, inv.email, finalName, inv.role, await hashPassword(pw), inv.created_by],
       );
       await pool.query('update staff_invites set used_at = now() where token_hash = $1', [inv.token_hash]);
       const { rows: [s] } = await pool.query('select * from staff where id = $1', [id]);
