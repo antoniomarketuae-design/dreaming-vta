@@ -422,7 +422,7 @@ async function pagePlans(main) {
     </dl></div>`;
   };
   const pr = d.prices || {};
-  main.innerHTML = `${head('Plans & limits', 'What each plan includes and the daily safety limits. Changing them is done on the server (ask Claude).')}
+  main.innerHTML = `${head('Plans & limits', 'What each plan includes and the daily safety limits. Changing them is done on the server (ask C++).')}
     <div class="grid grid-2">${Object.keys(d.plans).map(planCard).join('')}</div>
     <div class="grid grid-2">
       <div class="panel"><h3>Prices shown in the app</h3><dl class="kv">

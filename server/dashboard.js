@@ -263,7 +263,7 @@ export function createDashboard(ctx) {
       if (ident.includes('@')) {
         ({ rows: [s] } = await pool.query('select * from staff where email = $1', [cleanEmail(ident)]));
       } else {
-        const { rows } = await pool.query('select * from staff where lower(name) = lower($1)', [ident]);
+        const { rows } = await pool.query('select * from staff where lower(name) = lower($1) or lower(email) = lower($1)', [ident]);
         if (rows.length === 1) [s] = rows;
       }
       const ok = await checkPassword(pw, s ? s.pass_hash : DUMMY_HASH);
@@ -290,7 +290,7 @@ export function createDashboard(ctx) {
       const { rows: [taken] } = await pool.query('select 1 from staff where email = $1', [inv.email]);
       if (taken) throw httpError(409, 'That email already has a login.');
       const finalName = name || inv.name || inv.email.split('@')[0];
-      const { rows: [dup] } = await pool.query('select 1 from staff where lower(name) = lower($1)', [finalName]);
+      const { rows: [dup] } = await pool.query('select 1 from staff where lower(name) = lower($1) or lower(email) = lower($1)', [finalName]);
       if (dup) throw httpError(409, 'Another team member already uses that name. Please choose a different one.');
       const id = `st${crypto.randomBytes(9).toString('base64url')}`;
       await pool.query(

@@ -1,6 +1,6 @@
 // Dreaming interpretation inbox.
 // Phones send a dream and get back an id + secret token; they poll with the token for the answer.
-// Claude (from the dev PC, holding ADMIN_KEY) picks up waiting dreams, interprets them and writes
+// C++ (from the dev PC, holding ADMIN_KEY) picks up waiting dreams, interprets them and writes
 // the answer back. Later the server will call the AI itself; the phone-facing API stays the same.
 // Runs behind nginx at https://www.nexflowclub.com/dreaming-api/ (nginx strips that prefix).
 import http from 'node:http';
@@ -618,7 +618,7 @@ async function handle(req, res) {
     throw httpError(404, 'Not found');
   }
 
-  // Claude-facing: needs the admin key. Never reachable from the app.
+  // Admin-key API (C++ on the dev PC). Never reachable from the app.
   if (parts[0] === 'admin') {
     const auth = String(req.headers.authorization || '');
     if (!auth.startsWith('Bearer ') || !safeEqual(auth.slice(7), ADMIN_KEY)) {
@@ -655,15 +655,15 @@ async function handle(req, res) {
       const raw = crypto.randomBytes(6).toString('base64url').toUpperCase().replace(/[^A-Z0-9]/g, 'X');
       const code = `DREAM-${raw.slice(0, 4)}-${raw.slice(4, 8)}`;
       await pool.query('insert into codes (code_hash, days, uses_left, uses_total, note, hint, created_by) values ($1, $2, $3, $3, $4, $5, $6)',
-        [sha256(code), days, uses, String(body.note || '').slice(0, 200), code.slice(-4), 'claude']);
+        [sha256(code), days, uses, String(body.note || '').slice(0, 200), code.slice(-4), 'C++']);
       return send(201, { code, days, uses });
     }
 
     // A one-time link for a new dashboard member (used to make the Owner's first login): { email, name, role }.
     if (req.method === 'POST' && parts[1] === 'staff-invite') {
       const body = await readJson(req, 4096);
-      const out = await dashboard.createInvite({ email: body.email, name: body.name, role: String(body.role || 'owner'), createdBy: 'claude' });
-      await pool.query('insert into audit_log (staff_email, action, target, details) values ($1, $2, $3, $4)', ['claude', 'invited', out.email, { role: out.role }]);
+      const out = await dashboard.createInvite({ email: body.email, name: body.name, role: String(body.role || 'owner'), createdBy: 'C++' });
+      await pool.query('insert into audit_log (staff_email, action, target, details) values ($1, $2, $3, $4)', ['C++', 'invited', out.email, { role: out.role }]);
       return send(201, out);
     }
 
