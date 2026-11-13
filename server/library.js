@@ -4,6 +4,7 @@
 // symbols/*.json and themes/*.json) and are never part of the public repository.
 // The interpreter's private guidance (`care`) and the matching lists (aliases, signals) are not sent to phones.
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
 const DIRS = ['symbols', 'themes'];
@@ -28,6 +29,7 @@ function singulars(word) {
 let entries = [];
 let byId = new Map();
 let sources = new Map(); // source key → { title, author, year, kind, culture } (library/sources.json, the register)
+let indexCache = null;    // the word list for the phone's Dream Reader (built once per load)
 let byTerm = new Map(); // normalised name / alias / signal → entry (symbols win over themes for the same term)
 
 /** Loads every entry from `dir`. Returns how many were loaded (0 when the folder is missing). */
@@ -46,6 +48,7 @@ export function loadLibrary(dir) {
     }
   }
   entries = list;
+  indexCache = null;
   byId = new Map(list.map((e) => [e.id, e]));
   sources = new Map();
   try {
@@ -66,6 +69,23 @@ export function loadLibrary(dir) {
 }
 
 export const librarySize = () => entries.length;
+
+/**
+ * The word list the phone uses to find library symbols in a dream itself (the dream never leaves the phone):
+ * { v, items: [[name, 't' | 's', [normalised terms…], category]] }. Only names and matching words, no meanings.
+ */
+export function libraryIndex() {
+  if (indexCache) return indexCache;
+  const items = entries.map((e) => [
+    e.name,
+    e.kind === 'theme' ? 't' : 's',
+    [...new Set([e.name, ...(e.aliases || []), ...(e.signals || [])].map(norm).filter((t) => t && t.length > 1))],
+    e.kind === 'theme' ? 'theme' : String(e.category || e.id.split('.')[0] || ''),
+  ]);
+  const v = createHash('sha256').update(JSON.stringify(items)).digest('hex').slice(0, 12);
+  indexCache = { v, items };
+  return indexCache;
+}
 
 /**
  * The best entry for a symbol name as the app shows it ("Old friend", "Being chased", "Eels"), or null.

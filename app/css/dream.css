@@ -1232,3 +1232,23 @@ button.dream-interp-imgrow:active { opacity: 0.75; }
 }
 .dream-more svg { width: 18px; height: 18px; }
 .dream-more:active { transform: scale(0.98); }
+
+/* ---- Your dream reading (js/reader.js): one reading from the library, right under the dream ---- */
+.dream-reading { margin-top: 12px; padding: 16px 18px; border-color: rgba(255, 217, 138, 0.22); }
+.dream-reading-label { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; color: var(--moon); font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.dream-reading-label svg { width: 16px; height: 16px; }
+.dream-reading-wait { margin: 0; color: var(--text-dim); font-size: 15px; line-height: 1.5; }
+.dream-reading-lead { margin: 0 0 10px; color: var(--text); font-size: 15.5px; line-height: 1.9; }
+.dream-reading-chip { display: inline-flex; align-items: center; min-height: 28px; margin: 0 4px 2px 0; padding: 0 10px; border: 1px solid rgba(255, 217, 138, 0.35); border-radius: 999px; background: rgba(255, 217, 138, 0.08); color: var(--moon); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.dream-reading-thread { margin: 0 0 12px; color: var(--text-dim); font-size: 14.5px; line-height: 1.5; }
+.dream-reading-thread b { color: var(--text); font-weight: 600; }
+.dream-reading-part { margin-top: 14px; }
+.dream-reading-part p { margin: 6px 0 0; color: var(--text); font-size: 15.5px; line-height: 1.55; }
+.dream-reading-name { margin: 16px 0 0; color: var(--text); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+.dream-reading-part .dream-reading-name { margin-top: 0; }
+p.dream-reading-here { padding: 8px 10px; border-left: 2px solid rgba(255, 217, 138, 0.55); border-radius: 0 10px 10px 0; background: rgba(255, 217, 138, 0.06); color: var(--text-dim); font-size: 14.5px; }
+.dream-reading-here b { color: var(--moon); font-weight: 600; }
+.dream-reading-mine, .dream-reading-qs { margin: 8px 0 0; padding-left: 18px; color: var(--text-dim); font-size: 14.5px; line-height: 1.5; }
+.dream-reading-mine li + li, .dream-reading-qs li + li { margin-top: 6px; }
+.dream-reading-mine { margin-top: 14px; }
+.dream-reading-foot { margin: 14px 0 0; color: var(--text-faint); font-size: 12.5px; }

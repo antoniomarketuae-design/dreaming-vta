@@ -12,7 +12,7 @@ import pg from 'pg';
 import { buildPrompt, generateImage } from './images.js';
 import { buildVideoPrompt, generateVideo, generateFilm, splitScenes } from './videos.js';
 import { publicVideoOptions, wordCount, maxSeconds, videoCost, estimateMinutes, isLength, clipsFor } from './video-options.js';
-import { loadLibrary, librarySize, findEntry, publicEntry } from './library.js';
+import { loadLibrary, librarySize, findEntry, publicEntry, libraryIndex } from './library.js';
 import { DASH_SCHEMA, createDashboard } from './dashboard.js';
 
 try { process.loadEnvFile(fileURLToPath(new URL('./.env', import.meta.url))); } catch {}
@@ -390,6 +390,13 @@ async function handle(req, res) {
   // Plans and prices for the subscriptions page (public).
   if (req.method === 'GET' && url.pathname === '/plans') {
     return send(200, { plans: PLANS.plans, prices: PLANS.prices, videos: publicVideoOptions(PLANS.videos), paymentsEnabled: Boolean(process.env.PAYMENTS_ENABLED) });
+  }
+
+  // The library's word list for the phone's Dream Reader (names and matching words only, no meanings).
+  if (req.method === 'GET' && url.pathname === '/library/index') {
+    if (limited(`library-index:${ip}`, 60, 3600000)) throw httpError(429, 'Too many requests. Please wait a while.');
+    if (!librarySize()) throw httpError(503, 'The library is not available right now.');
+    return send(200, libraryIndex());
   }
 
   // General meaning of one symbol from the library (public, no account needed): ?name=Ocean
