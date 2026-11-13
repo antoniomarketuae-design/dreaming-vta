@@ -1,7 +1,12 @@
 {
-  "version": 52,
+  "version": 53,
   "updated": "2026-11-13",
   "notes": [
+    {
+      "version": 53,
+      "date": "2026-11-13",
+      "text": "Symbol meanings: symbols from the new library now show ONE combined answer (what it means, what it depends on, questions to ask yourself, and the sources it is based on) instead of separate boxes. More symbols switch over as the library grows."
+    },
     {
       "version": 52,
       "date": "2026-11-13",
