@@ -33,6 +33,8 @@ import {
   videoElapsed, videoWaitText, openVideoPlayer,
 } from '../videos.js';
 import { openVideoPicker } from '../videopicker.js';
+import { readDream, sentences } from '../reader.js';
+import { openSymbolSheet } from './b/symbolsheet.js';
 
 const STOP = new Set('that this with from have were they them then there their what when where which while would could should about after again also been before being because into just like more most much only other over some such than very will your yours mine ours really thing things something nothing everything maybe still back down even ever every here know made make many might never next once same seem seemed take took went going gone came come into onto upon under felt feel feeling dream dreamed dreamt dreaming woke wake today yesterday night morning evening'.split(' '));
 const stem = (w) => w.replace(/(ings?|ed|es|s)$/, '').replace(/(.)\1$/, '$1');
@@ -657,6 +659,7 @@ export default {
       if (!dream) return;
       const p = (k) => root.querySelector(`[data-panel="${k}"]`);
       p('story').innerHTML = storyHTML(dream);
+      paintReading(p('story'), dream);
       p('details').innerHTML = detailsHTML(dream);
       p('sleep').innerHTML = sleepHTML(dream);
     }
@@ -699,9 +702,65 @@ export default {
 
       return `
         <div class="glass dream-text">${esc(dream.text) || '<span class="faint">No words written for this dream.</span>'}</div>
+        <section class="glass dream-reading" data-reading aria-labelledby="dream-reading-title" aria-busy="true">
+          <p class="dream-reading-label" id="dream-reading-title">${icons.sparkle}<span>Your dream reading</span></p>
+          <p class="dream-reading-wait">Reading your dream…</p>
+        </section>
         <button type="button" class="dream-more" data-act="more">${icons.plus}<span>${dream.text ? 'Remembered more? Add to this dream' : 'Write this dream'}</span></button>
         ${isNewLayout() ? dayBeforeHTML(dream) : ''}
         ${symbols}${feelings}${noticed}${empty}`;
+    }
+
+    // ---- The Dream Reader: one reading built from the library (js/reader.js) ----
+
+    const names = (list) => (list.length < 2 ? list.join('') : `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`);
+    // 'Ocean / Sea' → 'ocean / sea'; 'Aliens and UFOs' keeps 'UFOs'.
+    const lower = (s) => String(s).split(' ').map((w) => (/^[A-Z][a-z'’-]*$/.test(w) ? w.toLowerCase() : w)).join(' ');
+    const shortDay = (iso) => {
+      const d = new Date(`${iso}T12:00:00`);
+      return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
+    };
+
+    function readingHTML(r) {
+      if (r.status === 'offline') return '<p class="dream-reading-wait">Your reading needs an internet connection the first time. Open this dream again when you are online.</p>';
+      if (r.status === 'empty') return '<p class="dream-reading-wait">We did not find images from our dream library in this dream yet. Add more detail (the people, places, animals and what happened) and your reading appears here.</p>';
+      const [main, ...rest] = r.images;
+      const chip = (im) => `<button type="button" class="dream-reading-chip" data-act="reading-symbol" data-name="${esc(im.name)}">${esc(im.name)}</button>`;
+      const here = (im) => im.situations.map((s) => `<p class="dream-reading-here"><b>In your dream: ${esc(lower(String(s.when || '')))}.</b> ${esc(s.meaning)}</p>`).join('');
+      const thread = rest.length
+        ? `<p class="dream-reading-thread">The main thread is <b>${esc(lower(main.name))}</b>; ${esc(names(rest.map((im) => lower(im.name))))} ${rest.length === 1 ? 'adds' : 'add'} to it.</p>`
+        : '';
+      const mine = r.images.filter((im) => im.history.count > 0).slice(0, 2).map((im) => `<li>${esc(im.name)} has come up in ${im.history.count === 1 ? 'one other dream' : `${im.history.count} other dreams`}${im.history.since ? ` since ${esc(shortDay(im.history.since))}` : ''}. A returning image usually points to something still on your mind.</li>`).join('');
+      return `
+        <p class="dream-reading-lead">This dream brings together ${r.images.map(chip).join('')}</p>
+        ${thread}
+        <div class="dream-reading-part">
+          <h3 class="dream-reading-name">${esc(main.name)}</h3>
+          <p>${esc(sentences(main.meaning, 3))}</p>
+          ${here(main)}
+        </div>
+        ${rest.map((im) => `
+          <div class="dream-reading-part">
+            <h3 class="dream-reading-name">${esc(im.name)}</h3>
+            <p>${esc(sentences(im.meaning, 2))}</p>
+            ${here(im)}
+          </div>`).join('')}
+        ${mine ? `<ul class="dream-reading-mine">${mine}</ul>` : ''}
+        ${r.questions.length ? `<h3 class="dream-reading-name">Ask yourself</h3><ul class="dream-reading-qs">${r.questions.map((q) => `<li>${esc(q)}</li>`).join('')}</ul>` : ''}
+        <p class="dream-reading-foot">From Dreaming's dream library. Tap an image for its full meaning.</p>`;
+    }
+
+    let readingToken = 0;
+    async function paintReading(panel, dream) {
+      const host = panel.querySelector('[data-reading]');
+      if (!host) return;
+      const token = ++readingToken;
+      let r;
+      try { r = await readDream(dream); } catch { r = { status: 'offline' }; }
+      if (token !== readingToken || !host.isConnected) return;
+      host.querySelector('.dream-reading-wait')?.remove();
+      host.insertAdjacentHTML('beforeend', readingHTML(r));
+      host.setAttribute('aria-busy', 'false');
     }
 
     // ---- New layout: dream type (a square of four tiles) and the day before ----
@@ -1265,6 +1324,7 @@ export default {
       else if (act === 'share') share();
       else if (act === 'edit') ctx.navigate(`#record/edit/${encodeURIComponent(id)}`);
       else if (act === 'more') ctx.navigate(`#record/edit/${encodeURIComponent(id)}/more`);
+      else if (act === 'reading-symbol') openSymbolSheet({ name: target.dataset.name });
       else if (act === 'tab') selectTab(target.dataset.tab || 'story');
       else if (act === 'type') chooseType(target.dataset.type);
       else if (act === 'day-edit') { editingDay = true; paintPanels(); root.querySelector('[data-day-input]')?.focus(); }

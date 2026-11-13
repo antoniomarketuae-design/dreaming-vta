@@ -34,7 +34,7 @@ const titleCase = (k) => capital(String(k).replace(/[_-]+/g, ' ').replace(/([a-z
 const cache = new Map();    // lower-cased name → { entry } | { missing: true }
 const inflight = new Map(); // lower-cased name → Promise
 
-async function loadEntry(name) {
+export async function loadEntry(name) {
   const k = name.toLowerCase();
   if (cache.has(k)) return cache.get(k);
   if (inflight.has(k)) return inflight.get(k);

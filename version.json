@@ -1,7 +1,12 @@
 {
-  "version": 54,
+  "version": 55,
   "updated": "2026-11-13",
   "notes": [
+    {
+      "version": 55,
+      "date": "2026-11-13",
+      "text": "New: your dream reading. Every dream now gets an automatic reading on its page, built from our dream library: the main thread of the dream, what each image means in your dream, how often an image keeps coming back in your journal, and questions to ask yourself. Your dream text stays on your phone."
+    },
     {
       "version": 54,
       "date": "2026-11-13",
