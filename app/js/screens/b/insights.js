@@ -1,8 +1,7 @@
 // New layout: Insights tab. What keeps coming back in the dreams and what it may mean:
 //   1. your dream sky, all time (sky.js), on top: every dream a star, dreams that share a symbol joined into
 //      constellations; a constellation's "Read more" opens the symbol's meaning,
-//   2. this month's moon cycle right below it (moon.js, the full card: tonight's moon, the next full moon, every
-//      night of the month with the nights you dreamed),
+//   (no moon cycle here since v52, owner's call: Home keeps its small moon card),
 //   3. recurring symbols over the past 30 / 15 / 10 days (tap one for its meaning),
 //   4. the dream types recorded (general / lucid / nightmare / prophetic, all time),
 //   5. the Symbols map analysis (#module/symbols-map, a Dreaming Plus feature),
@@ -22,7 +21,6 @@ import { MODULE_INFO, MOD_ICONS } from '../module.js';
 import { hasFeature, openPaywall, getAccount } from '../../account.js';
 import { plusPill } from '../../paywall.js';
 import sky from './sky.js';
-import { moonCardHTML } from './moon.js';
 import { openSymbolSheet, closeSymbolSheet } from './symbolsheet.js';
 
 const DAY = 86400000;
@@ -177,10 +175,6 @@ function paintSky() {
     el.innerHTML = '<p class="bi-hint">Your sky could not be drawn just now.</p>';
   }
 }
-
-// ---- Moon cycle, right under the sky (the full card from moon.js; shown even before the first dream) ----
-
-const moonHTML = () => moonCardHTML({ dreams: listDreams() });
 
 // ---- 3. Dream types ----
 
@@ -371,7 +365,7 @@ function reflectHTML() {
 // ---- Screen ----
 
 // In page order, after the sky's own host (which comes first).
-const SECTIONS = { moon: moonHTML, symbols: symbolsHTML, types: typesHTML, map: mapHTML, reflect: reflectHTML };
+const SECTIONS = { symbols: symbolsHTML, types: typesHTML, map: mapHTML, reflect: reflectHTML };
 
 // Re-draws only the sections whose HTML changed (a background image finishing touches no section here), and keeps
 // any "From … dreams" lists that were open. The sky checks for itself whether the dreams changed.
