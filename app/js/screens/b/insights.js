@@ -364,8 +364,12 @@ function reflectHTML() {
 
 // ---- Screen ----
 
-// In page order, after the sky's own host (which comes first).
-const SECTIONS = { symbols: symbolsHTML, types: typesHTML, map: mapHTML, reflect: reflectHTML };
+// In page order, after the sky's own host (which comes first). The Reflect questions live in Profile now (owner,
+// 2026-11-13); this module still builds them (reflectCardHTML).
+const SECTIONS = { symbols: symbolsHTML, types: typesHTML, map: mapHTML };
+
+/** The Reflect card (questions from the last dreams), shown in the Profile tab. */
+export const reflectCardHTML = () => reflectHTML();
 
 // Re-draws only the sections whose HTML changed (a background image finishing touches no section here), and keeps
 // any "From … dreams" lists that were open. The sky checks for itself whether the dreams changed.

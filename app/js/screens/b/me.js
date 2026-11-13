@@ -9,6 +9,7 @@
 // The picture is saved on the profile as `avatar`: one of the emoji below, or a 160×160 JPEG data URL made on this
 // phone from a photo. It never leaves the iPhone. Settings' own name / plan code stays in profile.js; this tab only
 // reads the same data. Touches document/window/storage only inside render and event handlers, never at import time.
+import { reflectCardHTML } from './insights.js';
 import { getProfile, setProfile, getStats, getSetting, listDreams, onChange } from '../../store.js';
 import { esc, icons } from '../../ui.js';
 import { getAccount, cachedAccount } from '../../account.js';
@@ -314,6 +315,7 @@ function draw(el, ctx) {
       ${userCard()}
       ${planCard()}
       ${surveyCard()}
+      ${reflectCardHTML()}
       ${rowsHTML()}
       ${keptNote()}
     </div>`;
