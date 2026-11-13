@@ -27,6 +27,7 @@ function singulars(word) {
 
 let entries = [];
 let byId = new Map();
+let sources = new Map(); // source key → { title, author, year, kind, culture } (library/sources.json, the register)
 let byTerm = new Map(); // normalised name / alias / signal → entry (symbols win over themes for the same term)
 
 /** Loads every entry from `dir`. Returns how many were loaded (0 when the folder is missing). */
@@ -46,6 +47,11 @@ export function loadLibrary(dir) {
   }
   entries = list;
   byId = new Map(list.map((e) => [e.id, e]));
+  sources = new Map();
+  try {
+    const reg = JSON.parse(readFileSync(join(dir, 'sources.json'), 'utf8'));
+    for (const s of Array.isArray(reg) ? reg : []) if (s && s.key) sources.set(s.key, s);
+  } catch {}
   byTerm = new Map();
   // Themes first, then symbols, so a symbol's own name or alias replaces a theme's signal of the same words.
   for (const e of [...list.filter((x) => x.kind === 'theme'), ...list.filter((x) => x.kind !== 'theme')]) {
@@ -85,6 +91,29 @@ const str = (v) => (typeof v === 'string' ? v.trim() : '');
 /** A source line for readers: without our own page notes ("…(1913), PDF pages 263-264" → "…(1913)"). */
 const sourceLine = (v) => str(v).replace(/,?\s*PDF pages?\s*[\d\s,–-]+$/i, '').trim();
 
+/** A source for readers: "Artemidorus, The Interpretation of Dreams (c. 200)" plus its kind and culture. */
+function sourceView(key) {
+  const s = sources.get(key);
+  if (!s) return null;
+  const year = Number(s.year);
+  const when = Number.isFinite(year) ? (year < 0 ? `${-year} BCE` : year < 1000 ? `c. ${year}` : String(year)) : str(String(s.year || ''));
+  return { title: str(s.title), author: str(s.author), year: when, kind: str(s.kind), culture: str(s.culture) };
+}
+
+/** The one combined answer (see Interpretation/kb/SYNTHESIS.md), or null when the entry has none yet. */
+function answerView(a) {
+  if (!a || typeof a !== 'object' || !str(a.meaning)) return null;
+  const used = (Array.isArray(a.basedOn) ? a.basedOn : []).map(str).filter(Boolean);
+  return {
+    meaning: str(a.meaning),
+    depends: (Array.isArray(a.depends) ? a.depends : []).filter((d) => d && str(d.meaning)).map((d) => ({ when: str(d.when), meaning: str(d.meaning) })),
+    ask: (Array.isArray(a.ask) ? a.ask : []).map(str).filter(Boolean),
+    confidence: ['high', 'medium', 'low'].includes(a.confidence) ? a.confidence : null,
+    sources: used.map(sourceView).filter(Boolean),
+    sourceCount: used.length,
+  };
+}
+
 /** What a phone gets for one entry. */
 export function publicEntry(e) {
   const perspectives = {};
@@ -105,5 +134,6 @@ export function publicEntry(e) {
     questions: (Array.isArray(e.questions) ? e.questions : []).map(str).filter(Boolean),
     related: (Array.isArray(e.related) ? e.related : []).map((id) => byId.get(id)).filter(Boolean).map((r) => ({ id: r.id, name: r.name })),
     sources: (Array.isArray(e.sources) ? e.sources : []).map(str).filter(Boolean),
+    answer: answerView(e.answer),
   };
 }

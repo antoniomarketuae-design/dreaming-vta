@@ -152,7 +152,82 @@ function perspective(v) {
   return { text: '', source: '' };
 }
 
+const KIND_ORDER = ['research', 'psychology', 'tradition', 'modern'];
+const KIND_NAMES = { research: 'Dream research', psychology: 'Psychology', tradition: 'Dream books and traditions', modern: 'Modern writers' };
+const CULTURE_NAMES = {
+  greek: 'Greek', roman: 'Roman', islamic: 'Islamic', arabic: 'Arabic', persian: 'Persian', jewish: 'Jewish', chinese: 'Chinese',
+  japanese: 'Japanese', indian: 'Indian', hindu: 'Hindu', buddhist: 'Buddhist', tibetan: 'Tibetan', slavic: 'Slavic', russian: 'Russian',
+  egyptian: 'Egyptian', mesopotamian: 'Mesopotamian', byzantine: 'Byzantine', european: 'European', english: 'English', french: 'French',
+  german: 'German', american: 'American', african: 'African', zulu: 'Zulu', 'native-american': 'Native American', western: 'Western',
+  'greco-roman': 'Greek', 'indian-hindu': 'Indian', 'indian-ayurveda': 'Indian', 'slavic-russian': 'Slavic', 'medieval-european': 'European',
+  jain: 'Jain', norse: 'Norse',
+};
+/** "Greek, Islamic and Chinese" */
+const andList = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
+
+/** "Based on 18 sources": dream research, psychology and the traditions they come from; the full list folds open. */
+function basedOnHTML(a) {
+  const list = Array.isArray(a.sources) ? a.sources : [];
+  if (!list.length) return '';
+  const groups = KIND_ORDER.map((k) => ({ k, items: list.filter((s) => s.kind === k) })).filter((g) => g.items.length);
+  const cultures = [...new Set(list.filter((s) => s.kind === 'tradition').flatMap((s) => String(s.culture || '').split(/[,;/]\s*/))
+    .map((c) => CULTURE_NAMES[c.trim().toLowerCase()]).filter(Boolean))];
+  const line = groups.map((g) => (g.k === 'tradition' && cultures.length ? `${cultures.length > 5 ? `${cultures.slice(0, 5).join(', ')} and other` : andList(cultures)} dream books` : KIND_NAMES[g.k].toLowerCase())).join(' · ');
+  const n = Math.max(list.length, Number(a.sourceCount) || 0);
+  return `
+    <section class="bss-sec" aria-labelledby="bss-based-title">
+      <h3 class="bss-label" id="bss-based-title">Based on ${n} sources</h3>
+      <p class="bss-based">${esc(capital(line))}</p>
+      <details class="bss-srclist">
+        <summary>See all sources</summary>
+        ${groups.map((g) => `
+          <p class="bss-srcgroup">${esc(KIND_NAMES[g.k])}</p>
+          <ul class="bss-srcs">${g.items.map((s) => `<li class="bss-src">${esc([s.author, s.title].filter(Boolean).join(', '))}${s.year ? ` (${esc(s.year)})` : ''}</li>`).join('')}</ul>`).join('')}
+      </details>
+    </section>`;
+}
+
+/** The one combined answer: meaning · it depends on · ask yourself · based on. */
+function answerHTML(entry, title, allContexts) {
+  const a = entry.answer;
+  const out = [];
+  const name = str(entry.name);
+  const other = name && normKey(name) !== normKey(title) ? name : '';
+  out.push(`
+    <div class="bss-lead">
+      <p class="bss-lead-label">${icons.book}<span>From our dream library${other ? ` · ${esc(other)}` : ''}</span></p>
+      <p class="bss-summary bss-meaning">${esc(a.meaning)}</p>
+    </div>`);
+  const depends = (Array.isArray(a.depends) ? a.depends : []).filter((d) => d && str(d.meaning));
+  if (depends.length) {
+    const shown = allContexts ? depends : depends.slice(0, CONTEXTS_SHOWN);
+    out.push(`
+      <section class="bss-sec" aria-labelledby="bss-ctx-title">
+        <h3 class="bss-label" id="bss-ctx-title">It depends on…</h3>
+        <ul class="bss-ctx">${shown.map((c) => `
+          <li class="bss-ctx-item">
+            ${str(c.when) ? `<p class="bss-ctx-when">${esc(capital(str(c.when)))}</p>` : ''}
+            <p class="bss-ctx-meaning">${esc(str(c.meaning))}</p>
+          </li>`).join('')}
+        </ul>
+        ${depends.length > CONTEXTS_SHOWN && !allContexts ? `<button type="button" class="bss-more" data-bss-contexts>Show all ${depends.length}</button>` : ''}
+      </section>`);
+  }
+  const ask = (Array.isArray(a.ask) ? a.ask : []).map(str).filter(Boolean);
+  if (ask.length) {
+    out.push(`
+      <section class="bss-sec" aria-labelledby="bss-q-title">
+        <h3 class="bss-label" id="bss-q-title">Ask yourself</h3>
+        <ul class="bss-qs">${ask.map((q) => `<li><span class="bss-q-mark" aria-hidden="true">?</span><span>${esc(q)}</span></li>`).join('')}</ul>
+      </section>`);
+  }
+  out.push(basedOnHTML(a));
+  return out.join('');
+}
+
 function entryHTML(entry, title, allContexts) {
+  // The new library: one combined answer (older entries keep the summary + perspectives layout until rewritten).
+  if (entry.answer && str(entry.answer.meaning)) return answerHTML(entry, title, allContexts) + relatedHTML(entry, title);
   const out = [];
   const name = str(entry.name);
   const other = name && normKey(name) !== normKey(title) ? name : '';
@@ -215,6 +290,13 @@ function entryHTML(entry, title, allContexts) {
       </section>`);
   }
 
+  out.push(relatedHTML(entry, title));
+  return out.join('');
+}
+
+/** Related symbols (both layouts). */
+function relatedHTML(entry, title) {
+  const out = [];
   const related = (Array.isArray(entry.related) ? entry.related : [])
     .map((r) => str(typeof r === 'string' ? r : r?.name)).filter(Boolean)
     .filter((n, i, all) => all.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i)
