@@ -1,7 +1,12 @@
 {
-  "version": 51,
-  "updated": "2026-11-12",
+  "version": 52,
+  "updated": "2026-11-13",
   "notes": [
+    {
+      "version": 52,
+      "date": "2026-11-13",
+      "text": "Insights: the moon cycle is no longer on this tab (the small moon card stays on Home)."
+    },
     {
       "version": 51,
       "date": "2026-11-12",
