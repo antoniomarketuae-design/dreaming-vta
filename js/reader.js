@@ -152,15 +152,40 @@ function historyOf(terms, others) {
 }
 
 const cache = new Map(); // dream id + content → reading
+const imageCache = new Map(); // dream id + content → images (no meanings), for the Insights readings
+
+/** What the reader looks at in a dream: its title, words, chosen feelings and the symbols added to it. */
+export function dreamText(dream) {
+  const extra = [...(Array.isArray(dream.emotions) ? dream.emotions : []),
+    ...Object.values(dream.symbols || {}).flat().filter((s) => typeof s === 'string')].join('. ');
+  return `${dream.title || ''}. ${dream.text || ''}. ${extra}`;
+}
+
+/**
+ * The library images in one dream, without meanings: [{ name, kind ('t' situation | 's' symbol), category, terms,
+ * count, first }], situations first. null when the word list is unavailable (offline the first time).
+ */
+export async function imagesIn(dream) {
+  const idx = await getIndex();
+  if (!idx) return null;
+  const text = dreamText(dream);
+  const key = `${dream.id}|${text}`;
+  if (!imageCache.has(key)) imageCache.set(key, findImages(text, idx));
+  return imageCache.get(key);
+}
+
+/** The library images in any text (a day note), as imagesIn(). */
+export async function imagesInText(text) {
+  const idx = await getIndex();
+  return idx ? findImages(String(text || ''), idx) : null;
+}
 
 /**
  * The reading for a dream: { status: 'ok', images: [{ name, kind, meaning, situations, ask, isNew, history }],
  * questions } · { status: 'empty' } (no library image found) · { status: 'offline' } (word list unavailable).
  */
 export async function readDream(dream) {
-  const extra = [...(Array.isArray(dream.emotions) ? dream.emotions : []),
-    ...Object.values(dream.symbols || {}).flat().filter((s) => typeof s === 'string')].join('. ');
-  const text = `${dream.title || ''}. ${dream.text || ''}. ${extra}`;
+  const text = dreamText(dream);
   const key = `${dream.id}|${text}`;
   if (cache.has(key)) return cache.get(key);
 
