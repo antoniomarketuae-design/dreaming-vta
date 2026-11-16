@@ -1,7 +1,12 @@
 {
-  "version": 56,
-  "updated": "2026-11-13",
+  "version": 57,
+  "updated": "2026-11-16",
   "notes": [
+    {
+      "version": 57,
+      "date": "2026-11-16",
+      "text": "Analyze now answers instantly: your interpretation is built right away from our dream library, on your phone. No more waiting, it's free and unlimited, and your dream text stays on your phone. The dream reading also matches the details of your dream better (for example a calm swim with sharks is read as calm, not as a threat)."
+    },
     {
       "version": 56,
       "date": "2026-11-13",
