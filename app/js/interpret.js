@@ -1,4 +1,6 @@
-// Dream interpretation (beta): sends ONE dream's text to Dreaming's server when the user asks,
+// Dream interpretation. Since v57 new requests are built on the phone from the dream library (interpretLocally →
+// dreaminterp.js); the server inbox below (by-hand answers) only finishes requests sent before that. Old notes:
+// sends ONE dream's text to Dreaming's server when the user asks,
 // then checks back until an answer is ready. The journal itself never leaves the phone.
 // Touches document/window/localStorage only inside functions, never at import time.
 import { getDream, updateDream, getSetting } from './store.js';
@@ -114,6 +116,27 @@ export async function requestInterpretation(dream) {
 }
 
 /**
+ * Interprets this dream on the phone from Dreaming's dream library (since v57; the server inbox is no longer used for
+ * new requests). Saves it as a finished interpretation and resolves to the updated dream; throws InterpretError
+ * with a friendly message (too short, or offline the first time).
+ */
+export async function interpretLocally(dream) {
+  const text = String(dream?.text ?? '').trim();
+  if (text.length < 3) throw new InterpretError('Write a little more about this dream first.', 400);
+  let result;
+  try {
+    const { interpretFromLibrary } = await import('./dreaminterp.js');
+    result = await interpretFromLibrary(dream);
+  } catch (err) {
+    throw new InterpretError(err?.message || "Couldn't read this dream just now. Please try again.");
+  }
+  const now = new Date().toISOString();
+  return updateDream(dream.id, {
+    interpretation: { id: 'library', source: 'library', status: 'done', result, requestedAt: now, answeredAt: now, textHash: textHash(text) },
+  });
+}
+
+/**
  * Checks the server once. Saves the dream when anything new arrived.
  * Resolves to { dream, changed }. Throws InterpretError on network/server trouble.
  */
@@ -149,10 +172,16 @@ export async function fetchStatus(dream) {
 /** Sends 👍 (1) or 👎 (-1), with an optional note, and remembers it on the phone. Throws InterpretError. */
 export async function sendFeedback(dream, rating, note) {
   const interp = dream?.interpretation;
-  if (!interp?.id || !interp.token) throw new InterpretError('This interpretation is no longer available.');
   const r = rating === -1 ? -1 : 1;
-  const body = { rating: r };
   const cleanNote = String(note ?? '').trim().slice(0, 1000);
+  // Library interpretations live only on the phone: the rating is remembered here.
+  if (interp?.source === 'library') {
+    const next = { ...interp, rating: r };
+    if (cleanNote) next.feedbackNote = cleanNote;
+    return updateDream(dream.id, { interpretation: next });
+  }
+  if (!interp?.id || !interp.token) throw new InterpretError('This interpretation is no longer available.');
+  const body = { rating: r };
   if (cleanNote) body.note = cleanNote;
   await call(`/interpretations/${encodeURIComponent(interp.id)}/feedback`, { method: 'POST', token: interp.token, body });
   const fresh = getDream(dream.id);

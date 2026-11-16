@@ -129,8 +129,10 @@ const STOP = new Set(('a an the you your yours it its is are was were be been be
 const stem = (w) => w.replace(/(ings|ing|ied|ies|ed|es|s|ly)$/, '').slice(0, 6);
 const stemsOf = (text) => new Set(norm(text).split(' ').filter((w) => w.length > 2 && !STOP.has(w)).map(stem));
 
-function fit(when, stems) {
-  const toks = norm(when).split(' ').filter((w) => w.length > 2 && !STOP.has(w)).map(stem);
+// The image's own words ("sharks" in "sharks circle you") are in every dream that has the image, so they never count
+// towards a match: only the other words of the situation do.
+function fit(when, stems, own = new Set()) {
+  const toks = norm(when).split(' ').filter((w) => w.length > 2 && !STOP.has(w)).map(stem).filter((t) => !own.has(t));
   if (!toks.length) return 0;
   const hit = toks.filter((t) => stems.has(t)).length;
   return hit ? hit / toks.length : 0;
@@ -215,19 +217,25 @@ export async function readDream(dream) {
     }
   }));
   const stems = stemsOf(text);
+  // Words that name concrete images found in this dream ("water" in "a shark in shallow water") don't count towards
+  // a situation match either: they are there because of the image, not because of the situation. Feelings do count.
+  const imageWords = stemsOf(found.filter((f) => !ABSTRACT.has(f.category)).flatMap((f) => [f.name, ...(f.terms || [])]).join(' '));
   const others = listDreams().filter((d) => d.id !== dream.id);
   const images = loaded.filter(Boolean).map(({ f, entry }) => {
     const isNew = Boolean(entry.answer && entry.answer.meaning);
     const a = isNew ? entry.answer : { meaning: entry.summary || '', depends: entry.contexts || [], ask: entry.questions || [] };
+    const own = new Set([...imageWords, ...stemsOf([entry.name, f.name, ...(f.terms || [])].join(' '))]);
     const situations = (Array.isArray(a.depends) ? a.depends : [])
-      .map((d) => ({ d, s: fit(d.when, stems) }))
+      .map((d) => ({ d, s: fit(d.when, stems, own) }))
       .filter((x) => x.s >= 0.5)
       .sort((x, y) => y.s - x.s)
       .slice(0, 2)
       .map((x) => x.d);
     return {
+      id: entry.id || f.name,
       name: entry.name || f.name,
       kind: f.kind,
+      category: f.category,
       meaning: String(a.meaning || ''),
       situations,
       ask: (Array.isArray(a.ask) ? a.ask : []).filter(Boolean),

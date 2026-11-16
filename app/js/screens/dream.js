@@ -22,8 +22,8 @@ import { moonSign, sunSign } from './b/zodiac.js';
 import { TAGS } from '../analyze.js';
 import { esc, formatDate, relativeDay, relativeDayWeekday, icons } from '../ui.js';
 import { dreamArtURL } from '../dreamart.js';
-import { isEnabled, isPending, isStale, requestInterpretation, sendFeedback, startPolling } from '../interpret.js';
-import { hasFeature, remaining, openPaywall, handleLimit, getAccount } from '../account.js';
+import { isEnabled, isPending, isStale, interpretLocally, sendFeedback, startPolling } from '../interpret.js';
+import { hasFeature, remaining, openPaywall, getAccount } from '../account.js';
 import {
   createImage, pollImage, resumePendingImages, dismissImageError, hasImage, isImageFailed, isPainting,
   imagesAllowed, imagesBlocked, imageBadge, hasImageConsent, giveImageConsent,
@@ -1073,10 +1073,10 @@ export default {
           <div class="dream-sheet-icon" aria-hidden="true">${icons.sparkle}</div>
           <h2 class="dream-sheet-title" id="dream-sheet-title">Interpret this dream?</h2>
           <ul class="dream-sheet-points">
-            <li>${icons.share}<span>This dream's text, with its title, date and tags, is sent to Dreaming's server to be interpreted.</span></li>
-            <li>${icons.image}<span>When your plan includes AI images, the same text is also used to create a picture of the dream.</span></li>
-            <li>${icons.lock}<span>The rest of your journal stays on this iPhone.</span></li>
-            <li>${icons.settings}<span>It's a beta. You can turn it off any time in Settings → Labs.</span></li>
+            <li>${icons.sparkle}<span>Your interpretation is built right away on this iPhone from Dreaming's dream library.</span></li>
+            <li>${icons.lock}<span>Your dream text stays on this iPhone: only the library's meanings are downloaded.</span></li>
+            <li>${icons.image}<span>When your plan includes AI images, the dream's text is sent to make a picture of it.</span></li>
+            <li>${icons.settings}<span>You can turn it off any time in Settings → Labs.</span></li>
           </ul>
           <button type="button" class="btn" data-act="consent-yes">${icons.check}<span>Agree and analyze</span></button>
           <button type="button" class="btn btn-ghost" data-act="sheet-close">Not now</button>
@@ -1106,17 +1106,12 @@ export default {
       const status = interp?.status;
       let icon = icons.sparkle;
       let label = 'Analyze';
-      if (asking) label = 'Sending…';
+      if (asking) label = 'Reading…';
       else if (isPending({ interpretation: interp })) { icon = icons.moon; label = 'Interpreting…'; }
       else if (status === 'done' && interp?.result) label = 'Read the interpretation';
       else if (status) label = 'Analyze again';
       // Interpretations left this month, shown quietly next to "Analyze" (free plan, or Plus when running low).
-      let left = '';
-      const n = remaining('analyses');
-      if (!asking && (label === 'Analyze' || label === 'Analyze again') && n != null) {
-        if (!hasFeature('analyses')) left = n > 0 ? `${n} left` : 'PLUS';
-        else if (n <= 10) left = `${n} left`;
-      }
+      const left = ''; // library interpretations are free and unlimited (v57)
       bar.innerHTML = `
         <button type="button" class="dream-analyze" data-act="analyze" ${asking ? 'disabled' : ''}>
           <span class="dream-analyze-icon" aria-hidden="true">${icon}</span><span>${label}</span>
@@ -1158,7 +1153,7 @@ export default {
         slot.innerHTML = `
           <section class="glass dream-interp-card dream-interp-failed">
             <p class="dream-interp-failed-title">This dream couldn't be interpreted.</p>
-            <button type="button" class="btn btn-ghost" data-act="interpret" ${asking ? 'disabled' : ''}>${asking ? 'Sending…' : 'Try again'}</button>
+            <button type="button" class="btn btn-ghost" data-act="interpret" ${asking ? 'disabled' : ''}>${asking ? 'Reading…' : 'Try again'}</button>
           </section>`;
         return;
       }
@@ -1172,7 +1167,7 @@ export default {
       const parts = [];
 
       const stale = isStale(dream)
-        ? `<p class="dream-interp-stale faint">The dream was edited after this interpretation · <button type="button" class="dream-interp-link" data-act="interpret" ${asking ? 'disabled' : ''}>${asking ? 'Sending…' : 'Interpret again'}</button></p>`
+        ? `<p class="dream-interp-stale faint">The dream was edited after this interpretation · <button type="button" class="dream-interp-link" data-act="interpret" ${asking ? 'disabled' : ''}>${asking ? 'Reading…' : 'Interpret again'}</button></p>`
         : '';
 
       const essence = str(r.essence);
@@ -1180,7 +1175,7 @@ export default {
         <section class="glass dream-interp-card">
           <div data-interp-pic>${interpPicHTML(dream)}</div>
           <div data-interp-video>${interpVideoHTML(dream)}</div>
-          <p class="dream-interp-kicker"><span aria-hidden="true">✨</span> What it may mean <span class="dream-interp-beta">beta</span></p>
+          <p class="dream-interp-kicker"><span aria-hidden="true">✨</span> What it may mean</p>
           ${essence ? `<p class="dream-interp-essence">${esc(essence)}</p>` : ''}
           ${stale}
         </section>`);
@@ -1273,22 +1268,16 @@ export default {
       if (asking) return;
       const dream = getDream(id);
       if (!dream) return;
-      // Free interpretations used up: the paywall straight away, without asking the server.
-      if (!hasFeature('analyses') && remaining('analyses') === 0) {
-        openPaywall({ feature: 'analyses' });
-        return;
-      }
       asking = true;
       paintInterp();
       let ok = false;
       try {
-        await requestInterpretation(dream);
+        await interpretLocally(dream); // from the dream library, on the phone (v57)
         noteOpen = false;
         perspKey = 'psychology';
         ok = true;
       } catch (err) {
-        if (err?.status === 402) handleLimit(err.body, 'analyses');
-        else ctx.toast?.(err?.message || "Couldn't send the dream. Please try again.");
+        ctx.toast?.(err?.message || "Couldn't read this dream just now. Please try again.");
       } finally {
         asking = false;
       }

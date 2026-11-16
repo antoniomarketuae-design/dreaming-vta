@@ -38,6 +38,7 @@ const SHELL = [
   'js/screens/b/moon.js',
   'js/screens/b/symbolsheet.js',
   'js/reader.js',
+  'js/dreaminterp.js',
   'js/periodreader.js',
   'js/screens/b/story.js',
   'js/screens/b/survey.js',
