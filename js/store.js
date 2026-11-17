@@ -60,6 +60,7 @@ export const SYMBOL_CATEGORIES = ['people', 'objects', 'characters', 'places', '
  *   lucidity: { control: true/false/null, vividness: 1–5 or null }    (lucid is top-level)
  *   sleep: { bedtime: "23:30" | null, wake: "07:10" | null, quality: 1–5 or null }
  *   notes: string
+ *   answers: { "<entry id>|<situation>": 'yes' | 'no' }  the reading's "Was it like this in your dream?" (optional)
  */
 export function withDefaults(d) {
   return {

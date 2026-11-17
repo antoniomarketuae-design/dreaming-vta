@@ -4,7 +4,7 @@
 // shows it with the same card. Instant, free, and the dream text never leaves the phone (reader.js downloads only
 // the library's word list and the meanings it needs). No predictions, no diagnosis: the library's answers already
 // follow those rules; the care lines below are added for sensitive images.
-import { readDream, sentences } from './reader.js';
+import { readDream, sentences, confirmed } from './reader.js';
 import { coreOf, feelingsOf, moodOf } from './periodreader.js';
 import { dreamType } from './symbols.js';
 
@@ -53,10 +53,13 @@ function feelingFor(dream) {
   return { arc, text };
 }
 
-/** One image's meaning for this dream: the library's first sentences (two for the main image), then the matching situation. */
-function tailored(im, n = 1) {
+/**
+ * One image's meaning for this dream: the library's first sentences (two for the main image), then the situation the
+ * dreamer confirmed on the dream page ("Was it like this in your dream?" → Yes), if any.
+ */
+function tailored(im, dream, n = 1) {
   const base = sentences(im.meaning, n);
-  const s = im.situations?.[0];
+  const s = confirmed(dream, im)[0];
   if (!s?.when || !s?.meaning) return base;
   return `${base} In your dream, ${lower(String(s.when).replace(/[.\s]+$/, ''))}: ${lower(String(s.meaning))}`;
 }
@@ -100,11 +103,11 @@ export async function interpretFromLibrary(dream) {
 
   const ids = images.map((im) => im.id).filter(Boolean);
   const care = careFor(dream, ids);
-  const usedEditorial = [...themes, ...symbols].some((im) => im.situations?.[0]?.editorial);
+  const usedEditorial = [...themes, ...symbols].some((im) => confirmed(dream, im)[0]?.editorial);
   return {
     essence,
-    symbols: symbols.map((im) => ({ name: im.name, meaning: tailored(im, im === main ? 2 : 1), entry: im.id })),
-    themes: themes.map((im) => ({ name: im.name, meaning: tailored(im, im === main ? 2 : 1), entry: im.id })),
+    symbols: symbols.map((im) => ({ name: im.name, meaning: tailored(im, dream, im === main ? 2 : 1), entry: im.id })),
+    themes: themes.map((im) => ({ name: im.name, meaning: tailored(im, dream, im === main ? 2 : 1), entry: im.id })),
     feeling,
     reflect: (r.questions || []).slice(0, 3),
     ...(care ? { care } : {}),

@@ -1250,6 +1250,15 @@ p.dream-reading-here { padding: 8px 10px; border-left: 2px solid rgba(255, 217, 
 .dream-reading-here b { color: var(--moon); font-weight: 600; }
 /* A situation line written by the Dreaming team rather than taken from sources */
 .dream-reading-ed { display: inline-block; margin-left: 4px; padding: 0 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: var(--text-faint); font-size: 11px; font-weight: 600; letter-spacing: 0.02em; vertical-align: 1px; white-space: nowrap; }
+/* "Was it like this in your dream?": one situation at a time, meaning shown after Yes */
+.dream-reading-ask { margin-top: 10px; padding: 10px 12px; border: 1px dashed rgba(255, 217, 138, 0.35); border-radius: 12px; background: rgba(255, 217, 138, 0.04); }
+.dream-reading-ask .dream-reading-q { margin: 0; color: var(--text-faint); font-size: 12.5px; font-weight: 600; letter-spacing: 0.02em; }
+.dream-reading-ask .dream-reading-line { margin: 4px 0 0; color: var(--text); font-size: 15px; line-height: 1.45; }
+.dream-reading-yn { display: flex; gap: 8px; margin-top: 10px; }
+.dream-reading-yn button { flex: 1; min-height: 40px; border-radius: 999px; font: inherit; font-size: 14.5px; font-weight: 600; cursor: pointer; }
+.dream-reading-yes { border: 1px solid rgba(255, 217, 138, 0.55); background: rgba(255, 217, 138, 0.14); color: var(--moon); }
+.dream-reading-no { border: 1px solid rgba(255, 255, 255, 0.14); background: transparent; color: var(--text-dim); }
+.dream-reading-yn button:focus-visible { outline: 2px solid var(--moon); outline-offset: 2px; }
 .dream-reading-mine, .dream-reading-qs { margin: 8px 0 0; padding-left: 18px; color: var(--text-dim); font-size: 14.5px; line-height: 1.5; }
 .dream-reading-mine li + li, .dream-reading-qs li + li { margin-top: 6px; }
 .dream-reading-mine { margin-top: 14px; }
