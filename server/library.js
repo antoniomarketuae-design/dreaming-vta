@@ -127,6 +127,8 @@ function answerView(a) {
   return {
     meaning: str(a.meaning),
     depends: (Array.isArray(a.depends) ? a.depends : []).filter((d) => d && str(d.meaning)).map((d) => ({ when: str(d.when), meaning: str(d.meaning) })),
+    // Editorial situations (written by the Dreaming team, not from sources): used only when no researched one fits.
+    more: (Array.isArray(a.more) ? a.more : []).filter((d) => d && str(d.meaning) && str(d.when)).map((d) => ({ when: str(d.when), meaning: str(d.meaning) })),
     ask: (Array.isArray(a.ask) ? a.ask : []).map(str).filter(Boolean),
     confidence: ['high', 'medium', 'low'].includes(a.confidence) ? a.confidence : null,
     sources: used.map(sourceView).filter(Boolean),

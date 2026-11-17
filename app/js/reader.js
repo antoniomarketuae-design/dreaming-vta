@@ -125,17 +125,39 @@ function findImages(text, idx) {
 const STOP = new Set(('a an the you your yours it its is are was were be been being or and of in on at to from with by for as '
   + 'into onto over under up down out off one someone something somebody anyone they them their he she him her his hers we '
   + 'our us i me my this that these those there here very more most not no just only still all any some own get gets got '
-  + 'have has had do does did can cannot could will would than then when while who what which where').split(' '));
-const stem = (w) => w.replace(/(ings|ing|ied|ies|ed|es|s|ly)$/, '').slice(0, 6);
+  + 'have has had do does did can cannot could will would than then when while who what which where '
+  + 'but too like really also even again about yourself myself yours everyone everybody nobody anybody back time times '
+  + 'last first next feel felt look looked looking thing things way').split(' '));
+// Word endings off so the forms people write line up: hide/hiding/hid → "hid", chase/chased/chasing → "chas",
+// run/running → "run", cry/cried/cries → "cry", rescue/rescued → "rescu", pass/passed → "pass". Never shorter than
+// 3 letters, and words that only look like endings stay whole ("bleed", "red", "ring", "fly", "family").
+const stem = (w) => {
+  let s = w.replace(/'s$/, ''); // child's → child
+  let cut = false;
+  if (/(ied|ies)$/.test(s) && s.length >= 5) s = `${s.slice(0, -3)}y`;
+  else if (/ings$/.test(s) && s.length >= 7) { s = s.slice(0, -4); cut = true; }
+  else if (/ing$/.test(s) && s.length >= 6) { s = s.slice(0, -3); cut = true; }
+  else if (/[^e]ed$/.test(s) && s.length >= 5) { s = s.slice(0, -2); cut = true; }
+  else if (/(s|x|z|ch|sh)es$/.test(s) && s.length >= 5) s = s.slice(0, -2);
+  else if (/[^s]s$/.test(s) && s.length >= 4) s = s.slice(0, -1);
+  else if (/[^i]ly$/.test(s) && s.length >= 6) s = s.slice(0, -2);
+  if (cut && /([bcdfgkmnprtv])\1$/.test(s)) s = s.slice(0, -1); // running → run, stopped → stop (not fall, kiss, buzz)
+  if (s.length > 3 && s.endsWith('e')) s = s.slice(0, -1);       // hide → hid, rescue → rescu
+  return s.slice(0, 6);
+};
 const stemsOf = (text) => new Set(norm(text).split(' ').filter((w) => w.length > 2 && !STOP.has(w)).map(stem));
 
-// The image's own words ("sharks" in "sharks circle you") are in every dream that has the image, so they never count
-// towards a match: only the other words of the situation do.
-function fit(when, stems, own = new Set()) {
-  const toks = norm(when).split(' ').filter((w) => w.length > 2 && !STOP.has(w)).map(stem).filter((t) => !own.has(t));
+// The image's own words ("sharks" for the sharks entry) never count towards a match. Words naming other images in
+// the dream do count, but one of them alone is not enough ("sharks circle you" must not fit a calm swim just because
+// the dream has sharks; "your family is arguing" does fit a dream where the family argues).
+// strict (editorial lines): at least two words must match, unless the line has only one word to match.
+function fit(when, stems, own = new Set(), imageWords = new Set(), strict = false) {
+  const toks = [...new Set(norm(when).split(' ').filter((w) => w.length > 2 && !STOP.has(w)).map(stem))].filter((t) => !own.has(t));
   if (!toks.length) return 0;
-  const hit = toks.filter((t) => stems.has(t)).length;
-  return hit ? hit / toks.length : 0;
+  const hits = toks.filter((t) => stems.has(t));
+  if (!hits.length || (hits.length === 1 && imageWords.has(hits[0]))) return 0;
+  if (strict && hits.length < 2 && toks.length > 1) return 0;
+  return hits.length / toks.length;
 }
 
 /** How many of the other dreams show this image (by its words), and since when. */
@@ -224,13 +246,16 @@ export async function readDream(dream) {
   const images = loaded.filter(Boolean).map(({ f, entry }) => {
     const isNew = Boolean(entry.answer && entry.answer.meaning);
     const a = isNew ? entry.answer : { meaning: entry.summary || '', depends: entry.contexts || [], ask: entry.questions || [] };
-    const own = new Set([...imageWords, ...stemsOf([entry.name, f.name, ...(f.terms || [])].join(' '))]);
-    const situations = (Array.isArray(a.depends) ? a.depends : [])
-      .map((d) => ({ d, s: fit(d.when, stems, own) }))
+    const own = stemsOf([entry.name, f.name, ...(f.terms || [])].join(' '));
+    // Researched situations first; the editorial ones (answer.more, "Dreaming editorial") only when none of them fits.
+    const best = (list, strict = false) => (Array.isArray(list) ? list : [])
+      .map((d) => ({ d, s: fit(d.when, stems, own, imageWords, strict) }))
       .filter((x) => x.s >= 0.5)
       .sort((x, y) => y.s - x.s)
       .slice(0, 2)
       .map((x) => x.d);
+    let situations = best(a.depends);
+    if (!situations.length && isNew) situations = best(a.more, true).slice(0, 1).map((d) => ({ ...d, editorial: true }));
     return {
       id: entry.id || f.name,
       name: entry.name || f.name,

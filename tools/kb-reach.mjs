@@ -15,7 +15,7 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '..', 'Interpretation');
-const KB = join(ROOT, 'kb');
+const KB = process.env.KB_DIR || join(ROOT, 'kb'); // KB_DIR: measure another copy of the library (e.g. a backup)
 
 // ---- The word list, as server/library.js builds it ----
 
@@ -124,6 +124,74 @@ export function findImages(text, idx) {
   return { images: [...by.values()].sort((a, b) => (rank(a) - rank(b)) || (a.first - b.first)), words, covered };
 }
 
+// ---- Situations ("it depends on…"), as app/js/reader.js picks them ----
+
+const SIT_STOP = new Set(('a an the you your yours it its is are was were be been being or and of in on at to from with by for as '
+  + 'into onto over under up down out off one someone something somebody anyone they them their he she him her his hers we '
+  + 'our us i me my this that these those there here very more most not no just only still all any some own get gets got '
+  + 'have has had do does did can cannot could will would than then when while who what which where '
+  + 'but too like really also even again about yourself myself yours everyone everybody nobody anybody back time times '
+  + 'last first next feel felt look looked looking thing things way').split(' '));
+// Word endings off so the forms people write line up: hide/hiding/hid → "hid", chase/chased/chasing → "chas",
+// run/running → "run", cry/cried/cries → "cry", rescue/rescued → "rescu", pass/passed → "pass". Never shorter than
+// 3 letters, and words that only look like endings stay whole ("bleed", "red", "ring", "fly", "family").
+const sitStem = (w) => {
+  let s = w.replace(/'s$/, ''); // child's → child
+  let cut = false;
+  if (/(ied|ies)$/.test(s) && s.length >= 5) s = `${s.slice(0, -3)}y`;
+  else if (/ings$/.test(s) && s.length >= 7) { s = s.slice(0, -4); cut = true; }
+  else if (/ing$/.test(s) && s.length >= 6) { s = s.slice(0, -3); cut = true; }
+  else if (/[^e]ed$/.test(s) && s.length >= 5) { s = s.slice(0, -2); cut = true; }
+  else if (/(s|x|z|ch|sh)es$/.test(s) && s.length >= 5) s = s.slice(0, -2);
+  else if (/[^s]s$/.test(s) && s.length >= 4) s = s.slice(0, -1);
+  else if (/[^i]ly$/.test(s) && s.length >= 6) s = s.slice(0, -2);
+  if (cut && /([bcdfgkmnprtv])\1$/.test(s)) s = s.slice(0, -1); // running → run, stopped → stop (not fall, kiss, buzz)
+  if (s.length > 3 && s.endsWith('e')) s = s.slice(0, -1);       // hide → hid, rescue → rescu
+  return s.slice(0, 6);
+};
+const stemsOf = (text) => new Set(norm(text).split(' ').filter((w) => w.length > 2 && !SIT_STOP.has(w)).map(sitStem));
+function fit(when, stems, own, imageWords = new Set(), strict = false) {
+  const toks = [...new Set(norm(when).split(' ').filter((w) => w.length > 2 && !SIT_STOP.has(w)).map(sitStem))].filter((t) => !own.has(t));
+  if (!toks.length) return 0;
+  const hits = toks.filter((t) => stems.has(t));
+  if (!hits.length || (hits.length === 1 && imageWords.has(hits[0]))) return 0;
+  if (strict && hits.length < 2 && toks.length > 1) return 0;
+  return hits.length / toks.length;
+}
+
+/** For each image the reader would show (up to 2 themes + 5 in all), does a researched or editorial situation fit? */
+export function situationReport(corpus, idx, byId) {
+  let images = 0;
+  let researched = 0;
+  let editorial = 0;
+  const examples = [];
+  for (const d of corpus) {
+    const found = findImages(d.text, idx).images;
+    const themes = found.filter((f) => f.kind === 't').slice(0, 2);
+    const symbols = found.filter((f) => f.kind === 's');
+    const picked = [];
+    const kinds = new Set();
+    for (const f of symbols) if (!kinds.has(f.category)) { picked.push(f); kinds.add(f.category); }
+    for (const f of symbols) if (!picked.includes(f)) picked.push(f);
+    const chosen = [...themes, ...picked].slice(0, 5);
+    const stems = stemsOf(d.text);
+    const imageWords = stemsOf(found.filter((f) => !ABSTRACT.has(f.category)).flatMap((f) => [f.name, ...(f.terms || [])]).join(' '));
+    for (const f of chosen) {
+      const e = byId.get(f.id);
+      if (!e) continue;
+      images += 1;
+      const own = stemsOf([e.name, ...(f.terms || [])].join(' '));
+      const best = (list, strict = false) => (list || []).map((s) => ({ s, v: fit(s.when, stems, own, imageWords, strict) })).filter((x) => x.v >= 0.5).sort((a, b) => b.v - a.v)[0];
+      const r = best(e.answer?.depends);
+      if (r) { researched += 1; continue; }
+      const m = best(e.answer?.more, true);
+      if (m) { editorial += 1; if (examples.length < 25) examples.push(`${d.id} ${e.id}: "${m.s.when}"`); }
+    }
+  }
+  const pct = (n) => +((n / (images || 1)) * 100).toFixed(1);
+  return { imagesShown: images, withResearchedSituation: researched, researchedPct: pct(researched), withEditorialOnly: editorial, editorialPct: pct(editorial), anySituationPct: pct(researched + editorial), editorialExamples: examples };
+}
+
 // ---- Corpus ----
 
 function corpusFiles(args) {
@@ -230,6 +298,9 @@ if (import.meta.url === `file://${process.argv[1].replace(/\\/g, '/').replace(/^
       topGaps: [...gapWords.entries()].sort((a, b) => b[1] - a[1]).slice(0, 60).map(([w, c]) => `${w} ${c}`),
       missedSample: [...missedWords.keys()].slice(0, 60),
     }, null, 1));
+  } else if (args[0] === '--situations') {
+    const byId = new Map(loadEntries().map((e) => [e.id, e]));
+    console.log(JSON.stringify(situationReport(loadCorpus(corpusFiles(args.slice(1))), idx, byId), null, 1));
   } else if (args[0] === '--dreams') {
     for (const d of loadCorpus(corpusFiles(args.slice(1)))) {
       const { images } = findImages(d.text, idx);

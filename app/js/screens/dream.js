@@ -726,7 +726,7 @@ export default {
       if (r.status === 'empty') return '<p class="dream-reading-wait">We did not find images from our dream library in this dream yet. Add more detail (the people, places, animals and what happened) and your reading appears here.</p>';
       const [main, ...rest] = r.images;
       const chip = (im) => `<button type="button" class="dream-reading-chip" data-act="reading-symbol" data-name="${esc(im.name)}">${esc(im.name)}</button>`;
-      const here = (im) => im.situations.map((s) => `<p class="dream-reading-here"><b>In your dream: ${esc(lower(String(s.when || '')))}.</b> ${esc(s.meaning)}</p>`).join('');
+      const here = (im) => im.situations.map((s) => `<p class="dream-reading-here"><b>In your dream: ${esc(lower(String(s.when || '')))}.</b> ${esc(s.meaning)}${s.editorial ? ' <span class="dream-reading-ed">Dreaming editorial</span>' : ''}</p>`).join('');
       const thread = rest.length
         ? `<p class="dream-reading-thread">The main thread is <b>${esc(lower(main.name))}</b>; ${esc(names(rest.map((im) => lower(im.name))))} ${rest.length === 1 ? 'adds' : 'add'} to it.</p>`
         : '';

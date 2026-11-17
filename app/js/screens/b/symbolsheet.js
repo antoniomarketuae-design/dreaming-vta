@@ -18,6 +18,7 @@ import { esc, icons, relativeDay } from '../../ui.js';
 
 const TIMEOUT_MS = 15000;
 const CONTEXTS_SHOWN = 3;
+const MORE_SHOWN = 3; // editorial situations shown before "Show all"
 const DREAMS_SHOWN = 5;
 const PERSPECTIVE_NAMES = { psychology: 'Psychology', freud: 'Freud', traditional: 'Traditional dream books', jung: 'Jung' };
 const PERSPECTIVE_ORDER = ['psychology', 'freud', 'traditional'];
@@ -211,6 +212,21 @@ function answerHTML(entry, title, allContexts) {
           </li>`).join('')}
         </ul>
         ${depends.length > CONTEXTS_SHOWN && !allContexts ? `<button type="button" class="bss-more" data-bss-contexts>Show all ${depends.length}</button>` : ''}
+      </section>`);
+  }
+  const more = (Array.isArray(a.more) ? a.more : []).filter((d) => d && str(d.meaning) && str(d.when));
+  if (more.length) {
+    const shownMore = allContexts ? more : more.slice(0, MORE_SHOWN);
+    out.push(`
+      <section class="bss-sec" aria-labelledby="bss-more-title">
+        <h3 class="bss-label" id="bss-more-title">More situations <span class="bss-ed">Dreaming editorial</span></h3>
+        <ul class="bss-ctx">${shownMore.map((c) => `
+          <li class="bss-ctx-item">
+            <p class="bss-ctx-when">${esc(capital(str(c.when)))}</p>
+            <p class="bss-ctx-meaning">${esc(str(c.meaning))}</p>
+          </li>`).join('')}
+        </ul>
+        ${more.length > MORE_SHOWN && !allContexts ? `<button type="button" class="bss-more" data-bss-contexts>Show all ${more.length}</button>` : ''}
       </section>`);
   }
   const ask = (Array.isArray(a.ask) ? a.ask : []).map(str).filter(Boolean);
