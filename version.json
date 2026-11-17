@@ -1,7 +1,12 @@
 {
-  "version": 58,
+  "version": 59,
   "updated": "2026-11-17",
   "notes": [
+    {
+      "version": 59,
+      "date": "2026-11-17",
+      "text": "Dream readings are more accurate. The reader now leaves out things that are not really in your dream: a pet's name, \"no umbrella\", \"like a bird\", or what happened after you woke up. It shows the images that matter most, the people in your dream first, and understands many more of the words people use, including family words from many languages (nani, abuela, abbu, lola). \"In your dream\" lines now only appear when the words are in the same part of your dream, so they are wrong far less often."
+    },
     {
       "version": 58,
       "date": "2026-11-17",

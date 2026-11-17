@@ -13,11 +13,83 @@ const DAY = 86400000;
 const MAX_IMAGES = 5;
 const MAX_THEMES = 2;
 // Words that name a symbol only by accident in most dreams ("I was back home", "a friend of mine", "the sun rose").
-const AMBIGUOUS = new Set(['back', 'face', 'play', 'present', 'mine', 'note', 'flat', 'rose', 'store', 'cross', 'racket', 'watch', 'kid', 'like', 'well', 'left', 'right']);
+const AMBIGUOUS = new Set(['back', 'face', 'play', 'present', 'mine', 'note', 'flat', 'rose', 'store', 'cross', 'racket', 'watch', 'kid', 'like', 'well', 'left', 'right', 'head']);
 // Kinds of entries whose words are often verbs, so "flooding" / "chased" may stand for "flood" / "chase".
 const VERBISH = new Set(['theme', 'action', 'nature', 'event']);
 // Abstract entries come after the concrete images of a dream.
 const ABSTRACT = new Set(['emotion', 'color', 'number', 'shape', 'sound']);
+// Phrases that only look like images ("I fell asleep", "cabin crew", "the ring road", "he never does"): they cover
+// their words, and nothing overlapping them counts. Found by judges reading 1,200 test dreams.
+const BLOCK = new Set(['falling asleep', 'fell asleep', 'fall asleep', 'falls asleep', 'falling apart', 'fell apart',
+  'falls apart', 'falling in love', 'fell in love', 'fall in love', 'heart rate', 'by heart', 'have the heart',
+  'had the heart', 'cabin crew', 'ring road', 'ring the bell', 'ring the doorbell', 'feet tall', 'foot tall',
+  'feet high', 'feet away', 'feet long', 'foot long', 'feet deep', 'head office', 'needed a hand', 'need a hand',
+  'give me a hand', 'gave me a hand', 'on the other hand', 'out of hand', 'on the clock', 'clock in', 'clocked in',
+  'train of thought', 'time flies', 'time flew', 'does', 'only one', 'guinea pig', 'red bull', 'blood pressure',
+  'times table', 'multiplication table', 'table mountain', 'tasmanian devil']);
+// The end of a dream ("…then I woke up and my husband was snoring"): what comes after it in the second half of the
+// text happened awake, so it is not part of the dream.
+const WOKE = /\b(then i woke|and i woke|and woke up|i woke up and|woke up to|when i woke|after i woke|after waking|woke up (sweating|crying|screaming|laughing|shaking)|in real life|irl|writing this)\b/;
+// An image right after these words is not there ("no umbrella", "nobody panicked", "instead of fighting").
+const NEG = new Set(['no', 'not', 'never', 'nobody', 'without', 'instead', 'nothing', 'none']);
+const FIRST = new Set(['i', "i'm", 'im', "i'd", "i've", 'me', 'we', 'myself', 'us', "we're"]);
+// Pet and people's names that are also library words: written with a capital mid-sentence ("our dog Biscuit"), a name.
+const NAMES = new Set(('daisy lily rose ruby amber jade holly ivy violet poppy hazel willow summer autumn sky river storm '
+  + 'hope faith grace joy pearl crystal coco biscuit pebbles clover noodle mittens bear buddy shadow smokey ginger honey '
+  + 'pepper oreo peanut cookie muffin patch bella luna star angel bunny fluffy snowy tiger lion fox wolf hunter cinnamon '
+  + 'mango olive basil sage rocky duke king prince princess queen mercedes ford jaguar target apple').split(' '));
+// Themes about the dreamer's own movement: "leaves falling" or "birds flying" are not the dreamer falling or flying.
+const MOTION = new Set(['Falling', 'Floating', 'Flying']);
+
+/**
+ * The dream's words as written, lined up with norm()'s words: { cap (a capital letter mid-sentence), sentence }.
+ * null when they don't line up (unusual letters), so the checks that need them are skipped.
+ */
+function casedWords(text, count) {
+  const out = [];
+  let sentence = 0;
+  let start = true;
+  const said = []; // each sentence's words, and where its first word is
+  for (const m of String(text || '').replace(/[’']/g, "'").matchAll(/[A-Za-z0-9']+|[.!?\n]/g)) {
+    if (/^[.!?\n]$/.test(m[0])) { sentence += 1; start = true; continue; }
+    if (!said[sentence]) said[sentence] = { from: out.length, words: [] };
+    said[sentence].words.push(m[0].toLowerCase());
+    out.push({ cap: !start && m[0] !== 'I' && /^[A-Z]/.test(m[0]), sentence });
+    start = false;
+  }
+  if (out.length !== count) return null;
+  // everything from the last waking-up words in the second half of the text on is awake
+  let woke = Infinity;
+  said.forEach((s, i) => {
+    if (!s || i < said.length / 2) return;
+    const m = WOKE.exec(s.words.join(' '));
+    if (m) woke = s.from + s.words.join(' ').slice(0, m.index + m[0].length).split(' ').length;
+  });
+  out.forEach((c, i) => { c.awake = i >= woke; });
+  // Someone Who Writes Like This: capitals tell nothing.
+  if (out.filter((c) => c.cap).length > Math.max(3, out.length * 0.25)) for (const c of out) c.cap = false;
+  return out;
+}
+
+/** True when a found image is only a figure of speech, denied, a name, someone else's movement, or after waking. */
+function notReally(h, words, cased) {
+  const s = h.start;
+  const [p1, p2, p3, p4] = [words[s - 1], words[s - 2], words[s - 3], words[s - 4]];
+  const next = words[s + h.len];
+  if (NEG.has(p1) || (NEG.has(p2) && !FIRST.has(p1))) return true;
+  if (p1 === 'like' || (['a', 'an', 'the', 'some'].includes(p1) && (p2 === 'like' || p2 === 'as' || (p2 === 'of' && p3 === 'size')))) return true;
+  if (['sized', 'shaped', 'size'].includes(next)) return true; // "shoebox-sized", "the size of a car"
+  if (MOTION.has(h.item.name) && h.len === 1 && ![p1, p2, p3, p4].some((w) => FIRST.has(w))) return true;
+  if (cased) {
+    const c = cased[s];
+    if (c.awake) return true;
+    if (c.cap && NAMES.has(words[s])) return true;
+    // part of a proper name ("Swan River", "Marble Arch", "Ford Falcon"); places and people keep their name
+    const nb = (k) => cased[k] && cased[k].cap;
+    if (c.cap && !['theme', 'place', 'person'].includes(h.item.category) && (nb(s - 1) || nb(s + h.len))) return true;
+  }
+  return false;
+}
 
 const norm = (s) => String(s || '')
   .toLowerCase()
@@ -44,6 +116,8 @@ function singulars(word) {
   if (/ies$/.test(word)) out.push(`${word.slice(0, -3)}y`);
   if (/(s|x|z|ch|sh)es$/.test(word)) out.push(word.slice(0, -2));
   if (/s$/.test(word) && !/ss$/.test(word)) out.push(word.slice(0, -1));
+  if (/.'s$/.test(word)) out.push(word.slice(0, -2)); // possessive: mum's → mum
+  if (/s'$/.test(word)) out.push(word.slice(0, -1)); // parents' → parents
   return out;
 }
 
@@ -80,6 +154,7 @@ async function getIndex() {
       maxWords = Math.max(maxWords, t.split(' ').length);
     }
   }
+  for (const b of BLOCK) map.set(b, { block: true });
   index = { map, maxWords: Math.min(maxWords, 7) };
   return index;
 }
@@ -107,12 +182,19 @@ function findImages(text, idx) {
       if (item) { hits.push({ item, start: i, len: n }); break; } // the longest term starting here
     }
   }
-  // A short term inside a longer one ("house" inside "house on fire") counts once, as the longer one.
-  const kept = hits.filter((h) => !hits.some((o) => o !== h && o.len > h.len && o.start <= h.start && o.start + o.len >= h.start + h.len));
+  // A short term inside a longer one ("house" inside "house on fire") counts once, as the longer one; nothing that
+  // overlaps a blocked phrase counts; nor an image that is only a comparison, denied, a name or someone else moving.
+  const blocks = hits.filter((h) => h.item.block);
+  const cased = casedWords(text, words.length);
+  const kept = hits.filter((h) => !h.item.block
+    && !hits.some((o) => o !== h && o.len > h.len && o.start <= h.start && o.start + o.len >= h.start + h.len)
+    && !blocks.some((b) => b.start < h.start + h.len && h.start < b.start + b.len)
+    && !notReally(h, words, cased));
   const by = new Map();
   for (const h of kept) {
-    const g = by.get(h.item.name) || { name: h.item.name, kind: h.item.kind, category: h.item.category, terms: h.item.terms, count: 0, first: h.start };
+    const g = by.get(h.item.name) || { name: h.item.name, kind: h.item.kind, category: h.item.category, terms: h.item.terms, count: 0, first: h.start, spans: [] };
     g.count += 1;
+    g.spans.push([h.start, h.len]);
     by.set(h.item.name, g);
   }
   // Situations (themes) first, then concrete images, then feelings and other abstract ones; each group in story order.
@@ -146,16 +228,42 @@ const stem = (w) => {
   return s.slice(0, 6);
 };
 const stemsOf = (text) => new Set(norm(text).split(' ').filter((w) => w.length > 2 && !STOP.has(w)).map(stem));
+// Word stems found in more than 1 in 20 dreams ("woke", "said", "kept", "dream", "door", "car"): they tell nothing
+// about a dream's situation, so they never count towards a match. Measured on 1,200 test dreams.
+const GENERIC = new Set(('actual after alway anyth around ask awak away baby becaus bed befor behind big bit call cam car '
+  + "check com couldn day didn't differ dog doing don't door dream dreamt driv eat end every everyt fac find float floor "
+  + "found front full gav get glass going good green hand head hear hold hom hous how husban i'd i'm i'v insid instea it "
+  + 'keep kept kid kitche knew know laugh lif light lin littl liv long mad mak man mayb mother mov mum nam never night '
+  + 'normal now old open other outsid past peopl phon play pull put read real red right room round run said sam sat say '
+  + 'school see should show sid sit slow smell stand start stop street tabl tak talk tell that think though throug tiny '
+  + 'told took top try turn two wak walk want watch water wav week went whit whol wif window wok work year').split(' '));
 
-// The image's own words ("sharks" for the sharks entry) never count towards a match. Words naming other images in
-// the dream do count, but one of them alone is not enough ("sharks circle you" must not fit a calm swim just because
-// the dream has sharks; "your family is arguing" does fit a dream where the family argues).
+/**
+ * Where each word stem of a dream appears, by sentence ({ stem → Set(sentence) }), and which sentences name an image.
+ * A situation's word only counts when it is in a sentence that also names the image: "you are afraid of your
+ * partner" fits "I was afraid of my partner", not a dream where the partner is in one scene and fear in another.
+ */
+function sentencesOf(words, cased) {
+  const at = new Map();
+  words.forEach((w, i) => {
+    if (w.length <= 2 || STOP.has(w)) return;
+    const t = stem(w);
+    if (!at.has(t)) at.set(t, new Set());
+    at.get(t).add(cased ? cased[i].sentence : 0);
+  });
+  return at;
+}
+
+// The image's own words ("sharks" for the sharks entry) never count towards a match, nor the most common words.
+// Words naming other images in the dream do count, but one of them alone is not enough ("sharks circle you" must not
+// fit a calm swim just because the dream has sharks; "your family is arguing" does fit a dream where the family argues).
 // strict (editorial lines): at least two words must match, unless the line has only one word to match.
-function fit(when, stems, own = new Set(), imageWords = new Set(), strict = false) {
-  const toks = [...new Set(norm(when).split(' ').filter((w) => w.length > 2 && !STOP.has(w)).map(stem))].filter((t) => !own.has(t));
+function fit(when, ctx, own = new Set(), strict = false) {
+  const toks = [...new Set(norm(when).split(' ').filter((w) => w.length > 2 && !STOP.has(w)).map(stem))]
+    .filter((t) => !own.has(t) && !GENERIC.has(t));
   if (!toks.length) return 0;
-  const hits = toks.filter((t) => stems.has(t));
-  if (!hits.length || (hits.length === 1 && imageWords.has(hits[0]))) return 0;
+  const hits = toks.filter((t) => [...(ctx.at.get(t) || [])].some((s) => ctx.imageSentences.has(s)));
+  if (!hits.length || (hits.length === 1 && ctx.imageWords.has(hits[0]))) return 0;
   if (strict && hits.length < 2 && toks.length > 1) return 0;
   return hits.length / toks.length;
 }
@@ -204,6 +312,31 @@ export async function imagesInText(text) {
   return idx ? findImages(String(text || ''), idx) : null;
 }
 
+// How much an image of each kind usually matters to a dream, from judges reading 1,200 test dreams: the people in it
+// first (they were the images most often missed), body parts, colours and numbers last.
+const WEIGHT = { person: 3, animal: 2.5, place: 2, event: 2, vehicle: 1.5, action: 1.2, nature: 1.2, object: 1, plant: 1,
+  food: 0.8, emotion: 0.8, body: 0.5, sound: 0.5, number: 0.4, color: 0.3, shape: 0.3 };
+
+/**
+ * The images a reading shows: up to 2 situations (themes), then symbols by weight × how often they are mentioned,
+ * one of each kind first (two people), so one kind cannot crowd out the others; 5 in all.
+ */
+function chooseImages(found) {
+  const themes = found.filter((f) => f.kind === 't').slice(0, MAX_THEMES);
+  const ranked = found.filter((f) => f.kind === 's')
+    .map((f) => ({ f, v: (WEIGHT[f.category] ?? 1) * (1 + Math.log2(f.count)) - f.first / 400 }))
+    .sort((a, b) => b.v - a.v)
+    .map((x) => x.f);
+  const picked = [];
+  const perKind = new Map();
+  for (const f of ranked) {
+    const n = perKind.get(f.category) || 0;
+    if (n < (f.category === 'person' ? 2 : 1)) { picked.push(f); perKind.set(f.category, n + 1); }
+  }
+  for (const f of ranked) if (!picked.includes(f)) picked.push(f);
+  return [...themes, ...picked].slice(0, MAX_IMAGES);
+}
+
 /**
  * The reading for a dream: { status: 'ok', images: [{ name, kind, meaning, situations, ask, isNew, history }],
  * questions } · { status: 'empty' } (no library image found) · { status: 'offline' } (word list unavailable).
@@ -216,14 +349,7 @@ export async function readDream(dream) {
   const idx = await getIndex();
   if (!idx) return { status: 'offline' };
   const found = findImages(text, idx);
-  const themes = found.filter((f) => f.kind === 't').slice(0, MAX_THEMES);
-  // One image of each kind first (a place, an animal, a person…), then the rest, so one kind cannot crowd out the others.
-  const symbols = found.filter((f) => f.kind === 's');
-  const picked = [];
-  const kinds = new Set();
-  for (const f of symbols) if (!kinds.has(f.category)) { picked.push(f); kinds.add(f.category); }
-  for (const f of symbols) if (!picked.includes(f)) picked.push(f);
-  const chosen = [...themes, ...picked].slice(0, MAX_IMAGES);
+  const chosen = chooseImages(found);
   if (!chosen.length) {
     const out = { status: 'empty' };
     cache.set(key, out);
@@ -238,7 +364,9 @@ export async function readDream(dream) {
       return null;
     }
   }));
-  const stems = stemsOf(text);
+  const words = norm(text).split(' ').filter(Boolean);
+  const cased = casedWords(text, words.length);
+  const at = sentencesOf(words, cased);
   // Words that name concrete images found in this dream ("water" in "a shark in shallow water") don't count towards
   // a situation match either: they are there because of the image, not because of the situation. Feelings do count.
   const imageWords = stemsOf(found.filter((f) => !ABSTRACT.has(f.category)).flatMap((f) => [f.name, ...(f.terms || [])]).join(' '));
@@ -247,9 +375,10 @@ export async function readDream(dream) {
     const isNew = Boolean(entry.answer && entry.answer.meaning);
     const a = isNew ? entry.answer : { meaning: entry.summary || '', depends: entry.contexts || [], ask: entry.questions || [] };
     const own = stemsOf([entry.name, f.name, ...(f.terms || [])].join(' '));
+    const ctx = { at, imageWords, imageSentences: new Set((f.spans || []).map(([s]) => (cased ? cased[s].sentence : 0))) };
     // Researched situations first; the editorial ones (answer.more, "Dreaming editorial") only when none of them fits.
     const best = (list, strict = false) => (Array.isArray(list) ? list : [])
-      .map((d) => ({ d, s: fit(d.when, stems, own, imageWords, strict) }))
+      .map((d) => ({ d, s: fit(d.when, ctx, own, strict) }))
       .filter((x) => x.s >= 0.5)
       .sort((x, y) => y.s - x.s)
       .slice(0, 2)
