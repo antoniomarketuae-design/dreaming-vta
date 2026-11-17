@@ -8,7 +8,7 @@ import { API_BASE } from './interpret.js';
 import { listDreams } from './store.js';
 import { loadEntry } from './screens/b/symbolsheet.js';
 
-const INDEX_KEY = 'dreaming.libindex.v1'; // its own key: too big for settings (which go into exports)
+const INDEX_KEY = 'dreaming.libindex.v2'; // its own key: too big for settings (which go into exports); v2 adds pairs
 const DAY = 86400000;
 const MAX_IMAGES = 5;
 const MAX_THEMES = 2;
@@ -27,7 +27,7 @@ const BLOCK = new Set(['falling asleep', 'fell asleep', 'fall asleep', 'falls as
   'feet high', 'feet away', 'feet long', 'foot long', 'feet deep', 'head office', 'needed a hand', 'need a hand',
   'give me a hand', 'gave me a hand', 'on the other hand', 'out of hand', 'on the clock', 'clock in', 'clocked in',
   'train of thought', 'time flies', 'time flew', 'does', 'only one', 'guinea pig', 'red bull', 'blood pressure',
-  'times table', 'multiplication table', 'table mountain', 'tasmanian devil']);
+  'times table', 'multiplication table', 'table mountain', 'tasmanian devil', 'rocking', 'rocked']);
 // The end of a dream ("…then I woke up and my husband was snoring"): what comes after it in the second half of the
 // text happened awake, so it is not part of the dream.
 const WOKE = /\b(then i woke|and i woke|and woke up|i woke up and|woke up to|when i woke|after i woke|after waking|woke up (sweating|crying|screaming|laughing|shaking)|in real life|irl|writing this)\b/;
@@ -124,11 +124,12 @@ function singulars(word) {
 
 // ---- The word list ----
 
-let index = null; // { map: Map(term → { name, kind, terms }), maxWords }
+let index = null; // { map: Map(term → { name, kind, terms }), maxWords, pairs: Map('nameA|nameB' → combination key) }
 
 async function getIndex() {
   if (index) return index;
   let saved = null;
+  try { localStorage.removeItem('dreaming.libindex.v1'); } catch {} // the word list before combinations
   try { saved = JSON.parse(localStorage.getItem(INDEX_KEY) || 'null'); } catch {}
   let data = saved && Array.isArray(saved.items) ? saved : null;
   if (!data || Date.now() - (saved.at || 0) > DAY) {
@@ -137,7 +138,7 @@ async function getIndex() {
       if (res.ok) {
         const j = await res.json();
         if (Array.isArray(j.items)) {
-          data = { v: j.v, items: j.items, at: Date.now() };
+          data = { v: j.v, items: j.items, pairs: Array.isArray(j.pairs) ? j.pairs : [], at: Date.now() };
           try { localStorage.setItem(INDEX_KEY, JSON.stringify(data)); } catch {}
         }
       }
@@ -156,7 +157,8 @@ async function getIndex() {
     }
   }
   for (const b of BLOCK) map.set(b, { block: true });
-  index = { map, maxWords: Math.min(maxWords, 7) };
+  const pairs = new Map((data.pairs || []).map(([a, b, key]) => [[a, b].sort().join('|'), key]));
+  index = { map, maxWords: Math.min(maxWords, 7), pairs };
   return index;
 }
 
@@ -339,10 +341,57 @@ function chooseImages(found) {
   return [...themes, ...picked].slice(0, MAX_IMAGES);
 }
 
+// ---- Combinations: two images that mean something together ("A snake in your bed") ----
+
+const MAX_TOGETHER = 1;
+const comboCache = new Map(); // key → combination text, or null when not found
+
+async function loadCombo(key) {
+  if (comboCache.has(key)) return comboCache.get(key);
+  let c = null;
+  try {
+    const res = await fetch(`${API_BASE}/library/combo?key=${encodeURIComponent(key)}`, { credentials: 'omit' });
+    if (res.ok) c = (await res.json()).combo || null;
+  } catch {}
+  if (c || navigator.onLine !== false) comboCache.set(key, c); // offline: try again next time
+  return c;
+}
+
+/**
+ * The combinations in a dream: pairs of its images that the library explains together, when both are in the same or
+ * the next sentence (a house in the first scene and a snake in the last are not "a snake in your house").
+ * Earliest first, at most MAX_TOGETHER: [{ key, names, title, meaning, ask, editorial }]. Like situations, they are
+ * asked on the dream page (the pair may be near each other without the snake being IN the bed): see togetherAnswer.
+ */
+async function togetherIn(found, cased, idx) {
+  if (!idx.pairs || !idx.pairs.size) return [];
+  const sent = (s) => (cased ? cased[s].sentence : 0);
+  const at = found.map((f) => new Set((f.spans || []).map(([s]) => sent(s))));
+  const hits = [];
+  for (let i = 0; i < found.length; i += 1) {
+    for (let j = i + 1; j < found.length; j += 1) {
+      const key = idx.pairs.get([found[i].name, found[j].name].sort().join('|'));
+      if (!key) continue;
+      let first = Infinity;
+      for (const a of at[i]) for (const b of at[j]) if (Math.abs(a - b) <= 1) first = Math.min(first, a, b);
+      if (first < Infinity) hits.push({ key, first });
+    }
+  }
+  hits.sort((x, y) => x.first - y.first);
+  const out = [];
+  for (const h of hits) {
+    if (out.length >= MAX_TOGETHER) break;
+    const c = await loadCombo(h.key);
+    if (c && c.meaning) out.push({ key: h.key, names: c.names || [], title: c.title || '', meaning: c.meaning, ask: c.ask || [], editorial: Boolean(c.editorial) });
+  }
+  return out;
+}
+
 /**
  * The reading for a dream: { status: 'ok', images: [{ name, kind, meaning, situations, ask, isNew, history }],
  * questions } · { status: 'empty' } (no library image found) · { status: 'offline' } (word list unavailable).
  * situations are the lines that may fit, best first, to ask the dreamer about (see answerOf / confirmed).
+ * together: the combinations of two of its images that the library explains (see togetherIn).
  */
 export async function readDream(dream) {
   const text = dreamText(dream);
@@ -403,6 +452,7 @@ export async function readDream(dream) {
     };
   }).filter((im) => im.meaning);
   if (!images.length) return { status: 'offline' };
+  const together = await togetherIn(found, cased, idx);
 
   // Up to 3 questions, the main image's first.
   const questions = [];
@@ -412,7 +462,7 @@ export async function readDream(dream) {
       if (q && !questions.includes(q) && questions.length < 3) questions.push(q);
     }
   }
-  const out = { status: 'ok', images, questions };
+  const out = { status: 'ok', images, questions, together };
   cache.set(key, out);
   return out;
 }
@@ -421,6 +471,8 @@ export async function readDream(dream) {
 export const answerKey = (im, s) => `${im.id}|${s.when}`;
 /** 'yes', 'no' or '' (not asked yet) for one situation of one image. */
 export const answerOf = (dream, im, s) => (dream?.answers || {})[answerKey(im, s)] || '';
+/** The dreamer's answer for a combination of two images: 'yes', 'no' or ''. */
+export const togetherAnswer = (dream, t) => (dream?.answers || {})[`together|${t.key}`] || '';
 /** The situations of an image that the dreamer said were in the dream. */
 export const confirmed = (dream, im) => (im.situations || []).filter((s) => answerOf(dream, im, s) === 'yes');
 

@@ -4,7 +4,7 @@
 // shows it with the same card. Instant, free, and the dream text never leaves the phone (reader.js downloads only
 // the library's word list and the meanings it needs). No predictions, no diagnosis: the library's answers already
 // follow those rules; the care lines below are added for sensitive images.
-import { readDream, sentences, confirmed } from './reader.js';
+import { readDream, sentences, confirmed, togetherAnswer } from './reader.js';
 import { coreOf, feelingsOf, moodOf } from './periodreader.js';
 import { dreamType } from './symbols.js';
 
@@ -100,10 +100,13 @@ export async function interpretFromLibrary(dream) {
     : sentences(main.meaning, 1);
   if (others.length) essence += ` ${upper(listOf(others))} ${others.length === 1 ? 'adds' : 'add'} to the picture.`;
   if (essence.length > 300) essence = sentences(essence, 1);
+  // A combination of two of its images ("A snake in your bed") the dreamer confirmed says something about this dream.
+  const together = (r.together || []).find((x) => togetherAnswer(dream, x) === 'yes'); // only a pair the dreamer confirmed
+  if (together?.title && together.meaning) essence += ` ${together.title}: ${lower(sentences(together.meaning, 1))}`;
 
   const ids = images.map((im) => im.id).filter(Boolean);
   const care = careFor(dream, ids);
-  const usedEditorial = [...themes, ...symbols].some((im) => confirmed(dream, im)[0]?.editorial);
+  const usedEditorial = [...themes, ...symbols].some((im) => confirmed(dream, im)[0]?.editorial) || Boolean(together?.editorial);
   return {
     essence,
     symbols: symbols.map((im) => ({ name: im.name, meaning: tailored(im, dream, im === main ? 2 : 1), entry: im.id })),
@@ -112,6 +115,6 @@ export async function interpretFromLibrary(dream) {
     reflect: (r.questions || []).slice(0, 3),
     ...(care ? { care } : {}),
     basedOn: [...new Set(ids)],
-    disclaimer: usedEditorial ? `${DISCLAIMER} Some lines about your dream's situation are Dreaming editorial, written by our team.` : DISCLAIMER,
+    disclaimer: usedEditorial ? `${DISCLAIMER} Some lines about your dream's situation or its images together are Dreaming editorial, written by our team.` : DISCLAIMER,
   };
 }
