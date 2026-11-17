@@ -1,7 +1,12 @@
 {
-  "version": 59,
+  "version": 60,
   "updated": "2026-11-17",
   "notes": [
+    {
+      "version": 60,
+      "date": "2026-11-17",
+      "text": "Your dream reading now asks you instead of guessing. Under an image you may see \"Was it like this in your dream?\" with a short description, for example \"Sharks circle you.\" Tap Yes and the reading tells you what that means in your dream; tap No and it moves on. Your answers stay on your phone with the dream, and Analyze uses only what you said Yes to."
+    },
     {
       "version": 59,
       "date": "2026-11-17",

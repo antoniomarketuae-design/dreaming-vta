@@ -12,6 +12,7 @@ const INDEX_KEY = 'dreaming.libindex.v1'; // its own key: too big for settings (
 const DAY = 86400000;
 const MAX_IMAGES = 5;
 const MAX_THEMES = 2;
+const MAX_ASKS = 3; // situations per image that may be asked about, one at a time
 // Words that name a symbol only by accident in most dreams ("I was back home", "a friend of mine", "the sun rose").
 const AMBIGUOUS = new Set(['back', 'face', 'play', 'present', 'mine', 'note', 'flat', 'rose', 'store', 'cross', 'racket', 'watch', 'kid', 'like', 'well', 'left', 'right', 'head']);
 // Kinds of entries whose words are often verbs, so "flooding" / "chased" may stand for "flood" / "chase".
@@ -262,7 +263,8 @@ function fit(when, ctx, own = new Set(), strict = false) {
   const toks = [...new Set(norm(when).split(' ').filter((w) => w.length > 2 && !STOP.has(w)).map(stem))]
     .filter((t) => !own.has(t) && !GENERIC.has(t));
   if (!toks.length) return 0;
-  const hits = toks.filter((t) => [...(ctx.at.get(t) || [])].some((s) => ctx.imageSentences.has(s)));
+  // imageSentences null: the word may be anywhere in the dream
+  const hits = toks.filter((t) => [...(ctx.at.get(t) || [])].some((s) => !ctx.imageSentences || ctx.imageSentences.has(s)));
   if (!hits.length || (hits.length === 1 && ctx.imageWords.has(hits[0]))) return 0;
   if (strict && hits.length < 2 && toks.length > 1) return 0;
   return hits.length / toks.length;
@@ -340,6 +342,7 @@ function chooseImages(found) {
 /**
  * The reading for a dream: { status: 'ok', images: [{ name, kind, meaning, situations, ask, isNew, history }],
  * questions } · { status: 'empty' } (no library image found) · { status: 'offline' } (word list unavailable).
+ * situations are the lines that may fit, best first, to ask the dreamer about (see answerOf / confirmed).
  */
 export async function readDream(dream) {
   const text = dreamText(dream);
@@ -376,15 +379,17 @@ export async function readDream(dream) {
     const a = isNew ? entry.answer : { meaning: entry.summary || '', depends: entry.contexts || [], ask: entry.questions || [] };
     const own = stemsOf([entry.name, f.name, ...(f.terms || [])].join(' '));
     const ctx = { at, imageWords, imageSentences: new Set((f.spans || []).map(([s]) => (cased ? cased[s].sentence : 0))) };
-    // Researched situations first; the editorial ones (answer.more, "Dreaming editorial") only when none of them fits.
-    const best = (list, strict = false) => (Array.isArray(list) ? list : [])
-      .map((d) => ({ d, s: fit(d.when, ctx, own, strict) }))
-      .filter((x) => x.s >= 0.5)
-      .sort((x, y) => y.s - x.s)
-      .slice(0, 2)
+    const anywhere = { ...ctx, imageSentences: null };
+    // The situations that may fit, asked as questions on the dream page ("Was it like this in your dream?"), so a near
+    // miss costs nothing: a line may fit when its words are anywhere in the dream; lines whose words share a sentence
+    // with the image come first. Researched lines before the editorial ones (answer.more, "Dreaming editorial").
+    const rank = (list, strict) => (Array.isArray(list) ? list : [])
+      .map((d) => ({ d, near: fit(d.when, ctx, own, strict), any: fit(d.when, anywhere, own, strict) }))
+      .filter((x) => x.any >= 0.5)
+      .sort((x, y) => (Number(y.near >= 0.5) - Number(x.near >= 0.5)) || (y.any - x.any))
       .map((x) => x.d);
-    let situations = best(a.depends);
-    if (!situations.length && isNew) situations = best(a.more, true).slice(0, 1).map((d) => ({ ...d, editorial: true }));
+    const situations = [...rank(a.depends, false), ...(isNew ? rank(a.more, true).map((d) => ({ ...d, editorial: true })) : [])]
+      .slice(0, MAX_ASKS);
     return {
       id: entry.id || f.name,
       name: entry.name || f.name,
@@ -411,6 +416,13 @@ export async function readDream(dream) {
   cache.set(key, out);
   return out;
 }
+
+// The dreamer's answers to "Was it like this in your dream?", kept on the dream: dream.answers = { key: 'yes' | 'no' }.
+export const answerKey = (im, s) => `${im.id}|${s.when}`;
+/** 'yes', 'no' or '' (not asked yet) for one situation of one image. */
+export const answerOf = (dream, im, s) => (dream?.answers || {})[answerKey(im, s)] || '';
+/** The situations of an image that the dreamer said were in the dream. */
+export const confirmed = (dream, im) => (im.situations || []).filter((s) => answerOf(dream, im, s) === 'yes');
 
 /** The first n sentences of a paragraph. */
 export function sentences(text, n) {

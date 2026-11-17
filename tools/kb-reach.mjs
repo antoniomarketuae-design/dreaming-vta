@@ -261,15 +261,16 @@ function fit(when, ctx, own = new Set(), strict = false) {
   const toks = [...new Set(norm(when).split(' ').filter((w) => w.length > 2 && !SIT_STOP.has(w)).map(sitStem))]
     .filter((t) => !own.has(t) && !GENERIC.has(t));
   if (!toks.length) return 0;
-  const hits = toks.filter((t) => [...(ctx.at.get(t) || [])].some((s) => ctx.imageSentences.has(s)));
+  // imageSentences null: the word may be anywhere in the dream
+  const hits = toks.filter((t) => [...(ctx.at.get(t) || [])].some((s) => !ctx.imageSentences || ctx.imageSentences.has(s)));
   if (!hits.length || (hits.length === 1 && ctx.imageWords.has(hits[0]))) return 0;
   if (strict && hits.length < 2 && toks.length > 1) return 0;
   return hits.length / toks.length;
 }
 
 /**
- * The reading the phone shows for a dream (app/js/reader.js readDream): images by chooseImages(), each with up to 2
- * researched situations, or else 1 editorial one (editorial: true).
+ * The reading the phone shows for a dream (app/js/reader.js readDream): images by chooseImages(), each with up to 3
+ * situations that may fit (asked as questions on the dream page): researched first, then editorial (editorial: true).
  */
 export function readingOf(text, idx, byId) {
   const { images: found, words } = findImages(text, idx);
@@ -283,11 +284,13 @@ export function readingOf(text, idx, byId) {
     if (!e?.answer?.meaning) continue;
     const own = stemsOf([e.name, f.name, ...(f.terms || [])].join(' '));
     const ctx = { at, imageWords, imageSentences: new Set(f.spans.map(([s]) => (cased ? cased[s].sentence : 0))) };
-    const best = (list, strict = false) => (Array.isArray(list) ? list : [])
-      .map((d) => ({ d, v: fit(d.when, ctx, own, strict) }))
-      .filter((x) => x.v >= 0.5).sort((x, y) => y.v - x.v).slice(0, 2).map((x) => x.d);
-    let situations = best(e.answer.depends);
-    if (!situations.length) situations = best(e.answer.more, true).slice(0, 1).map((d) => ({ ...d, editorial: true }));
+    const anywhere = { ...ctx, imageSentences: null };
+    const rank = (list, strict) => (Array.isArray(list) ? list : [])
+      .map((d) => ({ d, near: fit(d.when, ctx, own, strict), any: fit(d.when, anywhere, own, strict) }))
+      .filter((x) => x.any >= 0.5)
+      .sort((x, y) => (Number(y.near >= 0.5) - Number(x.near >= 0.5)) || (y.any - x.any))
+      .map((x) => x.d);
+    const situations = [...rank(e.answer.depends, false), ...rank(e.answer.more, true).map((d) => ({ ...d, editorial: true }))].slice(0, 3);
     images.push({ f, e, situations });
   }
   return { images, notShown: found.filter((f) => !chosen.includes(f)) };

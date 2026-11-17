@@ -33,7 +33,7 @@ import {
   videoElapsed, videoWaitText, openVideoPlayer,
 } from '../videos.js';
 import { openVideoPicker } from '../videopicker.js';
-import { readDream, sentences } from '../reader.js';
+import { readDream, sentences, answerKey, answerOf, confirmed } from '../reader.js';
 import { openSymbolSheet } from './b/symbolsheet.js';
 
 const STOP = new Set('that this with from have were they them then there their what when where which while would could should about after again also been before being because into just like more most much only other over some such than very will your yours mine ours really thing things something nothing everything maybe still back down even ever every here know made make many might never next once same seem seemed take took went going gone came come into onto upon under felt feel feeling dream dreamed dreamt dreaming woke wake today yesterday night morning evening'.split(' '));
@@ -721,12 +721,33 @@ export default {
       return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
     };
 
-    function readingHTML(r) {
+    // Situations are asked, not claimed (owner, 2026-11-17): word matching alone is right about half the time, so the
+    // reading asks "Was it like this in your dream?" one line at a time, for the first images, and shows the meaning
+    // only after a Yes. The answers stay on this phone with the dream (dream.answers) and Analyze uses them.
+    const ASK_IMAGES = 3;
+    const sentenceCase = (s) => { const t = String(s || '').trim().replace(/[.\s]+$/, ''); return t ? `${t[0].toUpperCase()}${t.slice(1)}.` : ''; };
+
+    function readingHTML(r, dream) {
       if (r.status === 'offline') return '<p class="dream-reading-wait">Your reading needs an internet connection the first time. Open this dream again when you are online.</p>';
       if (r.status === 'empty') return '<p class="dream-reading-wait">We did not find images from our dream library in this dream yet. Add more detail (the people, places, animals and what happened) and your reading appears here.</p>';
       const [main, ...rest] = r.images;
       const chip = (im) => `<button type="button" class="dream-reading-chip" data-act="reading-symbol" data-name="${esc(im.name)}">${esc(im.name)}</button>`;
-      const here = (im) => im.situations.map((s) => `<p class="dream-reading-here"><b>In your dream: ${esc(lower(String(s.when || '')))}.</b> ${esc(s.meaning)}${s.editorial ? ' <span class="dream-reading-ed">Dreaming editorial</span>' : ''}</p>`).join('');
+      const here = (im, i) => {
+        const yes = confirmed(dream, im);
+        if (yes.length) return yes.map((s) => `<p class="dream-reading-here"><b>In your dream: ${esc(lower(String(s.when || '')))}.</b> ${esc(s.meaning)}${s.editorial ? ' <span class="dream-reading-ed">Dreaming editorial</span>' : ''}</p>`).join('');
+        const next = i < ASK_IMAGES && im.situations.find((s) => !answerOf(dream, im, s));
+        if (!next) return '';
+        const key = esc(answerKey(im, next));
+        return `
+          <div class="dream-reading-ask">
+            <p class="dream-reading-q">Was it like this in your dream?</p>
+            <p class="dream-reading-line">${esc(sentenceCase(next.when))}</p>
+            <div class="dream-reading-yn">
+              <button type="button" class="dream-reading-yes" data-act="sit-answer" data-answer="yes" data-key="${key}">Yes</button>
+              <button type="button" class="dream-reading-no" data-act="sit-answer" data-answer="no" data-key="${key}">No</button>
+            </div>
+          </div>`;
+      };
       const thread = rest.length
         ? `<p class="dream-reading-thread">The main thread is <b>${esc(lower(main.name))}</b>; ${esc(names(rest.map((im) => lower(im.name))))} ${rest.length === 1 ? 'adds' : 'add'} to it.</p>`
         : '';
@@ -737,13 +758,13 @@ export default {
         <div class="dream-reading-part">
           <h3 class="dream-reading-name">${esc(main.name)}</h3>
           <p>${esc(sentences(main.meaning, 3))}</p>
-          ${here(main)}
+          ${here(main, 0)}
         </div>
-        ${rest.map((im) => `
+        ${rest.map((im, i) => `
           <div class="dream-reading-part">
             <h3 class="dream-reading-name">${esc(im.name)}</h3>
             <p>${esc(sentences(im.meaning, 2))}</p>
-            ${here(im)}
+            ${here(im, i + 1)}
           </div>`).join('')}
         ${mine ? `<ul class="dream-reading-mine">${mine}</ul>` : ''}
         ${r.questions.length ? `<h3 class="dream-reading-name">Ask yourself</h3><ul class="dream-reading-qs">${r.questions.map((q) => `<li>${esc(q)}</li>`).join('')}</ul>` : ''}
@@ -758,9 +779,18 @@ export default {
       let r;
       try { r = await readDream(dream); } catch { r = { status: 'offline' }; }
       if (token !== readingToken || !host.isConnected) return;
-      host.querySelector('.dream-reading-wait')?.remove();
-      host.insertAdjacentHTML('beforeend', readingHTML(r));
+      for (const n of [...host.children]) if (!n.classList.contains('dream-reading-label')) n.remove();
+      host.insertAdjacentHTML('beforeend', readingHTML(r, dream));
       host.setAttribute('aria-busy', 'false');
+    }
+
+    /** Saves the answer to "Was it like this in your dream?" and redraws the reading (the reading itself is cached). */
+    function answerSituation(key, answer) {
+      const dream = getDream(id);
+      if (!dream || !key) return;
+      updateDream(id, { answers: { ...(dream.answers || {}), [key]: answer } });
+      const panel = root.querySelector('[data-reading]')?.parentElement;
+      if (panel) paintReading(panel, getDream(id)).then(() => root.querySelector('.dream-reading-ask button, .dream-reading-here')?.focus?.());
     }
 
     // ---- New layout: dream type (a square of four tiles) and the day before ----
@@ -1314,6 +1344,7 @@ export default {
       else if (act === 'edit') ctx.navigate(`#record/edit/${encodeURIComponent(id)}`);
       else if (act === 'more') ctx.navigate(`#record/edit/${encodeURIComponent(id)}/more`);
       else if (act === 'reading-symbol') openSymbolSheet({ name: target.dataset.name });
+      else if (act === 'sit-answer') answerSituation(target.dataset.key, target.dataset.answer === 'yes' ? 'yes' : 'no');
       else if (act === 'tab') selectTab(target.dataset.tab || 'story');
       else if (act === 'type') chooseType(target.dataset.type);
       else if (act === 'day-edit') { editingDay = true; paintPanels(); root.querySelector('[data-day-input]')?.focus(); }
