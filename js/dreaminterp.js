@@ -100,6 +100,7 @@ export async function interpretFromLibrary(dream) {
 
   const ids = images.map((im) => im.id).filter(Boolean);
   const care = careFor(dream, ids);
+  const usedEditorial = [...themes, ...symbols].some((im) => im.situations?.[0]?.editorial);
   return {
     essence,
     symbols: symbols.map((im) => ({ name: im.name, meaning: tailored(im, im === main ? 2 : 1), entry: im.id })),
@@ -108,6 +109,6 @@ export async function interpretFromLibrary(dream) {
     reflect: (r.questions || []).slice(0, 3),
     ...(care ? { care } : {}),
     basedOn: [...new Set(ids)],
-    disclaimer: DISCLAIMER,
+    disclaimer: usedEditorial ? `${DISCLAIMER} Some lines about your dream's situation are Dreaming editorial, written by our team.` : DISCLAIMER,
   };
 }
