@@ -31,6 +31,7 @@ let byId = new Map();
 let sources = new Map(); // source key → { title, author, year, kind, culture } (library/sources.json, the register)
 let indexCache = null;    // the word list for the phone's Dream Reader (built once per load)
 let byTerm = new Map(); // normalised name / alias / signal → entry (symbols win over themes for the same term)
+let combos = new Map(); // "idA+idB" → combination (library/combos/*.json): two images that mean something together
 
 /** Loads every entry from `dir`. Returns how many were loaded (0 when the folder is missing). */
 export function loadLibrary(dir) {
@@ -55,6 +56,18 @@ export function loadLibrary(dir) {
     const reg = JSON.parse(readFileSync(join(dir, 'sources.json'), 'utf8'));
     for (const s of Array.isArray(reg) ? reg : []) if (s && s.key) sources.set(s.key, s);
   } catch {}
+  combos = new Map();
+  const comboDir = join(dir, 'combos');
+  if (existsSync(comboDir)) {
+    for (const file of readdirSync(comboDir).filter((f) => f.endsWith('.json'))) {
+      try {
+        const c = JSON.parse(readFileSync(join(comboDir, file), 'utf8'));
+        if (c && c.key && Array.isArray(c.pair) && c.pair.every((id) => byId.has(id)) && str(c.meaning)) combos.set(c.key, c);
+      } catch (err) {
+        console.error(`library: skipped combos/${file}: ${err.message}`);
+      }
+    }
+  }
   byTerm = new Map();
   // Themes first, then symbols, so a symbol's own name or alias replaces a theme's signal of the same words.
   for (const e of [...list.filter((x) => x.kind === 'theme'), ...list.filter((x) => x.kind !== 'theme')]) {
@@ -72,7 +85,8 @@ export const librarySize = () => entries.length;
 
 /**
  * The word list the phone uses to find library symbols in a dream itself (the dream never leaves the phone):
- * { v, items: [[name, 't' | 's', [normalised terms…], category]] }. Only names and matching words, no meanings.
+ * { v, items: [[name, 't' | 's', [normalised terms…], category]], pairs: [[nameA, nameB, key]] }. Only names and
+ * matching words, no meanings; pairs are the combinations (their text comes from GET /library/combo?key=).
  */
 export function libraryIndex() {
   if (indexCache) return indexCache;
@@ -82,8 +96,9 @@ export function libraryIndex() {
     [...new Set([e.name, ...(e.aliases || []), ...(e.signals || [])].map(norm).filter((t) => t && t.length > 1))],
     e.kind === 'theme' ? 'theme' : String(e.category || e.id.split('.')[0] || ''),
   ]);
-  const v = createHash('sha256').update(JSON.stringify(items)).digest('hex').slice(0, 12);
-  indexCache = { v, items };
+  const pairs = [...combos.values()].map((c) => [byId.get(c.pair[0]).name, byId.get(c.pair[1]).name, c.key]);
+  const v = createHash('sha256').update(JSON.stringify([items, pairs])).digest('hex').slice(0, 12);
+  indexCache = { v, items, pairs };
   return indexCache;
 }
 
@@ -133,6 +148,22 @@ function answerView(a) {
     confidence: ['high', 'medium', 'low'].includes(a.confidence) ? a.confidence : null,
     sources: used.map(sourceView).filter(Boolean),
     sourceCount: used.length,
+  };
+}
+
+/** What a phone gets for one combination ("animal.snake+place.house"), or null. */
+export function publicCombo(key) {
+  const c = combos.get(String(key || ''));
+  if (!c) return null;
+  const used = (Array.isArray(c.basedOn) ? c.basedOn : []).map(str).filter(Boolean);
+  return {
+    key: c.key,
+    names: c.pair.map((id) => byId.get(id)?.name || ''),
+    title: str(c.title),
+    meaning: str(c.meaning),
+    ask: (Array.isArray(c.ask) ? c.ask : []).map(str).filter(Boolean),
+    editorial: Boolean(c.editorial),
+    sources: used.map(sourceView).filter(Boolean),
   };
 }
 

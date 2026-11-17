@@ -12,7 +12,7 @@ import pg from 'pg';
 import { buildPrompt, generateImage } from './images.js';
 import { buildVideoPrompt, generateVideo, generateFilm, splitScenes } from './videos.js';
 import { publicVideoOptions, wordCount, maxSeconds, videoCost, estimateMinutes, isLength, clipsFor } from './video-options.js';
-import { loadLibrary, librarySize, findEntry, publicEntry, libraryIndex } from './library.js';
+import { loadLibrary, librarySize, findEntry, publicEntry, publicCombo, libraryIndex } from './library.js';
 import { DASH_SCHEMA, createDashboard } from './dashboard.js';
 
 try { process.loadEnvFile(fileURLToPath(new URL('./.env', import.meta.url))); } catch {}
@@ -413,6 +413,17 @@ async function handle(req, res) {
     ).catch(() => {});
     if (!e) return send(404, { ok: false, error: 'not_found' });
     return send(200, { ok: true, entry: publicEntry(e) });
+  }
+
+  // One combination of two images (public, no account needed): ?key=animal.snake+place.house
+  if (req.method === 'GET' && url.pathname === '/library/combo') {
+    if (limited(`library:${ip}`, 600, 3600000)) throw httpError(429, 'Too many requests. Please wait a while.');
+    const key = String(url.searchParams.get('key') || '').slice(0, 120).replace(/ /g, '+'); // '+' arrives as a space when not encoded
+    if (!key.trim()) throw httpError(400, 'Which combination?');
+    if (!librarySize()) throw httpError(503, 'The library is not available right now.');
+    const c = publicCombo(key);
+    if (!c) return send(404, { ok: false, error: 'not_found' });
+    return send(200, { ok: true, combo: c });
   }
 
   // A phone registers once and keeps its id + secret token.

@@ -60,7 +60,7 @@ const BLOCK = new Set(['falling asleep', 'fell asleep', 'fall asleep', 'falls as
   'feet high', 'feet away', 'feet long', 'foot long', 'feet deep', 'head office', 'needed a hand', 'need a hand',
   'give me a hand', 'gave me a hand', 'on the other hand', 'out of hand', 'on the clock', 'clock in', 'clocked in',
   'train of thought', 'time flies', 'time flew', 'does', 'only one', 'guinea pig', 'red bull', 'blood pressure',
-  'times table', 'multiplication table', 'table mountain', 'tasmanian devil']);
+  'times table', 'multiplication table', 'table mountain', 'tasmanian devil', 'rocking', 'rocked']);
 // The end of a dream ("…then I woke up and my husband was snoring"): what comes after it in the second half of the
 // text happened awake, so it is not part of the dream.
 const WOKE = /\b(then i woke|and i woke|and woke up|i woke up and|woke up to|when i woke|after i woke|after waking|woke up (sweating|crying|screaming|laughing|shaking)|in real life|irl|writing this)\b/;
@@ -457,6 +457,31 @@ if (/[\\/]kb-reach\.mjs$/.test(process.argv[1] || '')) { // run as a command, no
   } else {
     console.log(JSON.stringify(summary(loadCorpus(corpusFiles(args)), idx), null, 1));
   }
+}
+
+/**
+ * Combinations in a dream, as app/js/reader.js finds them: two images whose mentions are in the same or the next
+ * sentence. combos: Map(key "idA+idB" (sorted) → combo). Returns [{ key, ids, excerpt }], earliest first;
+ * opts.all: every such pair, whether or not it is a combination (for mining).
+ */
+export function combosIn(text, idx, combos, opts = {}) {
+  const { images: found, words } = findImages(text, idx);
+  const cased = casedWords(text, words.length);
+  const sent = (s) => (cased ? cased[s].sentence : 0);
+  const sentencesOfImage = found.map((f) => new Set(f.spans.map(([s]) => sent(s))));
+  const out = [];
+  for (let i = 0; i < found.length; i += 1) {
+    for (let j = i + 1; j < found.length; j += 1) {
+      const key = [found[i].id, found[j].id].sort().join('+');
+      if (!opts.all && !combos.has(key)) continue;
+      let at = Infinity;
+      for (const a of sentencesOfImage[i]) for (const b of sentencesOfImage[j]) if (Math.abs(a - b) <= 1) at = Math.min(at, a, b);
+      if (at === Infinity) continue;
+      const excerpt = words.filter((w, k) => { const s = sent(k); return s >= at && s <= at + 1; }).join(' ').slice(0, 220);
+      out.push({ key, ids: key.split('+'), at, excerpt });
+    }
+  }
+  return out.sort((x, y) => x.at - y.at);
 }
 
 // For the factory analysis (tools/kb-factory.mjs and scratch scripts): the same word handling the phone uses.

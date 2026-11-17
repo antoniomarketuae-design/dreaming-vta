@@ -33,7 +33,7 @@ import {
   videoElapsed, videoWaitText, openVideoPlayer,
 } from '../videos.js';
 import { openVideoPicker } from '../videopicker.js';
-import { readDream, sentences, answerKey, answerOf, confirmed } from '../reader.js';
+import { readDream, sentences, answerKey, answerOf, confirmed, togetherAnswer } from '../reader.js';
 import { openSymbolSheet } from './b/symbolsheet.js';
 
 const STOP = new Set('that this with from have were they them then there their what when where which while would could should about after again also been before being because into just like more most much only other over some such than very will your yours mine ours really thing things something nothing everything maybe still back down even ever every here know made make many might never next once same seem seemed take took went going gone came come into onto upon under felt feel feeling dream dreamed dreamt dreaming woke wake today yesterday night morning evening'.split(' '));
@@ -748,6 +748,31 @@ export default {
             </div>
           </div>`;
       };
+      // Two images together ("A snake in your bed"): asked like the situations, the meaning shown after a Yes.
+      const togetherHTML = (t) => {
+        const ans = togetherAnswer(dream, t);
+        if (ans === 'no') return '';
+        const ed = t.editorial ? ' <span class="dream-reading-ed">Dreaming editorial</span>' : '';
+        if (ans === 'yes') return `
+          <div class="dream-reading-part dream-reading-together">
+            <h3 class="dream-reading-name">Together</h3>
+            <p><b>${esc(t.title)}.</b> ${esc(t.meaning)}${ed}</p>
+            ${t.ask[0] ? `<p class="dream-reading-together-ask">${esc(t.ask[0])}</p>` : ''}
+          </div>`;
+        const key = esc(`together|${t.key}`);
+        return `
+          <div class="dream-reading-part">
+            <h3 class="dream-reading-name">Together</h3>
+            <div class="dream-reading-ask">
+              <p class="dream-reading-q">Was it like this in your dream?</p>
+              <p class="dream-reading-line">${esc(t.title)}.</p>
+              <div class="dream-reading-yn">
+                <button type="button" class="dream-reading-yes" data-act="sit-answer" data-answer="yes" data-key="${key}">Yes</button>
+                <button type="button" class="dream-reading-no" data-act="sit-answer" data-answer="no" data-key="${key}">No</button>
+              </div>
+            </div>
+          </div>`;
+      };
       const thread = rest.length
         ? `<p class="dream-reading-thread">The main thread is <b>${esc(lower(main.name))}</b>; ${esc(names(rest.map((im) => lower(im.name))))} ${rest.length === 1 ? 'adds' : 'add'} to it.</p>`
         : '';
@@ -766,6 +791,7 @@ export default {
             <p>${esc(sentences(im.meaning, 2))}</p>
             ${here(im, i + 1)}
           </div>`).join('')}
+        ${(r.together || []).map((t) => togetherHTML(t)).join('')}
         ${mine ? `<ul class="dream-reading-mine">${mine}</ul>` : ''}
         ${r.questions.length ? `<h3 class="dream-reading-name">Ask yourself</h3><ul class="dream-reading-qs">${r.questions.map((q) => `<li>${esc(q)}</li>`).join('')}</ul>` : ''}
         <p class="dream-reading-foot">From Dreaming's dream library. Tap an image for its full meaning.</p>`;
