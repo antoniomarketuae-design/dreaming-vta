@@ -2,6 +2,7 @@
 // safely: proposals never touch the library directly; this tool filters them and keeps a log so a round can be undone.
 //   node tools/kb-aliases.mjs batches [size]       write kb/plan/alias-batches/aNN.json (entries to cover)
 //   node tools/kb-aliases.mjs apply [--dry]        merge kb/plan/alias-proposals/*.json into the entries
+//                                                  (move a round's files into alias-proposals/applied/ afterwards)
 //   node tools/kb-aliases.mjs undo <log.json>      remove the words a round added
 // A proposal file is a JSON array of { "id": "<entry id>", "add": ["word or phrase", …] }.
 // Filters: normalised like the server; 2+ letters; at most 5 words; no everyday words that would fire in any dream;
@@ -39,8 +40,25 @@ const GENERIC = new Set(('a an the i me my you your he she it we they him her us
   + 'always never sometimes often ever dream dreams dreamed dreamt dreaming woke wake waking asleep awake sleep slept '
   + 'there room home house hand hands head eyes face voice body'
 ).split(' ').filter(Boolean));
-// Words the phone already ignores (app/js/reader.js AMBIGUOUS).
-const AMBIGUOUS = new Set(['back', 'face', 'play', 'present', 'mine', 'note', 'flat', 'rose', 'store', 'cross', 'racket', 'watch', 'kid', 'like', 'well', 'left', 'right']);
+// Words the phone ignores and phrases it blocks (app/js/reader.js AMBIGUOUS and BLOCK), read from the app itself.
+const READER = readFileSync(join(import.meta.dirname, '..', 'app', 'js', 'reader.js'), 'utf8');
+const setFrom = (name) => {
+  const a = READER.indexOf(`const ${name} = new Set(`);
+  const b = READER.indexOf(']', a);
+  if (a < 0 || b < 0) throw new Error(`app/js/reader.js: ${name} not found`);
+  return new Set([...READER.slice(a, b).matchAll(/'([^']*)'/g)].map((m) => m[1]));
+};
+const AMBIGUOUS = setFrom('AMBIGUOUS');
+const BLOCKED = setFrom('BLOCK');
+// Words taken out on purpose after judges found them misleading (kb/plan/term-fixes-*.json): never added back.
+const DENIED = new Set();
+for (const f of (existsSync(PLAN) ? readdirSync(PLAN) : []).filter((n) => /^term-fixes-.*\.json$/.test(n))) {
+  for (const r of JSON.parse(readFileSync(join(PLAN, f), 'utf8')).removed || []) DENIED.add(serverNorm(r.term));
+}
+// … and the words moved off wrong entries in the first round (kb/plan/alias-conflict-fixes-*.json: { removed: { id: [words] } }).
+for (const f of (existsSync(PLAN) ? readdirSync(PLAN) : []).filter((n) => /^alias-conflict-fixes-.*.json$/.test(n))) {
+  for (const words of Object.values(JSON.parse(readFileSync(join(PLAN, f), 'utf8')).removed || {})) for (const w of words) DENIED.add(serverNorm(w));
+}
 
 function loadEntries() {
   const out = [];
@@ -79,7 +97,7 @@ function apply(dry) {
   for (const { e } of all) for (const t of termsOf(e)) { const k = serverNorm(t); if (k && !owner.has(k)) owner.set(k, e.id); }
 
   const wanted = new Map(); // new term → Set(entry ids)
-  const drops = { unknownId: 0, tooShort: 0, tooLong: 0, generic: 0, ambiguous: 0, ownedByOther: 0, already: 0 };
+  const drops = { unknownId: 0, tooShort: 0, tooLong: 0, generic: 0, ambiguous: 0, denied: 0, ownedByOther: 0, already: 0 };
   const files = existsSync(PROPOSALS) ? readdirSync(PROPOSALS).filter((n) => n.endsWith('.json')) : [];
   for (const f of files) {
     let data;
@@ -93,7 +111,8 @@ function apply(dry) {
         if (words.length > 5) { drops.tooLong += 1; continue; }
         if (words.length === 1 && GENERIC.has(t)) { drops.generic += 1; continue; }
         if (words.every((w) => GENERIC.has(w))) { drops.generic += 1; continue; }
-        if (AMBIGUOUS.has(t)) { drops.ambiguous += 1; continue; }
+        if (AMBIGUOUS.has(t) || BLOCKED.has(t)) { drops.ambiguous += 1; continue; }
+        if (DENIED.has(t)) { drops.denied += 1; continue; }
         if (owner.has(t)) { if (owner.get(t) === p.id) drops.already += 1; else drops.ownedByOther += 1; continue; }
         if (!wanted.has(t)) wanted.set(t, new Set());
         wanted.get(t).add(p.id);
